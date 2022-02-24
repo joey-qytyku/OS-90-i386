@@ -32,8 +32,6 @@ enum ata_errors {
 ((CHECKVAL &TYPE)!=0)
 // Correct? Yes
 
-
-// There are 6 BARs, but only five are used for ATA
 void init_ata(unsigned short master, unsigned short slave)
 {
 

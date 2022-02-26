@@ -14,3 +14,7 @@ kernel.bin: *.o
 	ld -T kernel.ld *.o
 
 all:kernel.bin
+
+clean:all
+	rm *.o
+

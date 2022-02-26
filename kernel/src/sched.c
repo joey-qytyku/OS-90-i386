@@ -1,8 +1,5 @@
 #include <kerndefs.h>
 
-unsigned long uptime;
-
-
 static volatile enum
 	last_mode = MODE_KERNEL,
 	curr_mode = MODE_KERNEL;
@@ -15,6 +12,10 @@ void set_mode(enum mode m) {
 void current_mode();
 
 void icontx();
+
+void count_dow();
+
+
 
 _interrupt void i8254(void)
 {

@@ -2,45 +2,9 @@
 
 The OS does not use any special abstractions. It is a DOS-inspired OS. The VFS is letter-based. File redirection and standard streams are supported.
 
-# Emulation
+# Boot
 
-QmFX can run on DosBox because it is an i386-compatible emulator that runs DOS programs.
-* Mount C
-* Change disk to C
-* run BOOT.EXE
-
-In the build system-however, qemu is used instead so that PnP/APM and other features can work.
-
-# Bootloader
-
-The OS boots using MSDOS. The OS is contained in a directory which is defined in CONIG2.SYS. This directory can be on the DOS partition or it can be external (latter is recommended). The kernel defines the boot partiton as drive A. Other drives go after that. The bootloader does not read the configuration file
-
-The program is an executable which may be a COM file or EXE. It should be run using the command name LOADER32 from AUTOEXEC.BAT This program will gather informtion, enable the A20 gate, switch to unreal mode, and read the kernel above 1M. PnP can be configured later. The kernel name is KERNEL.BIN and is a flat binary.
-
-To facillitate SMP support through APIC, a region of memory is allocated 4096 bytes long (256 paragraphs) for trampoline code. It does not need to be used for this purpose but is required for booting.
-
-Once the kernel is loaded into memory, the loader jumps to 1M while in real mode and trashes the segment used by unreal mode. The kernel must use its own GDT and IDT. Interrupts are disabled upon entry. The kernel re-enable interrupts while it is in real mode and should do this only in protected mode. The kernel startup file is no larger that 2K. The conventional memory is reserved except for the free 4K.
-
-Exiting the OS to DOS will not be supported. QmFX uses DOS only to facilitate the necessary boot protocols. It may be possible theoretically. A bare metal bootloader could be implemented if it supports the same boot protocol.
-
-## Information structure
-
-The following is the definition of the bootloader information. It is byte aligned.
-
-```
-bootinfo STRUCT
-	bootdsk BYTE	?
-	memconv WORD	?
-	memextn WORD	? ; Number of pages
-	apmpres BYTE	?
-	cs32	WORD	? ; Real mode segment of APM
-	ip32	DWORD	? ; Offset to the APM interface
-	apmds	WORD	? ; Data segment base, 16/32
-	cslen   DWORD	? ; Length16:Length32
-	dslen   WORD	?
-	free4k  WORD	? ; Segment of the allocated data
-bootinfo ENDS
-```
+The kernel is a file that will likely be >64K. The loader should run in the HMA using loadfix. LOADER.COM will open the KERNEL.BIN file and write every 4K page in it to the conventional memory at 0x1000.
 
 # File streams
 
@@ -48,7 +12,7 @@ File redirection is used for the multitasking window environment to allow for vi
 
 # Interrupts and exceptions
 
-The stack is always 4-byte aligned. Upon entry, an interrupt handler will fetch the address of the trap frame. The SS and ESP fields are only valid if a the last context was a user program. A variable keeps track if the current mode: kernel, interrupt, and user. Interrupts are special contexts, but are ring 0 and are not isolated from kernel.
+The stack is aligned to eight upon entry. An interrupt handler will fetch the address of the trap frame. The SS and ESP fields are only valid if a the last context was a user program. A variable keeps track if the current mode: kernel, interrupt, and user. Interrupts are special contexts, but are ring 0 and are not isolated from kernel.
 
 Exceptions can sometimes return an error code.
 

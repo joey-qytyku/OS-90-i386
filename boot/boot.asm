@@ -52,13 +52,13 @@ main:
 	; This MUST be successfully allocated
 	mov	ah, 48h
 	mov	bx, 256
-
 	int	21h
-
 	jnc	successful_alloc
 	jmp	error
 
 successful_alloc:
+	; Save it
+	mov	[bi+bootinfo.free4k], ax
 
 setup_apm:
 	; APM installation check
@@ -92,7 +92,6 @@ noapm:
 
 	; Enable A20 gate through the keyboard
 enA20:	cli
-
 	; SI=64h
 	; DI=60h
 	mov	si, 64h
@@ -136,7 +135,7 @@ enA20:	cli
 	mov	bi+bootinfo.bootdsk, al
 
 	; FCB requires drive letter
-	mov	[kernel_fcb+dos_fcb.], al
+	mov	[kernel_fcb+dos_fcb.drive], al
 
 	int	12h
 	mov	bi.memconv, ax
@@ -144,6 +143,7 @@ enA20:	cli
 	; Get extended memory size (including HMA)
 	mov	ah, 88h
 	int	15h
+
 	; AX=1K blocks, change to pages for convenience
 	shl	ax, 2
 	mov	[bi.memextn], ax
@@ -153,19 +153,30 @@ enA20:	cli
 	mov	dx, OFFSET kernel_fcb
 	int	21h
 
-	;
+	; Allocate a 4K buffer for the kernel
+	mov	ah, 48h
+	mov	bx, 4096
+	int	21h
 
-	; Get the file size of the kernel image
+	; Enter unreal mode to extend GS
+	; First, I must get the linear address of the GDT
+	mov	ax, @DATA
+	shr	eax, 4
+	add	eax, OFFSET gdt
+	mov	[gdtr+2], eax
+	lgdt	[]
 
-	; How many 64k blocks
+	; Kernel is copied page-by-page (4k)
 
-	; How large is the final block, store it somewhere
-
-	; Allocate a buffer to copy kernel
-	; Copy the buffer to high memory
+; The algo
+	; Read 4k
+	; Increase file offset 4K
+	; Cannot seek anymore? We are done
+; The end
 
 
 	; Deallocate the buffer once it is loaded
+
 
 	;######################
 	;# Configure the FPU  #
@@ -255,15 +266,29 @@ CODE	ENDS
 
 DATA	SEGMENT
 
-error_msg	DB	"BOOTLOADER ERROR!",0Ah,0Dh
+error_msg	DB	"BOOTLOADER ERROR!",10,13
 kernel_name DB	"KERNEL.BIN", 0
 
 bi	DB	0 DUP(SIZEOF bootinfo)
 
 fpu_def	DW	37A
 
-dos_fcb kernel_fcb
+kernel_fcb	DB	0 DUP(SIZEOF dos_fcb)
 
+	; Alignment is recommended by Intel(R)
+	ALIGN	8
+	; Null segment
+gdt:	DQ	0
+	; 4G data segment
+	DQ	0x008F92000000FFFF
+gdt_end:
+gdtr:
+	DW	gdt_end - gdt - 1
+	DD	gdt_end
+
+
+; When in real mode, DPL seems to have no effect
+; Tested on qemu-system-i386
 DATA	ENDS
 
 END

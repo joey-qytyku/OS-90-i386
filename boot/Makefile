@@ -1,3 +1,2 @@
 all:
-	bwasm boot.asm
-
+	nasm -fbin boot.asm

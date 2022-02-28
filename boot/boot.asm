@@ -36,14 +36,6 @@ dos_fcb	STRUCT
 	resv	QWORD	?
 	currec	BYTE	?
 	rndrec	DWORD	?
-dos_fcb	ENDS
-
-; Code will be 16-bit with 32-bit overrides
-; because model comes before the .386
-.MODEL	tiny
-.386
-
-CODE SEGMENT
 main:
 	mov	ax, @DATA
 	mov	ds, ax
@@ -91,41 +83,6 @@ setup_apm:
 noapm:
 
 	; Enable A20 gate through the keyboard
-enA20:	cli
-	; SI=64h
-	; DI=60h
-	mov	si, 64h
-	mov	di, 60h
-
-	; Command: Disable keyboard
-	mov	al, 0ADh
-	mov	dx, si ; 64h
-	call	write_8042
-
-	; Command: read output port register
-	mov	al, 0D0h
-	mov	dx, si ; 64h
-	call	write_8042
-
-	; Now in 60h, set bit 1
-	call	read_60h_once
-	or	al, 2
-	push	ax
-
-	; Command: write to output port
-	mov	al, 0D1h
-	mov	dx, si
-	call	write_8042
-	pop	ax ; Get ouptut port byte back
-
-	; Send it to 60h
-	mov	dx, di
-	call	write_8042
-
-	; Command: re-enable the keyboard
-	mov	al, 0AEh
-	mov	dx, 64h
-	call	write_8042
 
 	sti
 

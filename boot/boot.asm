@@ -1,7 +1,5 @@
-; Assemble with wasm
-; DOS program
-; MSDOS or the shell cannot be loaded high
-; HIMEM must also not be used, pure 16-bit required
+; OBSOLETE! ;
+
 
 err_alloc = 'A'
 

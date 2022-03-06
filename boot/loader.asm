@@ -87,7 +87,7 @@ load_kernel:
 
 .end:	ret
 
-extend_es:
+extend_segs:
 	; Unreal mode setup
 	xor	ebx,ebx	; Create linear address
 	mov	bx,ds
@@ -96,7 +96,10 @@ extend_es:
 	mov	[gdtr_val+2],ebx
 
 	cli
+	push	ds
+	push	ss
 	push	es
+
 	lgdt	[gdtr_val]
 	mov	eax,cr0
 	inc	ax
@@ -106,12 +109,17 @@ extend_es:
 
 	mov	ax,8h
 	mov	es,ax
+	mov	ds,ax
+	mov	ss,ax
 
 	mov	eax,cr0
 	dec	ax
 	mov	cr0,eax
 
 	pop	es
+	push	ss
+	push	ds
+
 	sti
 	; The extension is permanent until caches are changed again
 	ret
@@ -120,7 +128,6 @@ apm_setup:
 	int	15h
 	ret
 enA20:
-
 	cli
 	mov	si,64h
 	mov	di,60h
@@ -174,7 +181,7 @@ read_60h_once:
 	jnc	read_60h_once
 	ret
 
-;######### DATA ###########
+;########## DATA ##########
 
 ferr_msg:	DB	"File error",10,13,36
 merr_msg:	DB	"Memory error",10,13,36

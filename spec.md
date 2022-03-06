@@ -16,6 +16,12 @@ The stack is aligned to eight upon entry. An interrupt handler will fetch the ad
 
 Exceptions can sometimes return an error code.
 
+# Memory Model
+
+The kernel is loaded at 1M. MS-DOS is used to boot the operating system but there are no dependencies with it. MS-DOS should not be loaded high or it may be overwritten. DOS is "clobbered" by the procedure and the OS cannot exit.
+
+
+
 # Multitasking
 
 Co-operative multitasking is used by the OS. This means that only one program can run at a time, but more than once can be loaded in memory. A program must voluntarily yield to its forker, or it can terminate. A single task running does not block everything.

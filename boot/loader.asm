@@ -1,50 +1,59 @@
-	; Run this as a normal program
-	; Do not load DOS high
+;---------------------------------------------
+; Loader for kuDOS, runs in MS-DOS
+; Can be loadfixed. XMS should be disabled.
+;---------------------------------------------
+; The kernel is loaded "cold turkey", it must
+; handle information gathering on its own
 
-loadat	equ	100000h
+	; Run this as a normal program
+	; Loads higher half kernel at 110000h
+SEEK_END	equ	2
+loadat	equ	110000h
+
 	org	100h
 main:
-	; Is XMS available?
+.check_8086:
+	cli
+	mov	ax,2506h
+	mov	dx,error
+	int	21h
+	sti
+	; 186 was never used for personal computers
+	; If an 80186 instruction is supported, CPU >= 80286
+
+	; Size prefix overrides do not work on the i286
+	; If this fails, then this is probably a 286
+	mov	eax,eax
+
+	; XMS equires at least a 286
 	mov	ax,4300h
 	int	2Fh
-	cmp	al, 80h
-	jne	mem_error
+	cmp	al,80h
+	je	error
+
+	jmp	$
 
 	call	enA20
-	call	setup_apm
-	call	setup_video
-	call	extend_es
 	call	load_kernel
-	jmp	goto_kernel
+	jmp	(11000h>>4):0
 
-file_error:
-	mov	dx,ferr_msg
-	jmp	exit
-mem_error:
-	mov	dx,merr_msg
-
-exit:	mov	ah,9
+error:
+	mov	ah,9
+	mov	dx,.msg
 	int	21h	; Print error message
-	mov	ax,4C00h
-	int	21h
+	int	20h
+.msg:	DB	"Error loading kuDOS. Try: ",10,13
+	DB	0F9h," Disable XMS",10,13
+	DB	0F9h," Check if processor is an i386 or better",10,13,'$'
 
 ;########### Bootstrap routines ############
 
-setup_video:
-	; Switch to 640x480 16 color
-	mov	ax,12h
-	int	10h
-
-goto_kernel:
-	; No return
-
 load_kernel:
-	; Open kernel FCB
 	mov	ah,3Dh
 	xor	al,al	; Read only
 	mov	dx,kernel
 	int	21h
-	jc	file_error
+	jc	error
 	; BX now has file handle
 
 	; Get file size
@@ -52,83 +61,41 @@ load_kernel:
 	xor	al,al ; SEEK_END
 	xor	dx,dx
 	xor	cx,cx
-	jc	file_error
-	; DX:AX now contains the offset realtive to BOF
-	; AKA the file size in this case
-	mov	cx,8000h
-	; DIV.W is actually 32-bit, it uses DX:AX
-	; Furthermore, divisor is 16-bit
-	div	cx
-	; Result is the total number of 4K blocks
-	; Now in AX
+	jc	error
 
-	; BX still has the handle
+	; Set current seek location
+	mov	ah,42h
+	mov	al,SEEK_END
+	xor	cx,cx
+	xor	dx,dx
+	int	21h
+	jc	error
+	mov	[file_size],dx
+	mov	[file_size+2],cx
+	;------------------------------------------------
+	; DX:AX contains the new file pointer
+	; It also represents the size of the kernel image
+	;------------------------------------------------
+	; The algorithm:
+	; If current seek equals file size, return
+	; * Read a page
+	; * Copy to extended memory using INT 15H
+	; * Increase extended memory pointer by 4096
+	;------------------------------------------------
 
-	mov	si,ax
-	xor	di,di
-	mov	dx,buffer
-; I do not
-
-.l:
-	; Add 4096 to file pointer (in DX:CX)
-	mov	ah,3Fh
-	add	cx,4096
-	adc	dx,0
+.load_loop:
+	; Read 4096 bytes from kernel image
 	int	21h
 
-	; Read into the buffer
-
-	; Copy the buffer
-
-	inc	si
-	cmp	si,di
-	jz	.end
-	jmp	.l
-
-.end:	ret
-
-extend_segs:
-	; Unreal mode setup
-	xor	ebx,ebx	; Create linear address
-	mov	bx,ds
-	shl	ebx,4
-	add	ebx,gdt_begin
-	mov	[gdtr_val+2],ebx
-
-	cli
-	push	ds
-	push	ss
-	push	es
-
-	lgdt	[gdtr_val]
-	mov	eax,cr0
-	inc	ax
-
-	mov	cr0,eax
-	jmp	$+2
-
-	mov	ax,8h
-	mov	es,ax
-	mov	ds,ax
-	mov	ss,ax
-
-	mov	eax,cr0
-	dec	ax
-	mov	cr0,eax
-
-	pop	es
-	push	ss
-	push	ds
-
-	sti
-	; The extension is permanent until caches are changed again
 	ret
 
-apm_setup:
-	int	15h
+generate_ptab:
+	; Generate page table
+
+	; Load in CR3, will be used when switching to pmode
 	ret
-enA20:
-	cli
+
+enA20	cli
 	mov	si,64h
 	mov	di,60h
 
@@ -183,20 +150,27 @@ read_60h_once:
 
 ;########## DATA ##########
 
-ferr_msg:	DB	"File error",10,13,36
-merr_msg:	DB	"Memory error",10,13,36
-kernel:	DB	"KERNEL.BIN",0
-
-gdt_begin:
-	DD	0,0
-	DB	0xff,0xff,0,0,0,10010010b,11001111b,0
-gdt_end:
-gdtr_val:	DW	gdt_end-gdt_begin-1
-	DD	0
-
-kernel_pages:
-	DW	0
-
-handl:	DW	0
 
 buffer:	times 4096 DB 0
+kernel:	DW	"KERNEL.BIN"	; Kernel name
+
+file_size:DD	0
+
+bios_gdt:
+	; Null segment
+	DQ	0
+	; Data section with GDT, set to zero
+	DQ	0
+	; Source GDT
+	DW	0FFFFh	; Limit
+	DB	0,0,0	; 24-bit Address
+	DB	93h	; Access rights
+	DW	0	; Reserved in 286
+	; Destination GDT
+	DW	0FFFFh	; Limit
+	DB	0,0,0	; 24-bit Address
+	DB	93h	; Access rights
+	DW	0	; Reserved in 286
+
+	; BIOS code, stack, temp user code and BIOS code
+	DQ	4

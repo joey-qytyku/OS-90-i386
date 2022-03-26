@@ -16,11 +16,9 @@ cd kernel
 make all
 cd ..
 
-sudo losetup -o8704 $USE_LOOP msdos.img
-sudo mount -t vfat $USE_LOOP img/
+# No need to use a loopback, I use DOSBox
 
-sudo umount $USE_LOOP
-sudo losetup -d $USE_LOOP
+dosbox
 
 cd kernel
 make clean

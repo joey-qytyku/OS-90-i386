@@ -4,74 +4,66 @@
 ;---------------------------------------------
 ; The kernel is loaded "cold turkey", it must
 ; handle information gathering on its own
-
-	; Run this as a normal program
-	; Loads higher half kernel at 110000h
+	; Loads higher half kernel at physical address 110000h
+SEEK_SET	equ	0
+SEEK_CUR	equ	1
 SEEK_END	equ	2
-loadat	equ	110000h
+LOAD	equ	110000h
 
 	org	100h
 main:
 .check_8086:
-	cli
+	; Set invalid opcode exception, this exist in 80186+
 	mov	ax,2506h
 	mov	dx,error
 	int	21h
-	sti
 	; 186 was never used for personal computers
 	; If an 80186 instruction is supported, CPU >= 80286
 
 	; Size prefix overrides do not work on the i286
-	; If this fails, then this is probably a 286
-	mov	eax,eax
+	; If this fails, then this is a 286
+	mov	eax,4300h
 
-	; XMS equires at least a 286
-	mov	ax,4300h
+	; XMS equires at least a 286, so checking after CPU
 	int	2Fh
 	cmp	al,80h
 	je	error
 
-	jmp	$
-
 	call	enA20
 	call	load_kernel
-	jmp	(11000h>>4):0
-
 error:
 	mov	ah,9
 	mov	dx,.msg
 	int	21h	; Print error message
 	int	20h
-.msg:	DB	"Error loading kuDOS. Try: ",10,13
-	DB	0F9h," Disable XMS",10,13
-	DB	0F9h," Check if processor is an i386 or better",10,13,'$'
+.msg:	DB	"Error loading kuDOS",10,13,'$'
 
-;########### Bootstrap routines ############
+;----------------|Bootstrap routines|----------------
 
 load_kernel:
 	mov	ah,3Dh
-	xor	al,al	; Read only
+	mov	al,1_000_0_000b
 	mov	dx,kernel
 	int	21h
 	jc	error
 	; BX now has file handle
 
-	; Get file size
-	mov	ah,42h
-	xor	al,al ; SEEK_END
-	xor	dx,dx
-	xor	cx,cx
-	jc	error
+	; Get size of the kernel image
 
-	; Set current seek location
-	mov	ah,42h
-	mov	al,SEEK_END
+	mov	ah,4202h
 	xor	cx,cx
-	xor	dx,dx
+	mov	dx,cx
 	int	21h
 	jc	error
-	mov	[file_size],dx
-	mov	[file_size+2],cx
+
+	; DX:AX contains new position
+
+	; Save file size as DWORD?
+	mov	[file_size],ax
+	mov	[file_size+2],dx
+
+	jmp $
+
 	;------------------------------------------------
 	; DX:AX contains the new file pointer
 	; It also represents the size of the kernel image
@@ -87,15 +79,12 @@ load_kernel:
 	; Read 4096 bytes from kernel image
 	int	21h
 
-	ret
+	; Generate page directory
 
-generate_ptab:
-	; Generate page table
+	; Load in CR3
+	ret	; END OF LOAD KERNEL
 
-	; Load in CR3, will be used when switching to pmode
-	ret
-
-enA20	cli
+enA20:	cli
 	mov	si,64h
 	mov	di,60h
 
@@ -118,7 +107,7 @@ enA20	cli
 	mov	al,0D1h
 	mov	dx,si
 	call	write_8042
-	pop	ax	; Get ouptut port byte back
+	pop	ax	; Get ouptput port byte back
 
 	; Send it to 60h
 	mov	dx,di
@@ -148,13 +137,33 @@ read_60h_once:
 	jnc	read_60h_once
 	ret
 
-;########## DATA ##########
+;-----------------Data-----------------
 
+%assign i_pt0 0
+	; IDK the physical addresses of the page tables
+	; they are computed with the segment registers
+init_pd:	ALIGN	4096
+times 1024	DD 0
 
-buffer:	times 4096 DB 0
-kernel:	DW	"KERNEL.BIN"	; Kernel name
+; This page table is attached to entry 768 of the page directory
+init_pt0:	ALIGN	4096
+%rep 1024
+	DD	19 | (LOAD + (i_pt0<<12))
+	%assign i_pt0 i_pt0+1
+%endrep
 
-file_size:DD	0
+init_pt1:
+
+	ALIGN 4096
+init_pt2:
+
+;---------------------------
+; For loading the kernel
+buffer: 	times 4096 DB 0
+
+kernel:	DB	"\nd\kernel.bin",0	; Kernel name
+
+file_size:	DD	0
 
 bios_gdt:
 	; Null segment

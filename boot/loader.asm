@@ -31,7 +31,9 @@ main:
 
 	call	enA20
 	call	load_kernel
+	jmp $
 error:
+;	jmp $ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	mov	ah,9
 	mov	dx,.msg
 	int	21h	; Print error message
@@ -41,32 +43,52 @@ error:
 ;----------------|Bootstrap routines|----------------
 
 load_kernel:
+	; Set the 24-bit address in the destination GDT
+	mov	eax,0FF000000h
+	mov	bx,cs
+	movzx	ebx,bx	; Don't know what EBX[16:32] is
+	shl	ebx,4
+	add	ebx,buffer
+	or	eax,ebx
+	mov	[bios_gdt.srcptr],eax
+
+	xor	eax,eax
+	xor	ebx,ebx
+
 	mov	ah,3Dh
-	mov	al,1_000_0_000b
+	mov	al,0
 	mov	dx,kernel
 	int	21h
 	jc	error
-	; BX now has file handle
+	; AX now has file handle
 
 	; Get size of the kernel image
-
-	mov	ah,4202h
+	mov	bx,ax
+	mov	ax,4202h
 	xor	cx,cx
 	mov	dx,cx
 	int	21h
 	jc	error
-
 	; DX:AX contains new position
 
-	; Save file size as DWORD?
-	mov	[file_size],ax
-	mov	[file_size+2],dx
+	; Convert from bytes to number of pages to read
+	shrd	ax,dx,12
 
-	jmp $
+	; AX=Pages, DX=Definetly zero
 
-	;------------------------------------------------
-	; DX:AX contains the new file pointer
-	; It also represents the size of the kernel image
+	; BIOS and DOS call utilized here to not use DI
+	; DI will serve as a loop counter
+	mov	di,ax
+	; Seek back to start, BX remains the file handle
+	mov	ax,4200h
+	xor	cx,cx
+	mov	dx,cx
+	int	21h
+
+	; BX=File handle
+	; DI=Loop counter
+
+	; The loading process:
 	;------------------------------------------------
 	; The algorithm:
 	; If current seek equals file size, return
@@ -75,14 +97,42 @@ load_kernel:
 	; * Increase extended memory pointer by 4096
 	;------------------------------------------------
 
+	; ! Seeking past the file does not generate an error
 .load_loop:
 	; Read 4096 bytes from kernel image
+	mov	ah,3Fh
+	mov	cx,4096
+	mov	dx,buffer
 	int	21h
 
-	; Generate page directory
+	; Copy the buffer into extended memory
+	mov	ah,87h
+	mov	cx,2048
+	mov	si,bios_gdt
+	int	15h
+	jc	error
 
-	; Load in CR3
-	ret	; END OF LOAD KERNEL
+	dec	di
+	jz	.end
+
+	mov	ax,4201h ; SEEK_CUR
+	xor	cx,cx
+	mov	dx,4096
+	int	21h
+
+	; Increase extended memory pointer by 4096
+	add	word [bios_gdt.dstptr],4096
+	adc	word [bios_gdt.dstptr+2],0
+
+	jmp	.load_loop
+
+.end:
+	mov	ah,9
+	mov	dx,.msg
+	int	21h
+	ret
+
+.msg:	DB	"Kernel Loaded",10,13,'$'
 
 enA20:	cli
 	mov	si,64h
@@ -143,7 +193,7 @@ read_60h_once:
 	; IDK the physical addresses of the page tables
 	; they are computed with the segment registers
 init_pd:	ALIGN	4096
-times 1024	DD 0
+times 1024	DD	0
 
 ; This page table is attached to entry 768 of the page directory
 init_pt0:	ALIGN	4096
@@ -153,7 +203,6 @@ init_pt0:	ALIGN	4096
 %endrep
 
 init_pt1:
-
 	ALIGN 4096
 init_pt2:
 
@@ -161,7 +210,8 @@ init_pt2:
 ; For loading the kernel
 buffer: 	times 4096 DB 0
 
-kernel:	DB	"\nd\kernel.bin",0	; Kernel name
+	; Kernel name, prefix required
+kernel:	DB	"\nd\kernel.bin",0
 
 file_size:	DD	0
 
@@ -171,15 +221,18 @@ bios_gdt:
 	; Data section with GDT, set to zero
 	DQ	0
 	; Source GDT
-	DW	0FFFFh	; Limit
-	DB	0,0,0	; 24-bit Address
+
+	DB	0FFh	; Limit
+.srcptr:	DB	0FFh,0,0,0  ; 24-bit Address + limit
 	DB	93h	; Access rights
 	DW	0	; Reserved in 286
+
 	; Destination GDT
-	DW	0FFFFh	; Limit
-	DB	0,0,0	; 24-bit Address
+	DB	0FFh	; Limit
+	; 24-bit Address and limit
+.dstptr:	DD	0FF000000h | LOAD
 	DB	93h	; Access rights
 	DW	0	; Reserved in 286
 
 	; BIOS code, stack, temp user code and BIOS code
-	DQ	4
+	DQ	0,0,0,0

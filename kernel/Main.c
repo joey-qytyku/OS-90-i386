@@ -30,8 +30,12 @@ struct xDtr Gdtr, Idtr;
 byte VM86TSS[103], MainTSS[103];
 IntD IntDescTab[256];
 
+
+char *s = "Hello, there!";
+
 static inline void ClearInterrupts(void) { __asm__ volatile ("cli"); }
 static inline void SetInterrupts  (void) { __asm__ volatile ("sti"); }
+
 
 static inline void OutpB(short port, char val)
 {

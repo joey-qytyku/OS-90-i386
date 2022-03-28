@@ -10,7 +10,6 @@ SEEK_CUR	equ	1
 SEEK_END	equ	2
 LOAD	equ	110000h
 
-	org	100h
 main:
 .check_8086:
 	; Set invalid opcode exception, this exist in 80186+
@@ -32,8 +31,8 @@ main:
 	call	enA20
 	call	load_kernel
 	jmp $
+
 error:
-;	jmp $ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	mov	ah,9
 	mov	dx,.msg
 	int	21h	; Print error message
@@ -98,6 +97,10 @@ load_kernel:
 	;------------------------------------------------
 
 	; ! Seeking past the file does not generate an error
+
+	; Issues:
+	; Last data in buffer after loop is the first block
+	; of the kernel image
 .load_loop:
 	; Read 4096 bytes from kernel image
 	mov	ah,3Fh
@@ -107,13 +110,10 @@ load_kernel:
 
 	; Copy the buffer into extended memory
 	mov	ah,87h
-	mov	cx,2048
+	mov	cx,4096
 	mov	si,bios_gdt
 	int	15h
 	jc	error
-
-	dec	di
-	jz	.end
 
 	mov	ax,4201h ; SEEK_CUR
 	xor	cx,cx
@@ -124,8 +124,12 @@ load_kernel:
 	add	word [bios_gdt.dstptr],4096
 	adc	word [bios_gdt.dstptr+2],0
 
-	jmp	.load_loop
+	dec	di
+	jnz	.load_loop
 
+
+	mov	bx,buffer
+	jmp $
 .end:
 	mov	ah,9
 	mov	dx,.msg
@@ -230,9 +234,9 @@ bios_gdt:
 	; Destination GDT
 	DB	0FFh	; Limit
 	; 24-bit Address and limit
-.dstptr:	DD	0FF000000h | LOAD
+.dstptr:	DD	0FF110000h
 	DB	93h	; Access rights
-	DW	0	; Reserved in 286
+	DW	0FFCFh	; Reserved in 286
 
 	; BIOS code, stack, temp user code and BIOS code
 	DQ	0,0,0,0

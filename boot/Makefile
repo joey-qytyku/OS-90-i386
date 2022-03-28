@@ -1,2 +1,2 @@
 all:
-	nasm -fbin loader.asm -o build/loader.com
+	nasm -fbin loader.asm -o build/loader.exe

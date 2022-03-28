@@ -30,7 +30,32 @@ main:
 
 	call	enA20
 	call	load_kernel
+
 	jmp $
+
+	; Go to kernel
+goto_kernel:
+	cli
+	lgdt	[temp_gdt]
+
+	mov	ax,cs
+	movzx	eax,ax
+	shl	eax,4
+	add	eax,init_pd
+	mov	cr3,eax
+
+	mov	eax,cr0
+	or	eax,80000001h
+	mov	cr0,eax
+	; *Hacker voice* I'm in
+
+	mov	ax,10h
+	mov	ds,ax
+	mov	ss,ax
+	mov	es,ax
+
+	mov	eax,0C0000000h
+	jmp	eax
 
 error:
 	mov	ah,9
@@ -233,10 +258,13 @@ bios_gdt:
 
 	; Destination GDT
 	DB	0FFh	; Limit
-	; 24-bit Address and limit
 .dstptr:	DD	0FF110000h
 	DB	93h	; Access rights
-	DW	0FFCFh	; Reserved in 286
+	DW	0FF0Fh
 
 	; BIOS code, stack, temp user code and BIOS code
 	DQ	0,0,0,0
+
+temp_gdt:
+	DQ	0
+	DQ	0,0

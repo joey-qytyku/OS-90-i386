@@ -22,12 +22,10 @@ ASFLAGS=-felf
 %.o: %.asm
 	$(AS) $(ASFLAGS) $< -o build/$@
 
+KERNL386.EXE: $(OBJ)
+	$(LINK) -T Kernel.ld $(addprefix build/, $<) -o build/KERNL386.EXE
 
-Kernel.bin: $(OBJ)
-	$(LINK) -T Kernel.ld $(addprefix build/, $<) -o build/Kernel.bin
-#	objcopy -S -O binary build/Kernel.bin build/Kernel.bin --set-section-alignment *=4096
-
-all: Kernel.bin
+all: KERNL386.EXE
 
 cl:
 	rm build/*.o

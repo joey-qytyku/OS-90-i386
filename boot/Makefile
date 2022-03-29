@@ -1,2 +1,2 @@
 all:
-	nasm -fbin loader.asm -o build/ldlow.com
+	nasm -fbin ldlow.asm -o build/loader.com

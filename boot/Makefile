@@ -1,2 +1,2 @@
 all:
-	nasm -fbin ldlow.asm -o build/loader.com
+	fasm boot386.asm build/boot386.com

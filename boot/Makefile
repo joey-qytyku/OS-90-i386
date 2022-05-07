@@ -1,2 +1,2 @@
 all:
-	fasm boot386.asm build/boot386.sys
+	nasm boot386.asm -o build/os90.com

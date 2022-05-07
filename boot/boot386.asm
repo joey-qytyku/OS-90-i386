@@ -1,48 +1,205 @@
-; BOOT386, the OS/90 bootloader
-; Assemble as BOOT386.SYS
-; Should be the last driver loaded
-; In config, the very last parameter
+%if 0
 
-; See MS-DOS repo on github for info on drivers
+BOOT386, the OS/90 bootloader written by Joey Qytyku
 
-;######## DEFS ########
+There is no license, feel free to
+use and modify and use it to load other kernels.
 
-RETDOS	EQU	'1'
-BOOT	EQU	'2'
+- HISTORY -
 
-OPEN	EQU
-SEEK	EQU
-CLOSE	EQU
-READ	EQU
-PUTSTR	EQU	9
+22 April 2022:
+        Added in and fixed Enable-A20 code
+23 April 2022:
+        Converted to NASM code
+20 April 2022:
+        Switched to XMS and .COM program
+        Removed enable A20 code, XMS used instead
+        Updated file macros
 
-;#########################
-;######Device header######
-;#########################
+1 May 2022:
+        Updated enter protected mode routine
+        Fully removed A20 code
+7 May 2022:
+        Fixed A20 handling code
+        Added page table copies
+        HMA cannot longer be shared
+%endif
 
-; There is no next driver, also only used by DOS
+;-----------------------------
+; Equates
 
-NextDriver:
-	DD	-1
-	DW	8000h	;Device attribute word, chardev
-	DW	Strategy	;Strategy entry point offset
-	DW	Interrupt	;Interrupt entry point offset
-	DB	"BOOT    "	;Driver name
+PAGE_SHIFT      EQU	12
+PUTSTR          EQU	9
+EXIT            EQU	4Ch
+OPEN_RO         EQU	3D00h
+CLOSE           EQU	3Eh
+READ            EQU	3Fh
 
-Strategy:
-	;Strat is not supposed to make INT 21H calls
+SEEK_SET	EQU	4200h
+SEEK_CUR	EQU	4201h
+SEEK_END	EQU	4202h
 
-	;Exit strat routine
-	retf
+XMS_SUCC        EQU     1
 
+        ORG	100h
+        jmp	Main
+%define X2LN 0CDh
+%define LNE 10,13,'$'
 
-Interrupt:
-	; Load the kernel upon init interrupt
-	; Further interrupts will not occur
-	jmp $
+Weclome:        DB      "Starting OS/90",10,13
+times 14        DB      X2LN
+DB      LNE
+
+;----------------------------
+; Error message strings
+
+MnoXMS          DB	"[!] XMS is required",LNE
+XMS_Old         DB      "[!] XMS must be 2.0 or higher",LNE
+OpenErr         DB      "[!] Error opening KERNL386.SYS",LNE
+A20Error	DB      "[!] Error enabling A20 gate",LNE
+MemError	DB	"[!] Could not get Entire HMA",LNE
+
+;----------------------------
+; Debug message strings
+
+A20Obviate      DB      "[*] A20 is already enabled",LNE
+MemAlloced      DB      "[*] HMA allocated",LNE
+
+%macro ERROR 1
+        mov     ah,9
+        mov	dx,%1
+        int	21h
+        mov	ax,4CFFh
+        int	21h
+%endmacro
+
+%macro MESSAGE 1
+        push    ax
+        push    dx
+
+        mov     ah,9
+        mov     dx,%1
+        int     21h
+
+        pop     dx
+        pop     ax
+%endmacro
+
+Main:
+        ;Clear screen with mode switch
+        mov     ax,3
+        int     10h
+
+        ;Print welcome message
+        mov	ah,9
+        mov	dx,Weclome
+        int	21h
+
+        ;XMS present
+        mov	ax,4300h
+        int	2Fh
+        cmp	al,80h
+        je	Present
+
+        ; NO XMS PRESENT: ERROR
+        ERROR   MnoXMS
+
+Present:
+        ;Acquire XMS far pointer
+        push    es
+        mov	ax,4310h
+        int	2Fh
+
+        mov	si,XMS
+        mov	[si],bx
+        mov	[si+2],es
+        pop     es
+XMS3:
+        ;Query A20, is it already enabled
+        mov     ah,7
+        call    far [si]
+        cmp     al,1 
+        jne     EnableA20       ; Not already enabled
+        jmp     A20AlreadyOn
+
+EnableA20:
+        ;Global enable A20 gate
+        mov     ah,3
+        call    far [si]
+        cmp     al,1
+        je      A20Enabled
+
+        ERROR   A20Error
+
+A20AlreadyOn:
+        MESSAGE A20Obviate
+A20Enabled:
+        ;Sieze the high memory area
+        mov     ah,1
+        mov     dx,0FFFFh
+        call    far [si]
+        cmp     al,XMS_SUCC
+        je      MemSuccess
+
+        ERROR   MemError
+
+MemSuccess:
+        jmp $
+
+PageSetup:
+
+GotoKernel:
+        ; Get linear address of GDT
+        mov     ebx,ds
+        shl     ebx,4
+        add     ebx,_GDTR
+        lgdt    [ebx]
+
+        ;Switch to 32-bit protected mode
+        ;Cannot think of a better way to do this
+        cli
+        mov	eax,cr0
+        or	eax,8000_0001h
+        mov	cr0,eax
+
+        ;*Hacker voice* I'm in
+        use32
+        mov     ax,10h
+        mov     ds,ax
+        mov     es,ax
+        mov     ss,ax
+        jmp	8h:0C000_0000h
+        use16
+
 ;#############################
 ;############Data#############
 ;#############################
 
-Message:	DB	"Starting OS/90",10,13,'$'
 Path:	DB	"\OS90\KERNL386.EXE",0
+
+_GDTR:
+        DW      _GDT.end - _GDT
+        DD      0       ;Will figure out
+
+_GDT:
+        DQ	0
+        ; Flat code segment
+        DB      0FFh,0FFh,0,0,0,1_00_11010b,11_001111b,0
+        ; Flat data segment
+        DB      0FFh,0FFh,0,0,0,1_00_10010b,11_001111b,0
+.end:
+
+XMS:    DD      0
+
+;Copied to HMA
+IDMap:
+%assign i 0
+
+%rep 1024
+        DD      (i << PAGE_SHIFT) | 13h
+        %assign i i+1
+%endrep
+
+;For map the kernel to 0xC0000000
+;Or 1024 virtual pages at 0xC0000 to physical pages at 0x100000 
+VMMap:

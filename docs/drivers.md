@@ -21,11 +21,11 @@ Drivers are initialized at startup but cannot be unloaded without restarting the
 
 The DDS is a structure present at the start of the .text section. It is defined this way:
 
-
 |Type|Description|
 -|-|-
 DWORD| Magic number (0x2BADFADA)
 DWORD| Initialization entry point
+QWORD| Driver logical name
 DWORD| Driver call entry point
 BYTE | Driver type (see intro)
 
@@ -49,18 +49,15 @@ Drivers will be given the ability to request resources, but the kernel cannot ga
 
 Sound blaster 16 PCI can assign the IRQ on its own using a command. (Research this)
 
-# Types of drivers
+# Virtual Resources
 
-## Graphics driver
+Drivers are able to own resources and arbitrate them for any application, or simply program them directly. Resource functions return a resource handle, which is a pointer to a defined structure in the kernel memory. This pointer is used to
 
-A graphics driver is used for pixel graphics. It exposes functions used for drawing pixels and setting video modes. Multiple can be loaded, but only one should be used.
+## Interrupts and DMA
 
-## Privilege Escalator
+IRQs can be owned by a driver. When an IRQ is recieved, an STDCALL routine is called and given the interrupt frame.
 
-These types of drivers allow userspace programs to access low-level functions that they do not have privileges for, in a way that can be monitored and restricted for stability. PED's do not use the driver entry point.
-
-An example of a privilege escalator could be a DOS VM manager that is then used by a command shell to execute DOS programs.
-
+ISA DMA sends interrupts to the IRQ vector of the ISA device.
 
 # KDM API
 
@@ -79,6 +76,26 @@ Read physical blocks from a device. The block size is determined by the DIS stru
 ## Debugging
 
 ### KDM_Logf(const char *str, ...)
-Standard printf. Supports string, char, int, uint.
+printf. Supports string, char, int, uint.
 
+### KDM_SetOutDrv(void (*output_driver)(char c))
 
+## Resources
+
+Functions returning `int` return 1 if a function has failed to obtain a resource due to conflict. Standard device resources cannot be claimed
+
+TrapFrame is defined as a list of 32-bit registers:
+EAX-EDI
+EBP
+ESP
+EIP
+EFLAGS
+
+Definitions:
+KERNEL_RESERVED = -1
+DRIVER_RESERVED = -2
+SUCCESS = Resource handle (pointer)
+
+### int KDM_ClaimRangeIO(dword p1, word length, bool is_mem)
+
+### int KDM_ClaimInterrupt(byte line, void (*handler)(void *TrapFrame))

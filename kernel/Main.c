@@ -1,79 +1,92 @@
 #include <Type.h>
 #include <PIC.h>
+#include <IO.h>
 
-#define VM_32  0  // 32-bit process
-#define VM_16U 1 // User/Concurrent VM
-#define VM_16S 2 // Supervisor/Atomic VM
+#define INT386  0xE
+#define TRAP386 0xF
 
 typedef struct __attribute__((packed))
 {
-	int i,j;
-}IntD;
+    word    offset_15_0;
+    word    selector;
+    byte    zero;
+    byte    attr;
+    word    offset_16_31;
+    // Trap gates use the DPL
+    // Interrupt gates do not
+}Intd;
+
+byte vm86_tss[103], main_tss[103];
+Intd int_desc_tab[256];
 
 struct xDtr {
-	dword address;
-	word limit;
+    dword   address;
+    word    limit;
 }__attribute__((packed));
 
-typedef struct __attribute__((aligned (4)))
+static struct xDtr
+    gdtr = {.address=,.limit=},
+    idtr = {.address=};
+
+static inline void outb(short port, char val)
 {
-	long eax,ebx,ecx,edx,esi,edi,ebp,esp3,esp0;
-	dword eip,eflags;
-	byte VMType;
-	unsigned char VMPages;
-	short TimeSliceCounterMS;
-	void *x87Environment;
-}ProcCtlBlk; // Alignment ensures fast access
-
-struct xDtr Gdtr, Idtr;
-
-byte VM86TSS[103], MainTSS[103];
-IntD IntDescTab[256];
-
-
-char *s = "Hello, there!";
-
-static inline void ClearInterrupts(void) { __asm__ volatile ("cli"); }
-static inline void SetInterrupts  (void) { __asm__ volatile ("sti"); }
-
-
-static inline void OutpB(short port, char val)
-{
-	__asm__ volatile ( "outb %0, %1" :: "a"(val), "Nd"(port));
+    __asm__ volatile ("outb %0, %1":: "a"(val), "Nd"(port));
 }
 
-static inline byte InpB(short port)
+void SetIntVector(char v, byte attr)
 {
-	byte ret;
-	__asm__ volatile ( "inb %1, %0" :"=a"(ret) : "Nd"(port));
-	return ret;
+    int_desc_tab[v].attr = attr;
 }
 
 void EarlyInitPIC(byte map_to)
 {
-	byte icw1 = ICW1 | CASCADE | ICW1_ICW4 | LEVEL_TRIGGER;
-	// Note: Different bits tell OCWs and ICWs appart in CMD port
+    byte icw1 = ICW1 | CASCADE | ICW1_ICW4 | LEVEL_TRIGGER;
+    // Note: Different bits tell OCWs and ICWs appart in CMD port
 
-	// ICW1 to both PIC's
-	OutpB(0x20, icw1);
-	OutpB(0xA0, icw1);
+    // ICW1 to both PIC's
+    outb(icw1, 0x20);
+    outb(icw1, 0xA0);
 
-	// ICW2, set interrupt vectors
-	OutpB(0x21, map_to << 3);
-	OutpB(0xA1, (map_to+8) << 3);
+    // ICW2, set interrupt vectors
+    outb( map_to    << 3,   0x21);
+    outb((map_to+8) << 3,   0xA1);
 
-	OutpB(0x21, 4);	// ICW3, IRQ_2 is cascade
-	OutpB(0xA1, 2);	// ICW3 is different for slave PIC, cascade IRQ#
+    outb(4, 0x21);  // ICW3, IRQ_2 is cascade
+    outb(2, 0xA1);  // ICW3 is different for slave PIC, cascade IRQ#
 
-	OutpB(0x21, ICW4_X86);
-	OutpB(0xA1, ICW4_X86 | ICW4_SLAVE); // Assert PIC2 is slave
+    outb(ICW4_X86,              0x21);
+    outb(ICW4_X86 | ICW4_SLAVE, 0xA1); // Assert PIC2 is slave
 }
 
 void KernelMain(void)
 {
-	sbyte msg[] = "Hello, VGA world";
+    int cpuid_found;
+    sbyte msg[] = "Hello, VGA world";
 
-	EarlyInitPIC(32);
+    for (int i=0;msg[i]!=0;*(char*)(0xB8000+i)=msg[i],i+=2);
 
-	for (int i=0;msg[i]!=0;*(char*)(0xB8000+i)=msg[i],i+=2);
+    EarlyInitPIC(32);
+
+    // Is this a i486/supports CPUID?
+    __asm__ volatile (
+        "pushfd\n"
+        "pop %eax\n"
+        "test $0x200000, %eax\n"
+        "mov $0,%eax\n" // Does not chaneg flags
+        "adc $0,%eax"
+        :"a"(cpuid_found)::"eax"
+    );
+
+    if (cpuid_found) {
+        // Enable native FPU exceptions on i486+
+        asm volatile (
+            "mov    %cr0,%eax \n"
+            "or     $,%eax"
+        );
+    } else {
+        // This is an i386, does it have an FPU
+        // use coprocessor segment overrun and FPU IRQ13
+        // No harm done if there is no x87
+    }
+
 }

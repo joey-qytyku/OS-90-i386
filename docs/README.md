@@ -3,13 +3,13 @@
 OS/90 is a work-in-progress operating system inspired by Windows 9x and 3.x architecturally. It is a 32-bit operating system that uses a CLI.
 
 The minimum requirements are as follows:
-* 4 MiB of RAM
+* 2 MiB of RAM
 * i386SX
 * PC/AT or compatible
 * MS-DOS 3.0 or higher
 * ISA bus
 
-This setup would not be that slow, bu.
+This setup would not be that slow, but it is the minimum.
 
 The recommended hardware:
 * 8 MiB of RAM
@@ -25,7 +25,7 @@ Premium Setup:
 
 PCI and ISA are officially supported buses. VLB, MCA, and EISA should work too because OS/90 keeps the BIOS default settings.
 
-A floating point unit is not required for i386 users. The OS code never uses the floating point unit, but does detect its presence and saves registers on pre-emption if a process uses them and it is in fact present. There are no build options for processors; both i386 and i486+ are supported, but the i486 GCC compiler is used.
+A floating point unit is not required for i386 users. The OS code never uses the floating point unit, but does detect its presence and saves registers on pre-emption if a process uses them and it is in fact present. There are no build options for processors; both i386 and i486+ are supported, but the i486 GCC compiler and tuning is used.
 
 Disk space is TBD.
 
@@ -55,7 +55,7 @@ Reinstalling OS/90 is necessary to update. User files are not store in the OS90 
 
 In the current design, the 32-bit userspace runtime has not been specified. It will be in the future. Filesystem access is 16-bit only, but disk access is 32-bit for performance reasons.
 
-OS/90 may not work properly with MS-DOS 7 and above (Windows ME reports as MS-DOS 8)
+OS/90 may not work properly with MS-DOS 7 and above (Windows ME reports as MS-DOS 8 and is completely gutted)
 
 # After install
 
@@ -63,8 +63,11 @@ See boot.md for some information on the boot process and setting up the bootload
 
 # Goals
 
-The goal of OS/90 is to create an operating system for very old computers that maximizes DOS compatibility while (hopefully) being more stable the Windows 9x.
+The goal of OS/90 is to create an operating system for very old computers that maximizes DOS compatibility. The DOS compatibility, which extends to some drivers, will hopefully make this OS more useful, as I doubt many developers are going to make 32-bit native drivers. I also thought it would be more fun to work on a DOS/Windows-like operating system. Unix seems done to death in the OSDev community, probably because most of us use Unix-like tools to do our work.
+
 
 ## Pipe Dreams
 
-I may work on a GUI.
+I may work on a GUI at some time in the distant future. ACPI 1.0 and APM support?
+
+# Credits

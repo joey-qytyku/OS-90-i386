@@ -23,6 +23,7 @@ use and modify and use it to load other kernels.
         Fixed A20 handling code
         Added page table copies
         HMA cannot longer be shared
+        Removed old error messages
 %endif
 
 ;-----------------------------
@@ -54,7 +55,6 @@ DB      LNE
 ; Error message strings
 
 MnoXMS          DB	"[!] XMS is required",LNE
-XMS_Old         DB      "[!] XMS must be 2.0 or higher",LNE
 OpenErr         DB      "[!] Error opening KERNL386.SYS",LNE
 A20Error	DB      "[!] Error enabling A20 gate",LNE
 MemError	DB	"[!] Could not get Entire HMA",LNE
@@ -86,6 +86,7 @@ MemAlloced      DB      "[*] HMA allocated",LNE
 %endmacro
 
 Main:
+        cld
         ;Clear screen with mode switch
         mov     ax,3
         int     10h
@@ -147,6 +148,38 @@ MemSuccess:
         jmp $
 
 PageSetup:
+        push    es
+        mov     ax,0FFFFh
+        mov     es,ax
+
+        mov     bx,16
+
+        ;Zero all four page tables/dir
+        ;So that #PF happens
+        mov     cx,16384/4
+        xor     si,si
+        xor     eax,eax
+        rep     stosd
+
+        ;Create the page directory
+        mov     dword [es:bx],       (101h<<PAGE_SHIFT)|3
+        mov     dword [es:bx+768],   (102h<<PAGE_SHIFT)|13h
+        ;Kernel has cache enabled
+        ;Low 1M does not because VRAM should not be cached
+
+        ;Copy the IDMAP page table to HMA
+        mov     si,IDMap
+
+        ;Get total extended memory (excluding HMA)
+        ;Allocate all available extended memory
+
+        pop     es
+
+        ;CR3 lower bits are reserved, best to not touch them
+        mov     eax,cr3
+        and     eax,~(0FFFh)
+        or      eax,100000h
+        mov     cr3,eax
 
 GotoKernel:
         ; Get linear address of GDT
@@ -194,11 +227,11 @@ XMS:    DD      0
 ;Copied to HMA
 IDMap:
 %assign i 0
-
-%rep 1024
+%rep 256
         DD      (i << PAGE_SHIFT) | 13h
         %assign i i+1
 %endrep
+times 768       DD      0
 
 ;For map the kernel to 0xC0000000
 ;Or 1024 virtual pages at 0xC0000 to physical pages at 0x100000 

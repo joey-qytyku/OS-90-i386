@@ -1,32 +1,19 @@
 #include <Type.h>
-#include <PIC.h>
-#include <IO.h>
+#include <x86.h>
 
-#define INT386  0xE
-#define TRAP386 0xF
+static byte vm86_tss[103], main_tss[103];
 
-typedef struct __attribute__((packed))
-{
-    word    offset_15_0;
-    word    selector;
-    byte    zero;
-    byte    attr;
-    word    offset_16_31;
-    // Trap gates use the DPL
-    // Interrupt gates do not
-}Intd;
+static byte gdt = {
+    0,0,0,0,0,0,0,0, // Null
+    0xFF,0xFF,0,0,0,0x9A,0xCF,0, // Code
+    0xFF,0xFF,0,0,0,0x92,0xCF,0  // Data
+};
 
-byte vm86_tss[103], main_tss[103];
-Intd int_desc_tab[256];
+static Intd idt[256];
 
-struct xDtr {
-    dword   address;
-    word    limit;
-}__attribute__((packed));
-
-static struct xDtr
-    gdtr = {.address=,.limit=},
-    idtr = {.address=};
+static xDtr
+    gdtr = {.address=&gdt,.limit=sizeof(gdt)-1},
+    idtr = {.address=&idt};
 
 static inline void outb(short port, char val)
 {
@@ -35,7 +22,7 @@ static inline void outb(short port, char val)
 
 void SetIntVector(char v, byte attr)
 {
-    int_desc_tab[v].attr = attr;
+    idt[v].attr = attr;
 }
 
 void EarlyInitPIC(byte map_to)
@@ -48,7 +35,7 @@ void EarlyInitPIC(byte map_to)
     outb(icw1, 0xA0);
 
     // ICW2, set interrupt vectors
-    outb( map_to    << 3,   0x21);
+    outb(map_to     << 3,   0x21);
     outb((map_to+8) << 3,   0xA1);
 
     outb(4, 0x21);  // ICW3, IRQ_2 is cascade
@@ -58,35 +45,15 @@ void EarlyInitPIC(byte map_to)
     outb(ICW4_X86 | ICW4_SLAVE, 0xA1); // Assert PIC2 is slave
 }
 
-void KernelMain(void)
+void KernelMain(void *info)
 {
     int cpuid_found;
     sbyte msg[] = "Hello, VGA world";
 
     for (int i=0;msg[i]!=0;*(char*)(0xB8000+i)=msg[i],i+=2);
 
+    __asm__ volatile ("lgdtl %0"::"rm"(&gdtr));
+    __asm__ volatile ("lidtl %0"::"rm"(&idtr));
+
     EarlyInitPIC(32);
-
-    // Is this a i486/supports CPUID?
-    __asm__ volatile (
-        "pushfd\n"
-        "pop %eax\n"
-        "test $0x200000, %eax\n"
-        "mov $0,%eax\n" // Does not chaneg flags
-        "adc $0,%eax"
-        :"a"(cpuid_found)::"eax"
-    );
-
-    if (cpuid_found) {
-        // Enable native FPU exceptions on i486+
-        asm volatile (
-            "mov    %cr0,%eax \n"
-            "or     $,%eax"
-        );
-    } else {
-        // This is an i386, does it have an FPU
-        // use coprocessor segment overrun and FPU IRQ13
-        // No harm done if there is no x87
-    }
-
 }

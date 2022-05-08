@@ -21,6 +21,7 @@ enum InterruptLVL
     RECL_16 = 2 << 4,
     TAKEN_32 = 3 << 4,
     STANDARD_32 = 4 << 4,
+    RECL_32 = 5 << 4
 };
 
 typedef struct

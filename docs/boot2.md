@@ -8,24 +8,17 @@ OS/90 is designed to maximize DOS compatibility. It can load and execute DOS dri
 
 ## 90.COM
 
-This file is the main boostrap program. It requires HIMEM.SYS or some other XMS driver to be loaded. Only the 2.0 feature set is used, so older versions should work. XMS is used so that pre-existing drivers using extended memory blocks can work.
+This file is the main boostrap program. It requires HIMEM.SYS or some other XMS driver to be loaded. Only the 2.0 feature set is used, so older versions should work. XMS is used so that pre-existing drivers using extended memory blocks can work. The high memory area cannot be shared. Do not use DOS=HIGH or the system will overwrite the DOS kernel and crash the system.
 
-The algorithm:
-* Check if XMS is present
-  * If not, error
-* If present:
-  * Request entire HMA
-    * If not available, error
-    * If available
-      * Extend DS and ES segments using unreal mode
-      * Generate page tables and directory (total 12288 bytes)
-      * Open kernel file
-      * Read into buffer
-      * Copy 4096 to HMA+12288+current_page
-      * Load GDT
-      * Switch to protected mode with paging on
-      * Set segment registers
-      * Jump to the kernel at 0xC0000000
+Write to EMB directly? Bad idea?
+
+# HMA Issues
+
+The HMA is used for startup and later on for ISA DMA. XMS 2.0 lets only one program can use it at a time, and in this case that is the 32-bit kernel. Remove DOS=HIGH from confg.sys.
+
+# DOS drivers
+
+16-bit drivers will work. The DOS .SYS driver model is unsupported by the 32-bit kernel, but the DOS kernel and programs can still use them within a DOS VM. TSR programs like MS Mouse will also function as expected as the mouse interrupt is expected to be 16-bit.
 
 # Notes
 

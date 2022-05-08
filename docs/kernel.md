@@ -23,6 +23,16 @@ Besides a few standard devices, the kernel does not do much direct hardware acce
 
 Drivers are program that run in ring 0 and have complete control. They are essentially extentions to the kernel. Drivers can take ownership of resources like IRQs, DMA channels, and memory mapped IO. Whenever these resources are accessed, they can be notified and perform the operation on the caller's behalf. If an IRQ is owned by a real-mode driver, it can be replaced.
 
+# Interrupt Handling
+
+There is one same x86 ISR on every IRQ vector. The source of the interrupt is deduced by reading the in-service register from the 8259A PIC. This goes to the VINT system, which dispatches interrupt appropiately to their owners or to the kernel. The exception is for the timer, which is handled by a separate IRQ.
+
+Interrupt sharing is supported (TODO) for devices that use the PCI bus and allows multiple drivers to own the same interrupt (assign an ID?). If the PCI bus is unavailable, then only one driver can run on a single IRQ vector.
+
+Once an interrupt becomes 32-bit, it cannot be 16-bit again and is replaced.
+
+TODO: Make it so that ISA interrupts and resources can be taken by drivers.
+
 # DOS drivers
 
 16-bit drivers are mostly usable in OS/90. They should be executed in autoexec.bat rather than in the command line. Real-mode drivers should be avoided because they may be unstable, but are unavoidable as there probably will not be many drivers made for OS/90.

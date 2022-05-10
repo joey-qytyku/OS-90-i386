@@ -57,7 +57,8 @@ DB      LNE
 MnoXMS          DB	"[!] XMS is required",LNE
 OpenErr         DB      "[!] Error opening KERNL386.SYS",LNE
 A20Error	DB      "[!] Error enabling A20 gate",LNE
-MemError	DB	"[!] Could not get Entire HMA",LNE
+HMA_Error	DB	"[!] Could not get Entire HMA",LNE
+ExtMemErr       DB      "[!] Could not allocate extended memory",LNE
 
 ;----------------------------
 ; Debug message strings
@@ -111,14 +112,14 @@ Present:
         mov	ax,4310h
         int	2Fh
 
-        mov	si,XMS
-        mov	[si],bx
-        mov	[si+2],es
+        mov	bp,XMS
+        mov	[bp],bx
+        mov	[bp+2],es
         pop     es
 XMS3:
         ;Query A20, is it already enabled
         mov     ah,7
-        call    far [si]
+        call    far [bp]
         cmp     al,1 
         jne     EnableA20       ; Not already enabled
         jmp     A20AlreadyOn
@@ -126,7 +127,7 @@ XMS3:
 EnableA20:
         ;Global enable A20 gate
         mov     ah,3
-        call    far [si]
+        call    far [bp]
         cmp     al,1
         je      A20Enabled
 
@@ -138,14 +139,13 @@ A20Enabled:
         ;Sieze the high memory area
         mov     ah,1
         mov     dx,0FFFFh
-        call    far [si]
+        call    far [bp]
         cmp     al,XMS_SUCC
-        je      MemSuccess
+        je      HMA_OK
 
-        ERROR   MemError
+        ERROR   HMA_Error
 
-MemSuccess:
-        jmp $
+HMA_OK:
 
 PageSetup:
         push    es
@@ -163,23 +163,58 @@ PageSetup:
 
         ;Create the page directory
         mov     dword [es:bx],       (101h<<PAGE_SHIFT)|3
-        mov     dword [es:bx+768],   (102h<<PAGE_SHIFT)|13h
+        mov     dword [es:bx+768*4], (102h<<PAGE_SHIFT)|13h
         ;Kernel has cache enabled
         ;Low 1M does not because VRAM should not be cached
 
         ;Copy the IDMAP page table to HMA
+        mov     cx,4096/4
         mov     si,IDMap
-
-        ;Get total extended memory (excluding HMA)
-        ;Allocate all available extended memory
-
-        pop     es
+        mov     di,4096
+        rep     movsd
 
         ;CR3 lower bits are reserved, best to not touch them
         mov     eax,cr3
         and     eax,~(0FFFh)
         or      eax,100000h
         mov     cr3,eax
+
+        ;Get total extended memory (excluding HMA)
+        mov     ah,8
+        call    [bp]
+
+        ;Allocate all available extended memory
+        mov     dx,ax
+        mov     ah,9
+        call    [bp]    ;Handle in DX
+        cmp     al,1
+        je      ExtAllocSuccess
+
+        ERROR   ExtMemErr
+
+ExtAllocSuccess:
+        ;This will allocate at most 64M because of the 16-bit size
+        ;there are incontiguities in the extended memory which can
+        ;limit the size of the EMB. Regardless, the memory
+        ;allocated by XMS driver will be more than enough for the
+        ;kernel to be loaded into.
+
+        ;Save EMB handle
+        mov     [Handle],dx
+
+        ;Lock the EMB
+        mov     ah,0Ch
+        call    [bp]
+        je      ExtAllocSuccess
+
+        ;Address of the EMB in DX:BX
+        mov     ax,bx
+        mov     cx,dx
+
+        ;CX:AX will now the aligned version
+        add     ax,4095
+        adc     cx,0
+
 
 GotoKernel:
         ; Get linear address of GDT
@@ -208,7 +243,7 @@ GotoKernel:
 ;############Data#############
 ;#############################
 
-Path:	DB	"\OS90\KERNL386.EXE",0
+Path:   DB      "\OS90\KERNEL.386",0
 
 _GDTR:
         DW      _GDT.end - _GDT
@@ -223,6 +258,10 @@ _GDT:
 .end:
 
 XMS:    DD      0
+Handle: DW      0
+
+XMM:    ;Extended memory move
+
 
 ;Copied to HMA
 IDMap:

@@ -57,14 +57,11 @@ DB      LNE
 MnoXMS          DB	"[!] XMS is required",LNE
 OpenErr         DB      "[!] Error opening KERNL386.SYS",LNE
 A20Error	DB      "[!] Error enabling A20 gate",LNE
-HMA_Error	DB	"[!] Could not get Entire HMA",LNE
+HMA_Error	DB	"[!] Could not get entire HMA",LNE
 ExtMemErr       DB      "[!] Could not allocate extended memory",LNE
 
 ;----------------------------
 ; Debug message strings
-
-A20Obviate      DB      "[*] A20 is already enabled",LNE
-MemAlloced      DB      "[*] HMA allocated",LNE
 
 %macro ERROR 1
         mov     ah,9
@@ -74,16 +71,20 @@ MemAlloced      DB      "[*] HMA allocated",LNE
         int	21h
 %endmacro
 
-%macro MESSAGE 1
-        push    ax
-        push    dx
+;Greedy macro parameters
+%macro MESSAGE 1+
+        pusha
+        jmp     %%c
 
-        mov     ah,9
-        mov     dx,%1
+%%m:    DB      %1
+%%c:    mov     ah,9
+        mov     dx,%%m
         int     21h
+        popa
+%endmacro
 
-        pop     dx
-        pop     ax
+%macro xms 1
+        call far %1
 %endmacro
 
 Main:
@@ -105,7 +106,6 @@ Main:
 
         ; NO XMS PRESENT: ERROR
         ERROR   MnoXMS
-
 Present:
         ;Acquire XMS far pointer
         push    es
@@ -116,38 +116,37 @@ Present:
         mov	[bp],bx
         mov	[bp+2],es
         pop     es
-XMS3:
+
         ;Query A20, is it already enabled
         mov     ah,7
-        call    far [bp]
-        cmp     al,1 
-        jne     EnableA20       ; Not already enabled
+        xms     [bp]
+        cmp     al,0
+        jz      EnableA20       ; Not already enabled
         jmp     A20AlreadyOn
 
 EnableA20:
         ;Global enable A20 gate
         mov     ah,3
-        call    far [bp]
+        xms     [bp]
         cmp     al,1
         je      A20Enabled
 
         ERROR   A20Error
 
 A20AlreadyOn:
-        MESSAGE A20Obviate
+        MESSAGE "[i] A20 is already enabled",LNE
 A20Enabled:
-        ;Sieze the high memory area
+        MESSAGE "[i] Siezing the high memory area",LNE
         mov     ah,1
         mov     dx,0FFFFh
-        call    far [bp]
-        cmp     al,XMS_SUCC
+        xms     [bp]
+        cmp     al,1
         je      HMA_OK
-
         ERROR   HMA_Error
-
 HMA_OK:
 
 PageSetup:
+        MESSAGE "[i] Setting up paging",LNE
         push    es
         mov     ax,0FFFFh
         mov     es,ax
@@ -178,15 +177,19 @@ PageSetup:
         and     eax,~(0FFFh)
         or      eax,100000h
         mov     cr3,eax
+        xor     eax,eax
 
         ;Get total extended memory (excluding HMA)
         mov     ah,8
-        call    [bp]
+        xms     [bp]
+
+        ;AX=Largest EMB size
+        ;DX=Entire extended memory minus HMA
 
         ;Allocate all available extended memory
         mov     dx,ax
         mov     ah,9
-        call    [bp]    ;Handle in DX
+        xms     [bp]
         cmp     al,1
         je      ExtAllocSuccess
 
@@ -202,19 +205,26 @@ ExtAllocSuccess:
         ;Save EMB handle
         mov     [Handle],dx
 
+        ;#### Idea correct, implementation may be wrong
+
         ;Lock the EMB
         mov     ah,0Ch
-        call    [bp]
-        je      ExtAllocSuccess
+        xms     [bp]
+        jmp $
 
         ;Address of the EMB in DX:BX
         mov     ax,bx
         mov     cx,dx
 
-        ;CX:AX will now the aligned version
+        ;Align CX:AX to page boundary
         add     ax,4095
         adc     cx,0
+        and     cx,~4095
 
+        ;Aligned minus Original is the offset
+        sub     cx,dx
+        sbb     ax,bx
+        jmp $
 
 GotoKernel:
         ; Get linear address of GDT

@@ -6,6 +6,8 @@
 #define INT386  0xE
 #define TRAP386 0xF
 
+
+
 typedef struct __attribute__((packed))
 {
     word    offset_15_0;
@@ -37,29 +39,39 @@ typedef struct __attribute__((packed))
 
 static inline byte inb(short port)
 {
-	byte ret;
-	__asm__ volatile ("inb %1, %0":"=a"(ret) : "Nd"(port));
-	return ret;
+byte ret;
+__asm__ volatile ("inb %1, %0":"=a"(ret) : "Nd"(port));
+return ret;
 }
+
+static inline byte outb(short port, byte val)
+{
+byte ret;
+__asm__ volatile ("outb %0, %1"::
+    "a"(val),
+    "Nd"(port));
+return ret;
+}
+
 
 static inline void rep_insb(void *mem, dword count, word port)
 {
-	__asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port));
+__asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port));
 }
 
 static inline void rep_outsb(void *mem, dword count, word port)
 {
-	__asm__ volatile ("rep outsb"::"esi"(mem),"ecx"(count),"dx"(port));
+__asm__ volatile ("rep outsb"::"esi"(mem),"ecx"(count),"dx"(port));
 }
 
 static inline void rep_insw(void *mem, dword count, word port)
 {
-	__asm__ volatile ("rep insw"::"esi"(mem),"ecx"(count),"dx"(port));
+__asm__ volatile ("rep insw"::"esi"(mem),"ecx"(count),"dx"(port));
 }
 
 static inline void rep_outsw(void *mem, dword count, word port)
 {
-	__asm__ volatile ("rep outsw"::"esi"(mem),"ecx"(count),"dx"(port));
+__asm__ volatile ("rep outsw"::"esi"(mem),"ecx"(count),"dx"(port));
 }
 
 #endif

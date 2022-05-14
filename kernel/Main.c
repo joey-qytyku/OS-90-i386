@@ -15,10 +15,6 @@ static xDtr
     gdtr = {.address=&gdt,.limit=sizeof(gdt)-1},
     idtr = {.address=&idt};
 
-static inline void outb(short port, char val)
-{
-    __asm__ volatile ("outb %0, %1":: "a"(val), "Nd"(port));
-}
 
 void SetIntVector(char v, byte attr)
 {
@@ -35,25 +31,24 @@ void EarlyInitPIC(byte map_to)
     outb(icw1, 0xA0);
 
     // ICW2, set interrupt vectors
-    outb(map_to     << 3,   0x21);
-    outb((map_to+8) << 3,   0xA1);
+    outb(map_to     << 3, 0x21);
+    outb((map_to+8) << 3, 0xA1);
 
     outb(4, 0x21);  // ICW3, IRQ_2 is cascade
     outb(2, 0xA1);  // ICW3 is different for slave PIC, cascade IRQ#
 
-    outb(ICW4_X86,              0x21);
+    outb(ICW4_X86, 0x21);
     outb(ICW4_X86 | ICW4_SLAVE, 0xA1); // Assert PIC2 is slave
 }
 
 void KernelMain(void *info)
 {
-    int cpuid_found;
     sbyte msg[] = "Hello, VGA world";
 
     for (int i=0;msg[i]!=0;*(char*)(0xB8000+i)=msg[i],i+=2);
 
-    __asm__ volatile ("lgdtl %0"::"rm"(&gdtr));
-    __asm__ volatile ("lidtl %0"::"rm"(&idtr));
+//    __asm__ volatile ("lgdtl %0"::"rm"(gdtr));
+//    __asm__ volatile ("lidtl %0"::"rm"(idtr));
 
     EarlyInitPIC(32);
 }

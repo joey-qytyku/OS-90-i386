@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 
 INCLUDE=~/gcc-11.1.0-nolibc/i386-linux/lib/gcc/i386-linux/11.1.0/include
-CFLAGS=-I $(INCLUDE) -I ./include/ -Os -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wpedantic -mrtd
+CFLAGS=-I $(INCLUDE) -I ./include/ -Os -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall
 
 TCHAIN=~/gcc-11.1.0-nolibc/i386-linux/bin
 
@@ -23,7 +23,7 @@ ASFLAGS=-felf
 	$(AS) $(ASFLAGS) $< -o build/$@
 
 KERNL386.EXE: $(OBJ)
-	$(LINK) -T Kernel.ld $(addprefix build/, $<) -o build/KERNEL.386
+	$(LINK) -T Kernel.ld $(addprefix build/, $<) -o build/KERNL386.EXE
 
 all: KERNL386.EXE
 

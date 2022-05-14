@@ -2,21 +2,25 @@ extern LKR_STARTBSS
 extern LKR_END
 extern KernelMain
 extern IntDescTab
-extern idtr
-extern gdtr
 
 section	.init
+        ;If DOS does not find the MZ signature in an EXE file
+        ;it may load it as a COM file, which are terminated with
+        ;a return instruction, the loader jumps over this
+        ret
+
         ; Zero the BSS section
-        xor     eax,eax
-        mov     ecx,(LKR_END-LKR_STARTBSS)/4
+        mov     ecx,LKR_END
+        sub     ecx,LKR_STARTBSS
+        shr     ecx,2
         mov     edi,LKR_STARTBSS
         rep     lodsd
 
-	mov	esp, InitStack	; Set up a stack
+	mov	esp, InitStack  ; Set up a stack
 	call	KernelMain
 
-L       hlt     ; Nothing to do now, halt
-	jmp     ; if interrupted, handle and halt again
+L:      hlt     ; Nothing to do now, halt
+	jmp L   ; if interrupted, handle and halt again
 
 section	.bss
         ; GCC requires aligned stack, usually 8

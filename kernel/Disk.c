@@ -45,6 +45,4 @@ void EarlyInitATA()
         atapri.exists = 1;
     if (inb(ATAS+7) != 0xFF)
         atasec.exists = 1;
-    // IDENTIFY
-    outb(inb())
 }

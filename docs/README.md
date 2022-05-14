@@ -65,6 +65,19 @@ See boot.md for some information on the boot process and setting up the bootload
 
 The goal of OS/90 is to create an operating system for very old computers that maximizes DOS compatibility. The DOS compatibility, which extends to some drivers, will hopefully make this OS more useful, as I doubt many developers are going to make 32-bit native drivers. I also thought it would be more fun to work on a DOS/Windows-like operating system. Unix seems done to death in the OSDev community, probably because most of us use Unix-like tools to do our work.
 
+# FAQ
+
+Q: Is OS/90 a real operating system or an interface for DOS?
+A: I think it is an operating system. It has a multitasking kernel and driver interface, as well as 16-bit and 32-bit userspace. It is similar to Windows 3.1 enhanced mode and 95, both of which I consider to be operating systems. Despite this, DOS is a critical component.
+
+Q: Is there plug and play support?
+A: Yes, using PnP BIOS. There will never be plug and play COM (serial) device PnP. Just use Windows 95 for that. 16-bit plug-and-play drivers should be avoided as the OS will reassign ISA resources so there is no way of letting the driver know. There is usually a way of disabling PnP operation so that the old ISA mode is used.
+
+Q: Which PC busses are supported?
+A: Theoretically all of them, but ISA and PCI are sure to work best
+
+Q: Does this run on modern computers?
+A: As long as it has a PC BIOS (even EFI-CSM) and 32-bit disk access is turned off (or IDE compatibility) for using SATA drives, there should be no problems. PCIe is compatible with PCI.
 
 ## Pipe Dreams
 

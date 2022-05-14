@@ -3,8 +3,9 @@
  *
  */
 
-#include <Type.h>
 #include <Resource.h>
+#include <Type.h>
+#include <Linker.h>     // To get address of BDA
 
 static IO_Resource iorsc[64];
 // Partial arrays are placed in data section
@@ -86,8 +87,8 @@ IO_Resource Standard[] = {
 };
 
 void SetupStd_IO(IO_Resource (*array)[MAX_IO_RSC])
-{
-    volatile word *bda = 0x400;
+{   // Need volatile?
+    volatile word *bda = (word*)phys(0x400);
     // Check BIOS data area for number of serial ports
 
     /* If a computer has more than one serial port

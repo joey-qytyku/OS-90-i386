@@ -8,11 +8,11 @@ cd boot
 make all
 cd ..
 
-#echo "==|   BUILDING KERNEL   |=="
+echo "==|   BUILDING KERNEL   |=="
 
-#cd kernel
-#make all
-#cd ..
+cd kernel
+make all
+cd ..
 
 # No need to use a loopback, I use DOSBox
 

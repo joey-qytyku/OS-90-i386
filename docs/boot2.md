@@ -14,12 +14,26 @@ Write to EMB directly? Bad idea?
 
 # HMA Issues
 
-The HMA is used for startup and later on for ISA DMA. XMS 2.0 lets only one program can use it at a time, and in this case that is the 32-bit kernel. Remove DOS=HIGH from confg.sys.
+The HMA is used for startup and later on for ISA DMA. XMS 2.0 lets only one program can use it at a time, and in this case that is the 32-bit kernel. Remove DOS=HIGH from confg.sys and anything that uses it.
 
 # DOS drivers
 
 16-bit drivers will work. The DOS .SYS driver model is unsupported by the 32-bit kernel, but the DOS kernel and programs can still use them within a DOS VM. TSR programs like MS Mouse will also function as expected as the mouse interrupt is expected to be 16-bit.
 
+## ISA PnP drivers
+
+There are 16-bit plug-and-play drivers for ISA cards. Such drivers will send the initiation key and perform configuration on a detected card when it recognizes the card identification. ISA PnP drivers presumably use the real-mode PnP BIOS interface to get CSN information.
+
+OS/90 supports plug-and-play ISA and detects what resources have been assigned to each card. It does not reassign card select numbers as configured by the BIOS (This may be an issue).
+
+In short, ISA plug-and-play cards can operate with 16-bit DOS drivers just fine.
+
 # Notes
 
 Upper memory blocks are not supported. EMM386 should __NEVER__ be used! Loading device drivers into a UMB will not do anything (they will be loaded low)
+
+# Parameters
+
+The PSP of the bootloader is passed to the kernel for parsing. They are case insensitive.
+
+/NODRIVERS

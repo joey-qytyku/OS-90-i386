@@ -14,11 +14,13 @@ typedef struct __attribute__((aligned (4)))
 	long eax,ebx,ecx,edx,esi,edi,ebp,esp3,esp0;
 	dword eip,eflags;
 	byte VMType;
-	short TimeSliceCounterMS;
+	short TimeSliceMS;
 	void *x87Env;
 }ProcCtlBlk; // Alignment ensures fast access
 
 static inline void ClearInts(void) { __asm__ volatile("cli"); }
 static inline void SetInts  (void) { __asm__ volatile("sti"); }
+
+typedef enum {KERNEL, INTERRUPT, USER}Mode;
 
 #endif

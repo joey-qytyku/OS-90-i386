@@ -32,6 +32,9 @@ use and modify and use it to load other kernels.
         Added loader code
         Fixed bug with XMS calls
         It appears to be loading into memory
+        Fixed GDT limit
+
+        The first two bytes seem to repeat in the kernel
 %endif
 
 ;-----------------------------
@@ -148,7 +151,7 @@ EnableA20:
 A20AlreadyOn:
         MESSAGE "[i] A20 is already enabled",LNE
 A20Enabled:
-        MESSAGE "[i] Siezing the high memory area",LNE
+        MESSAGE "[i] Aquiring the high memory area",LNE
         mov     ah,1
         mov     dx,0FFFFh
         xms     [bp]
@@ -156,43 +159,6 @@ A20Enabled:
         je      HMA_OK
         ERROR   HMA_Error
 HMA_OK:
-
-PageSetup:
-        ;Note: Should I put it here or delete
-        MESSAGE "[i] Setting up paging (stage 1)",LNE
-        push    es
-        mov     ax,0FFFFh
-        mov     es,ax
-
-        mov     bx,16
-
-        ;Zero all four page tables/dir
-        ;So that #PF can happen instead of
-        ;something much worse
-        mov     cx,16384/4
-        xor     si,si
-        xor     eax,eax
-        rep     stosd
-
-        ;Create the page directory
-        mov     dword [es:bx],       (101h<<PAGE_SHIFT)|3
-        mov     dword [es:bx+768*4], (102h<<PAGE_SHIFT)|13h
-        ;Kernel has cache enabled
-        ;Low 1M does not because VRAM should not be cached
-
-        ;Copy the IDMAP page table to HMA
-        mov     cx,4096/4
-        mov     si,IDMap
-        mov     di,4096
-        rep     movsd
-
-        ;CR3 lower bits are reserved, best to not touch them
-        mov     eax,cr3
-        and     eax,~(0FFFh)
-        or      eax,100000h
-        mov     cr3,eax
-        xor     eax,eax
-
         ;How much extended memory - HMA
         ;Other functions will be used to get
         ;a more precise reading of extended memory
@@ -201,21 +167,16 @@ PageSetup:
         xms     [bp]
 
         ;Allocate all available extended memory
+        ;It will be at most 64M  ike the ISA memory hole
+        ;either way this is enough for the kernel
         mov     dx,ax
         mov     ah,9
         xms     [bp]
         cmp     al,1
         je      ExtAllocSuccess
-
         ERROR   ExtMemErr
 
 ExtAllocSuccess:
-        ;This will allocate at most 64M because of the 16-bit size
-        ;there are incontiguities in the extended memory which can
-        ;limit the size of the EMB. Regardless, the memory
-        ;allocated by XMS driver will be more than enough for the
-        ;kernel to be loaded into.
-
         ;Save EMB handle to extended move struct
         mov     [XMM.deshan],dx
 
@@ -227,22 +188,22 @@ ExtAllocSuccess:
         mov     ax,bx
         mov     cx,dx
 
-        ; Store it, I will use it later
-        mov     [KernelAddr],bx
-        mov     [KernelAddr+2],dx
-
         ;Align CX:AX to page boundary
         add     ax,4095
         adc     cx,0
         and     ax,~4095
+
+        ; Store the aligned address, I will use it later
+        mov     [KernelAddr],ax
+        mov     [KernelAddr+2],cx
 
         ;Aligned minus Original is the offset
         ;in order to load at a page boundary
         sub     cx,dx
         sbb     ax,bx
 
-        ;Check!!
-        ;CX:AX is the offset to move to? EMB
+
+        ;CX:AX is the offset to move to EMB
         ;Copy it to memory move structure
         mov     [XMM.desoff],ax
         mov     [XMM.desoff+2],cx
@@ -263,9 +224,7 @@ LoadKernel:
         xor     cx,cx
         mov     dx,cx
         int     21h
-        jnc     .FileOpened
 
-.FileOpened:
         ;File byte size in DX:AX
         ;The kernel image is page granular
         ;aka it is in 4096 byte blocks
@@ -278,7 +237,7 @@ LoadKernel:
 
         ;Seek back
         mov     ax,SEEK_SET
-        xor     cx,cx ; Same as moving from a zero reg
+        xor     cx,cx
         mov     dx,cx
         int     21h
 
@@ -303,11 +262,10 @@ LoadKernel:
         ;HIMEM seems to zero BL on success
         push    bx
         mov     ah,0Bh
-        xms     [XMS]
+        xms     [bp]
         cmp     al,1
         je      .copy_success
         ERROR   MoveError
-
 .copy_success:
         pop     bx
 
@@ -318,7 +276,7 @@ LoadKernel:
         int     21h
 
         ;Add 4096 to the extended move offset
-        add     [XMM.desoff],di
+        add     word [XMM.desoff],4096
 
         dec     di
         jnz    .loadloop
@@ -327,19 +285,55 @@ LoadKernel:
         mov     ah,CLOSE
         int     21h
 
-        jmp $
+PageSetup:
+        MESSAGE "[i] Creating page tables",LNE
+        push    es
+        mov     ax,0FFFFh
+        mov     es,ax
 
-Page2:
-        ;Map the higher half
-        ;
+        mov     bx,16
+
+        ;Create the page directory
+        mov     dword [es:bx],       (101h<<PAGE_SHIFT)|3
+        mov     dword [es:bx+768*4], (102h<<PAGE_SHIFT)|3
+
+        ;Copy the IDMAP page table to HMA
+        mov     cx,256
+        mov     si,IDMap
+        lea     di,[bx+4096]
+        rep     movsd
+
+        lea     di,[bx+8192]
+        ;DI points to next page table
+        ;Map the kernel to high memory
+        ;Note, one nibble will be zero but does not count as
+        ;part of the address
+        mov     eax,[KernelAddr]
+        and     eax,0FFFFF000h
+        mov     al,3h   ;Page attributes
+        ;Loop: Copy eax into second page table, page ++
+        mov     cx,256
+.hh:
+        stosd
+        add     eax,1<<PAGE_SHIFT
+        loop    .hh
+
+        ;CR3 lower bits are reserved, best to not touch them
+        mov     eax,cr3
+        and     eax,~(0FFFh)
+        or      eax,100000h
+        mov     cr3,eax
 
 GotoKernel:
         cli
-        ; Get linear address of GDTR
-        mov     ebx,ds
-        shl     ebx,4
-        add     ebx,_GDTR
-        lgdt    [ebx]
+        ;Figure out the address of the GDT
+        mov     eax,ds
+        shl     eax,4
+        add     eax,_GDT
+        mov     [_GDTR+2],eax        ;Put it in the new GDTR
+
+        ;GDT is loaded segment relative
+        lgdt    [_GDTR]
 
         ;Pass the information block as a segment
         ;All real mode segments are 16-byte aligned
@@ -351,27 +345,24 @@ GotoKernel:
 
         ;Switch to protected mode
         mov	eax,cr0
-        or	eax,8000_0001h
+        or      eax,8000_0001h
         mov	cr0,eax
-        jmp     $+2     ; Clear prefetch cache
+        jmp     $+2     ; Clear prefetch cache so CPU does not crash
 
         ;Bravo six, going dark
-        use32
         mov     ax,10h
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
-        jmp	8h:0C000_0001h
+        jmp     dword 8:0C000_0001h  ;Yes, this is a thing
         ;Jumps over the protective RET
         ;See StartK.asm for more information
-        use16
 
 Corrupted:
         ERROR   KernelFile
 
 InfoGet:
         ;Is there a PCI bus?
-
 
         ;Extended memory
         ret
@@ -386,16 +377,15 @@ KernelAddr:
         DD      0
 
 _GDTR:
-        DW      _GDT.end - _GDT
+        DW      _GDT_end - _GDT - 1
         DD      0       ;Will figure out
-
 _GDT:
         DQ	0
         ; Flat code segment
         DB      0FFh,0FFh,0,0,0,1_00_11010b,11_001111b,0
         ; Flat data segment
         DB      0FFh,0FFh,0,0,0,1_00_10010b,11_001111b,0
-.end:
+_GDT_end:
 
 XMS:    DD      0
 Handle: DW      0
@@ -414,7 +404,7 @@ InfoStructure:
 IDMap:
 %assign i 0
 %rep 256
-        DD      (i << PAGE_SHIFT) | 13h
+        DD      (i << PAGE_SHIFT) | 3h
         %assign i i+1
 %endrep
 

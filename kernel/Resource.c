@@ -1,5 +1,5 @@
 /* Resource management for the IBM PC/AT architecture and above
- *
+ * it uses a flat list for all resource types
  *
  */
 
@@ -7,34 +7,30 @@
 #include <Type.h>
 #include <Linker.h>     // To get address of BDA
 
-static IO_Resource iorsc[64];
-// Partial arrays are placed in data section
-// Empty arrays go in BSS and are not in the final binary
-
 // Interrupt levels of each IRQ
-static byte interrupts[16] =
+static Interrupt interrupts[16] =
 {
-    [0] =   STANDARD_32,    // Timer
-    [1] =   STANDARD_32,    // Keyboard
-    [2] =   STANDARD_32,    // Cascade
-    [3] =   UNKNOWN,        // COM, must detect
-    [4] =   UNKNOWN,        // Also COM
-    [5] =   UNKNOWN,        // LPT2 if present
-    [6] =   STANDARD_32,    // Floppy disk controller
-    [7] =   UNKNOWN,        // LPT1
-    [8] =   STANDARD_32,    // RTC
-    [9] =   RECL_16,        // Unassigned
-    [10]=   RECL_16,
-    [11]=   RECL_16,
-    [12]=   RECL_16,        // PS/2 mouse, 16-bit expected
-    [13]=   STANDARD_32,    // Math coprocessor
-    [14]=   STANDARD_32,	// ATA primary
-    [15]=   STANDARD_32		// ATA secondary
+    [0] =   {STANDARD_32, .owners[0]="KERNL386"},  // Timer
+    [1] =   {STANDARD_32},  // Keyboard
+    [2] =   {STANDARD_32},  // Cascade
+    [3] =   {UNKNOWN},      // COM, must detect
+    [4] =   {UNKNOWN},      // Also COM
+    [5] =   {UNKNOWN},      // LPT2 if present
+    [6] =   {RECL_16},      // Floppy disk controller
+    [7] =   {UNKNOWN},      // LPT1
+    [8] =   {STANDARD_32},  // RTC
+    [9] =   {RECL_16},      // Unassigned
+    [10]=   {RECL_16},
+    [11]=   {RECL_16},
+    [12]=   {RECL_16},      // PS/2 mouse, 16-bit expected
+    [13]=   {STANDARD_32},  // Math coprocessor
+    [14]=   {STANDARD_32},  // ATA primary
+    [15]=   {STANDARD_32}   // ATA secondary
     // If an interrupt comes from a 16-bit IRQ then it is assumed to be 16-bit
     // because no other driver has claimed it.
 };
-
-IO_Resource Standard[] = {
+// First 20 are reserved
+IO_Resource resources[MAX_IO_RSC] = {
     {// Master PIC
      .start = 0x20,
      .limit = 0x21,
@@ -86,20 +82,41 @@ IO_Resource Standard[] = {
      .info = PORT | STD | INUSE}
 };
 
-void SetupStd_IO(IO_Resource (*array)[MAX_IO_RSC])
+dword next_iorsc = 20;
+
+void InitResMGR()
 {   // Need volatile?
     volatile word *bda = (word*)phys(0x400);
     // Check BIOS data area for number of serial ports
+    for (int i = 0; i<4;i++)
+    {
+        if (bda[i] != 0){ // then COM[i] exists
+            resources[next_iorsc].start = bda[i];
+            resources[next_iorsc].limit = bda[i]+7;
+        }
+        next_iorsc++;
+    }
 
     /* If a computer has more than one serial port
      * then IRQ 3 and 4 are both for COM
      * 2 and 4 => IRQ3
      * 1 and 3 => IRQ4
-     */
+    */
 
     // Parallel ports do not share interrupts
     // If there are two, IRQ 5 is for the second one
     // The first one is assumed to exist
 }
 
-int RequestIRQ(byte irq, void (*handler)());
+int RequestIRQ(byte irq, PHandler handler)
+{
+    // There can be up to 4 handlers attached to an IRQ
+    if (interrupts[irq].index > HANDLERS-1)
+    {
+        return 1;
+    }
+    Interrupt *INT = &interrupts[irq];
+    INT->handlers[INT->index] = handler;
+    INT->index++;
+    return 0;
+}

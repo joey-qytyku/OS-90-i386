@@ -10,21 +10,31 @@
 #define STD 2
 #define INUSE 4
 
+#define HANDLERS 4
+
+typedef int (*PHandler)(void*);
+
 enum InterruptLVL
 {
     UNKNOWN = 0,
-    OPEN32 = 1 << 4,
-    RECL_16 = 2 << 4,
-    TAKEN_32 = 3 << 4,
-    STANDARD_32 = 4 << 4,
-    RECL_32 = 5 << 4
+    OPEN32,
+    RECL_16,
+    TAKEN_32,
+    STANDARD_32,
+    RECL_32
 };
 
+typedef struct {
+    enum InterruptLVL intlevel;
+    PHandler handlers[HANDLERS];
+    int index;
+    char owners[8][HANDLERS]; // FAT case
+}Interrupt;
+
 typedef struct
-{
-    dword start;
+{   dword start;
     dword limit;
     dword info;
-} IO_Resource; // IO ports or memory mapped IO
+}IO_Resource; // IO ports or memory mapped IO
 
 int RequestIRQ(byte irq, void (*handler)(void*));

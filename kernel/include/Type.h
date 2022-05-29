@@ -12,6 +12,12 @@ typedef int16_t   sword;
 typedef int8_t    sbyte;
 typedef int32_t   sdword;
 
+/*  The timer interrupt uses fixed point rather than FPU
+ *  This is because milisecond precision time counting
+ *  is supposedly very inaccurate
+*/
+struct FixedPointNumber { long whole, fractional; };
+
 static inline void *C_memcpy(void *d, void *s, size_t c)
 {
 	return __builtin_memcpy(d, s, c);
@@ -25,6 +31,11 @@ static inline void *C_memmove(void *d, void *s, size_t c)
 static inline int C_strcmp(char *s1, char *s2)
 {
 	return __builtin_strcmp(s1, s2);
+}
+
+static inline void C_memset(void *a, unsigned int val, int count)
+{
+    __builtin_memset(a,val,count);
 }
 
 #endif

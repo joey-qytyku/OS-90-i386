@@ -23,10 +23,10 @@ ASFLAGS=-felf
 	$(AS) $(ASFLAGS) $< -o build/$@
 
 KERNL386.EXE: $(OBJ)
-	$(LINK) -T Kernel.ld $(addprefix build/, $<) -o build/KERNL386.EXE
+	$(LINK) -T Kernel.ld $(addprefix build/, $(OBJ)) -o build/Kernel
+	objcopy -O binary build/Kernel build/KERNL386.EXE
 
 all: KERNL386.EXE
 
 cl:
 	rm build/*.o
-	rm build/Kernel.bin

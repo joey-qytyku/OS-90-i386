@@ -2,6 +2,10 @@ extern LKR_STARTBSS
 extern LKR_END
 extern KernelMain
 extern IntDescTab
+extern gdt
+extern gdtr 
+
+;Problems: IO functions are broken or something
 
 section	.init
         ;If DOS does not find the MZ signature in an EXE file
@@ -9,21 +13,36 @@ section	.init
         ;a return instruction, the loader jumps over this
         ret
 
+Begin:
         ; Zero the BSS section
         mov     ecx,LKR_END
         sub     ecx,LKR_STARTBSS
         shr     ecx,2
         mov     edi,LKR_STARTBSS
-        rep     lodsd
+        rep     stosd
 
-	mov	esp, InitStack  ; Set up a stack
+        ;Set up new segments
+        lgdt    [gdtr]
+        lidt    [idtr]
+
+        mov     ax,8
+        mov     ds,ax
+        mov     es,ax
+        mov     ss,ax
+        xor     ax,ax
+        mov     fs,ax   ;I will not use these for anything
+        mov     gs,ax
+
+	mov	esp,InitStack  ; Set up a stack
 	call	KernelMain
 
 L:      hlt     ; Nothing to do now, halt
 	jmp L   ; if interrupted, handle and halt again
 
 section	.bss
-        ; GCC requires aligned stack, usually 8
+        ;The initialization stack is used only for startup
+        ;When a task runs, ESP0 and ESP3 are set
+        ;VM86 do not use ESP3
         align   8
-        resb    4096
+        resb    1024
 InitStack:

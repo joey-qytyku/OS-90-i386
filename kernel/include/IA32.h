@@ -36,6 +36,12 @@ typedef struct __attribute__((packed))
     dword   address;
 }xDtr;
 
+typedef struct __attribute__((packed))
+{
+    pvoid   off;
+    word    seg;
+}FarPointer32;
+
 typedef struct {
     dword   link;
     word
@@ -47,6 +53,7 @@ typedef struct {
     word    iobp_off;
     byte    iopb_allow_all[8192];
     byte    iopb_deny_all [8192];
+    // I don't have to memset the IOPB now
 }CompleteTSS;
 
 /********** 8259A DEFINES **********/
@@ -62,7 +69,6 @@ typedef struct {
 /********* PORT IO DEFINES *********/
 // Check these?
 
-
 static inline void outb(word port, byte val)
 {
     asm volatile ("outb %0, %1": :"a"(val), "Nd"(port));
@@ -77,22 +83,22 @@ static inline byte inb(word port)
     return ret;
 }
 
-static inline void rep_insb(void *mem, dword count, word port)
+static inline void rep_insb(pvoid mem, dword count, word port)
 {
 __asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
-static inline void rep_outsb(void *mem, dword count, word port)
+static inline void rep_outsb(pvoid mem, dword count, word port)
 {
 __asm__ volatile ("rep outsb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
-static inline void rep_insw(void *mem, dword count, word port)
+static inline void rep_insw(pvoid mem, dword count, word port)
 {
 __asm__ volatile ("rep insw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
-static inline void rep_outsw(void *mem, dword count, word port)
+static inline void rep_outsw(pvoid mem, dword count, word port)
 {
 __asm__ volatile ("rep outsw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }

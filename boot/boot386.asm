@@ -35,6 +35,11 @@ use and modify and use it to load other kernels.
         Fixed GDT limit
 
         The first two bytes seem to repeat in the kernel
+
+21 May 2022
+        This code is working and kernel loads
+        It was a linker error, fixed approx. 2 weeks ago
+
 %endif
 
 ;-----------------------------

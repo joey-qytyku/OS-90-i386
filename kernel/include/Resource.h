@@ -28,8 +28,11 @@ typedef struct {
     enum InterruptLVL intlevel;
     PHandler handlers[HANDLERS];
     int index;
-    char owners[8][HANDLERS]; // FAT case
-}Interrupt;
+    char owners[HANDLERS][8]; // FAT case
+}Interrupt,*PInterrupt;
+
+typedef struct {
+}COM_Port;
 
 typedef struct
 {   dword start;

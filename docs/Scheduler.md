@@ -1,38 +1,23 @@
 # Scheduler
 
-# Virtual 86 Machines
+## Context Switching
 
-VM86 is used by the kernel for information gathering through the BIOS. Virtual 86 machines run as processes on the system. A SSM is atomic and synchronous while executing. A general purpose virtual machine runs when the scheduler decides to run it.
+IRQ 0 has a special upper half C handler which runs the scheduler. It modifies the register dump on the stack to the next process to run and loads floating point environments if needed. When switching, the page directory belonging to the process is placed in CR3 and this PD points the the kernel and user pages.
 
-## Design
+The FPU is disabled via CR0 and the Device Not Available handler enables the FPU for the processor. CR0 is stored per process. This is because most processes do not need the FPU at all (DOS programs almost never use it).
 
-Each VM has a process control block like all other processes. An identifier specifies that it is an 86 machine. A GPM acts like a process, but switching to it is different.
+The kernel anipulates FPU registers in C because it does not use them for anything but task switching.
 
-Two task state segments are used by the kernel. The second only is for VM86. The GP# handler looks at the process that was running and if it was a VM, it may emulate the instruction that caused it. Otherwise, it terminates the process.
+## Modes
 
-A virtual machine can run in concurrent or exclusive mode.
+There are three modes: user, kernel, and interrupt. The last mode (the one which was just switched from) is stored in a variable. This is used so that the kernel knows if it should save the register dump on the stack to a PCB or simply restore them and continue running the last interrupt or kernel code.
 
-## Interrupt Faking
+## Kernel pre-emption
 
-Interrupts go through the GP# handler rather than IDT entries (unless IOPL is 3, not in this case). The GP# handler emulates INT by manipulating the stack frame.
+The kernel CANNOT be pre-empted, but interrupts can be. 
 
-During startup, the kernel must run 16-bit drivers if there is no alternative.
+## Interrup interruption
 
-Prefixes act as instrutions and the prefixed instruction can be interrupted before it executes.
+Interrupt handlers (not bottom half) can be interrupted but NOT pre-empted. Other interrupts are completely enabled, but the scheduler is notified to not do any task switching. A critical section must be used to disable them.
 
-## System Service Machine
-
-A SSM runs synchronously. It is stored by the kernel with a PCB and runs atomically. This machine is only used for running BIOS interrupts or running a 16-bit driver.
-
-## General Purpose Machine
-
-GPMs can be configured to directly access IO ports, video memory, and the BIOS, but are designed for user programs that only use the DOS API. They are also allowed to change video modes.
-
-A GPM can access DOS interrupts and can be spawned by a userspace process with all of its memory being accessible to the parent process through.
-
-# 32-bit Virtual Machines
-
-Native applications use the PE format. They get 1G of bottom half addressing space. The FPU context is only saved if the FPU was used for the process, or if one is present at all.
-
-# Interface
-
+In the kernel API, CriticalSection() will always disable interrupts. EndCritical() will always enable them.

@@ -74,12 +74,15 @@ Q: Is there plug and play support?
 A: Yes. The OS is designed around plug-and-play functionality. There will never be plug and play COM (serial) device PnP. Just use Windows 95 for that. 16-bit plug-and-play drivers also work.
 
 Q: Which PC busses are supported?
+
 A: Theoretically all of them, but ISA and PCI are sure to work best.
 
 Q: Does this run on modern computers?
+
 A: As long as it has a PC BIOS (even EFI-CSM) and 32-bit disk access is turned off (or IDE compatibility) for using SATA drives, there should be no problems. PCIe is compatible with PCI. Both PCI configuration mechanisms are supported.
 
 Q: Do DOS drivers work?
+
 A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of cards.
 
 ## Pipe Dreams

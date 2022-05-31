@@ -12,12 +12,18 @@ The kernel anipulates FPU registers in C because it does not use them for anythi
 
 There are three modes: user, kernel, and interrupt. The last mode (the one which was just switched from) is stored in a variable. This is used so that the kernel knows if it should save the register dump on the stack to a PCB or simply restore them and continue running the last interrupt or kernel code.
 
+Only the last mode actually matters. The current one is always "known" and is unimportant.
+
 ## Kernel pre-emption
 
-The kernel CANNOT be pre-empted, but interrupts can be. 
+The kernel CANNOT be pre-empted, but interrupts can be. This is because there is not much kernel code in the first place that would not block the system.
 
 ## Interrup interruption
 
 Interrupt handlers (not bottom half) can be interrupted but NOT pre-empted. Other interrupts are completely enabled, but the scheduler is notified to not do any task switching. A critical section must be used to disable them.
 
 In the kernel API, CriticalSection() will always disable interrupts. EndCritical() will always enable them.
+
+## Scheduling algorithm
+
+I came up with my own virtual memory algorithm called IOFRQ. It is tied to the virtual memory manager and further explained in related documents. Basically, processes with the most IO load get the smallest time slices since most of the time is spent in the kernel doing the disk IO.

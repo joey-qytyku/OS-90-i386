@@ -26,10 +26,18 @@ The TSS is never modified by the monitor or the basic V86 interface. It is modif
 
 # Configuration of VM16 tasks
 
+The resource manager determines whihc interrupts are 16-bit or 32-bit. 16-bit interrupts are serviced in the global DOS.
+
+The function GlobalMap(dword pid, void *proc_page, void *to, page c, int access) can be used to change the mappings of pages in V86 tasks as well as 32-bit tasks. This can be used to facilitate IPC for VM32 and allow for accessing framebuffers.
+
+GlobalMap(thepid, PTR(0xB8), framebuffer, 16, PG_RW);
+
 # API
 
 # XMS Emulation
 
-HIMEM.SYS is never used by the kernel. The kernel emulates the latest XMS specification so that DOS programs go through the 32-bit memory manager.
+HIMEM.SYS is never used by the kernel. The kernel emulates the latest XMS specification so that DOS programs go through the 32-bit memory manager. TSR programs may use HMBs, so there is no way to override this.
+
+XMS does not use an interrupt. It uses 
 
 The A20 functions always respond with the A20 gate being on.

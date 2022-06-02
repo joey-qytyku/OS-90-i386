@@ -4,7 +4,7 @@ Multitasking VM86
 
 # Virtual Machine manager
 
-VMMs are a special type of driver. There can only be one running on a system. This driver is responsible for terminating and creating virtual machinesmm configuring resources etc,interrupts. The kernel provides a simple interface that makes this possible.
+VMMs are a special type of driver. There can only be one running on a system. This driver is responsible for terminating and creating virtual machines configuring resources etc,interrupts. The kernel provides a simple interface that makes this possible.
 
 TSR programs do not work.
 
@@ -26,13 +26,21 @@ The TSS is never modified by the monitor or the basic V86 interface. It is modif
 
 # Configuration of VM16 tasks
 
-The resource manager determines whihc interrupts are 16-bit or 32-bit. 16-bit interrupts are serviced in the global DOS.
+The resource manager determines whihc interrupts are 16-bit or 32-bit. 16-bit IRQs are serviced in the physical DOS and only apply to the OS when it performs DOS/BIOS calls. The kernel capture table is for software interrupts. It can send a software interrupt back to itself or 
+
+Each 16-bit process has its own local capture table.
 
 The function GlobalMap(dword pid, void *proc_page, void *to, page c, int access) can be used to change the mappings of pages in V86 tasks as well as 32-bit tasks. This can be used to facilitate IPC for VM32 and allow for accessing framebuffers.
 
 GlobalMap(thepid, PTR(0xB8), framebuffer, 16, PG_RW);
 
 # API
+
+Int16()
+SetGlobalCapture(byte vector, byte type)
+
+#define SWI_16 0
+#define SWI_32 1
 
 # XMS Emulation
 

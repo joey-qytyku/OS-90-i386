@@ -9,3 +9,12 @@ A buddy-like algorithm is used to implement page frame allocation. A few entries
 ## Virtual Memory
 
 Virtual memor is handled at the process level. The kernel determines swapability.
+
+# Kernel API
+
+GlobalMap(dword pid, void *proc_page, void *to, page c, int access)
+
+PG_AVAIL
+PG_W
+PG_R
+

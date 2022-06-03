@@ -32,19 +32,8 @@ inline void
     return (void*)((seg<<4) + off);
 }
 
-void bPeek86(word seg, word off) {return *(byte*)Segment(seg,off);};
-void wPoke86(word seg, word off) {return *(byte*)Segment(seg,off);};
-
-#if 0
-
-16-bit hard disk IO should work with virtual memory
-but floppy disk IO probably will not because ISA DMA
-requires physical addresses.
-
-Should I use the HMA for this purpose? I can then copy
-the data where it is needed
-
-#endif
+void bPeek86(word seg, word off) {return *(byte*)Segment(seg,off);}
+void wPoke86(word seg, word off) {return *(byte*)Segment(seg,off);}
 
 void MonitorVM86()
 {

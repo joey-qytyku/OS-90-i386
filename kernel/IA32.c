@@ -56,6 +56,7 @@ void SetIntVector(byte v, byte attr, void *address)
     idt[v].attr = attr; // TODO
     idt[v].offset_15_0  = (dword)address &  0xFFFF;
     idt[v].offset_16_31 = (dword)address >> 16;
+    idt[v].zero = 0;
 }
 
 static void PIC_Remap(void)
@@ -75,7 +76,7 @@ static void PIC_Remap(void)
     outb(0xA1, 0x28);
 
     outb(0x21, 4);  // ICW3, IRQ 2 is cascade (bitmap)
-    outb(0xA1, 2);  // ICW3 is different for slave PIC, (index instread)
+    outb(0xA1, 2);  // ICW3 is different for slave PIC (index)
 
     outb(0x21, ICW4_X86);
     outb(0xA1, ICW4_X86 | ICW4_SLAVE); // Assert PIC2 is slave

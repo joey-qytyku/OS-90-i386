@@ -1,11 +1,10 @@
-#if 0
-
+/*
 Everything process and control flow related
 * Scheduler
 * V86
 * Interrupt handling
 
-#endif
+*/
 
 #include <Scheduler.h>
 #include <Type.h>
@@ -41,8 +40,8 @@ inline void *MK_FP(word seg, word off)
     return (void*)((seg<<4) + off);
 }
 
-void bPeek86(word seg, word off) {return *(byte*)Segment(seg,off);}
-void wPoke86(word seg, word off) {return *(byte*)Segment(seg,off);}
+byte bPeek86(word seg, word off) {return *(byte*)Segment(seg,off);}
+word wPeek86(word seg, word off) {return *(word*)Segment(seg,off);}
 
 void IntDispatch()
 {}

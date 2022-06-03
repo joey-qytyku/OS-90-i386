@@ -16,14 +16,14 @@ typedef enum {
 typedef struct __ALIGN(4)
 {
 // add context
-	byte    VMType;
-	bool    run;        /* Is structure valid       */
-    bool    use87;      /* Does thread use x86 FPU  */
-	void    *x87env;    /* */
+    byte    thread32;
+    bool    run;        /* Is structure valid */
+    bool    use87;      /* Does thread use x86 FPU */
+	void    *x87env;    /* NULL if use87 false */
  	short    ts;        /* Miliseconds left counter */
     bool    *ioperm;    /* IO permission bitmap */
-    void *next;         /* Front link to next thread     */
-}Thread,*PThread;       /* Alignment ensures fast access */
+    void    *next;      /* Front link to next thread */
+}Thread,*PThread;
 
 void InitScheduler(void);
 static inline void ClearInts(void) { __asm__ volatile("cli"); }

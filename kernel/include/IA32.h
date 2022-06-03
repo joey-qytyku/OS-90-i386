@@ -54,7 +54,7 @@ typedef struct __attribute__((packed))
 
 typedef struct {
     dword   link;
-    word
+    dword
         esp0, ss0,
         esp1, ss1,
         esp2, ss2;
@@ -116,4 +116,6 @@ void invlpg(page addr)
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 
+/* TASK STATE SEGMENT */
+extern struct CompleteTSS main_tss
 #endif

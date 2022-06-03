@@ -6,6 +6,16 @@
 #define IDT_INT386  0xE
 #define IDT_TRAP386 0xF
 
+enum {
+GDT_CODE32,
+GDT_KDATA0,
+GDT_KDATA1,
+GDT_UCODE32,
+GDT_UDATA,
+GDT_TSSD
+GDT_ENTRIES
+};
+
 typedef dword page;
 
 /* Data structures */
@@ -53,7 +63,7 @@ typedef struct __attribute__((packed))
 }FarPointer32;
 
 typedef struct {
-    dword   link;
+    dword   link; // Zero extended
     dword
         esp0, ss0,
         esp1, ss1,

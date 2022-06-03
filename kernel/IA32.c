@@ -2,7 +2,7 @@
 
 CompleteTSS main_tss;
 
-static Gdesc gdt[] = {
+static Gdesc gdt[GDT_ENTRIES] = {
     { /* Code 32 */
         .access = 0x9A,
         .base0  = 0,
@@ -10,7 +10,7 @@ static Gdesc gdt[] = {
         .limit  = 0xFFFF,
         .limit_gr = 0xCF
     },
-    {   /* Code 16 */
+    {   /* Code extra (for PnP) */
         .access = 0x9A,
         .base0  = 0,
         .base1  = 0,
@@ -47,7 +47,7 @@ static Intd idt[256];
 
 static xDtr
     gdtr = {.limit=sizeof(gdt)-1, .address=&gdt},
-    idtr = {.limit=0x2000, .address=&idt
+    idtr = {.limit=0x2000,        .address=&idt
 };
 
 // Low-level function
@@ -87,5 +87,7 @@ void InitIA32(void)
     dword _tss0 = (dword)(&main_tss);
     gdt[TSS].base0 = (word)(_tss0 & 0xFFFF);
     gdt[TSS].base1 = (byte)((_tss0 >> 16) & 0xFF);
-    gdt[TSS].base2 = 0xC0; // Its doing to be this anyway
+    gdt[TSS].base2 = 0xC0; // Its going to be this anyway
+
+    __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
 }

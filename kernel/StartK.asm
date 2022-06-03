@@ -1,11 +1,9 @@
 extern LKR_STARTBSS
 extern LKR_END
 extern KernelMain
-extern IntDescTab
-extern gdt
-extern gdtr 
+extern gdtr,idtr
 
-;Problems: IO functions are broken or something
+;Problems: IO functions are broken or something?
 
 section	.init
         ;If DOS does not find the MZ signature in an EXE file
@@ -21,11 +19,10 @@ Begin:
         mov     edi,LKR_STARTBSS
         rep     stosd
 
-        ;Set up new segments
         lgdt    [gdtr]
-        lidt    [idtr]
+        lidt    [ldtr]
 
-        mov     ax,8
+        mov     ax,10h
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
@@ -33,11 +30,14 @@ Begin:
         mov     fs,ax   ;I will not use these for anything
         mov     gs,ax
 
-	mov	esp,InitStack  ; Set up a stack
-	call	KernelMain
+        jmp    8h:Cont
+Cont:
+        mov     esp,InitStack  ; Set up a stack
+        ;Far call not used because GCC cant return
+        call    KernelMain
 
-L:      hlt     ; Nothing to do now, halt
-	jmp L   ; if interrupted, handle and halt again
+L:        hlt     ; Nothing to do now, halt
+        jmp L   ; if interrupted, handle and halt again
 
 section	.bss
         ;The initialization stack is used only for startup

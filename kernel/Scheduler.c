@@ -54,6 +54,6 @@ void MonitorVM86()
 
 void InitScheduler(void)
 {
-    C_memset(&main_tss.iopb_deny_all, '\xFF', 8192);
+    C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);
 }
 

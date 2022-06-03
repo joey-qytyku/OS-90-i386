@@ -4,5 +4,4 @@
 void KernelMain(void *info)
 {
     InitIA32();
-    EarlyInitPIC();
 }

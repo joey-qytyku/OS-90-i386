@@ -90,4 +90,6 @@ void InitIA32(void)
     gdt[TSS].base2 = 0xC0; // Its going to be this anyway
 
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
+
+    PIC_Remap();
 }

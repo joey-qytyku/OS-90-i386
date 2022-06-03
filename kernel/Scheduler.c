@@ -1,10 +1,10 @@
 #include <Scheduler.h>
 #include <Type.h>
+#include <IA32.h>
 
-byte vm86_caused_gpf=0, emulate_svi = 0;
+byte vm86_caused_gpf=0, emulate_svi=0;
 dword current_proc=0;
 
-// After a context switch, this becomes significant
 Mode last_mode = KERNEL;
 
 // used by vm86.asm, automatically cleared
@@ -38,3 +38,11 @@ void wPoke86(word seg, word off) {return *(byte*)Segment(seg,off);}
 void MonitorVM86()
 {
 }
+
+/* Scheduler code */
+
+void InitScheduler(void)
+{
+    C_memset(&main_tss.iopb_deny_all, '\xFF', 8192);
+}
+

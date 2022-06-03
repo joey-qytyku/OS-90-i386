@@ -20,3 +20,4 @@ Definitions:
 PG_AVAIL, PG_W, PG_R, MAP_FAILED, MAP_SUCCESS
 
 This functon modifies the page tables of a process to map somewhere else. Addresses must be page aligned. GlobalMap is useful for mapping framebuffers for DOS applications. It can be used for 32-bit processes to facillitate data sharing.
+

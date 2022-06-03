@@ -15,6 +15,8 @@ typedef int32_t   sdword;
 typedef void*	  pvoid;
 typedef word*     pword;
 typedef byte*     pbyte;
+typedef dword*    pdword
+
 
 /*  The timer interrupt uses fixed point rather than FPU
  *  This is because milisecond precision time counting

@@ -6,7 +6,13 @@
 #define INT386  0xE
 #define TRAP386 0xF
 
-typedef struct __attribute__((packed))
+#define __PACKED __attribute__((packed))
+
+typedef dword page;
+
+/* Data structures */
+
+typedef struct __PACKED
 {
     word    offset_15_0;
     word    selector;
@@ -17,7 +23,7 @@ typedef struct __attribute__((packed))
     // Interrupt gates do not
 }Intd;
 
-typedef struct __attribute__((packed))
+typedef struct __PACKED
 {
     word limit, base0;
     byte base1;
@@ -28,7 +34,13 @@ typedef struct __attribute__((packed))
 
 typedef struct {
     dword   eax,ebx,ecx,edx,ebp,esp,esi,edi;
-}GeneralRegdump,*PGeneralRegdump;
+}Context,*PContext;
+
+// If kernel to kernel switch, ss and esp are invalid
+typedef struct __PACKED {
+    dword      ss,esp,eflags,cs,eip;
+    Context    regs;
+}State,*PState;
 
 typedef struct __attribute__((packed))
 {
@@ -66,6 +78,8 @@ typedef struct {
 #define ICW4_X86 1
 #define ICW4_SLAVE 1<<3
 
+extern void InitIA32(void);
+
 /********* PORT IO DEFINES *********/
 // Check these?
 
@@ -77,30 +91,31 @@ static inline void outb(word port, byte val)
 static inline byte inb(word port)
 {
     byte ret;
-    asm volatile ("inb %1, %0"
-    :"=a"(ret)
-    :"Nd"(port) );
+    asm volatile ("inb %1, %0" :"=a"(ret) :"Nd"(port) );
     return ret;
 }
 
 static inline void rep_insb(pvoid mem, dword count, word port)
-{
-__asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
+{__asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
 static inline void rep_outsb(pvoid mem, dword count, word port)
-{
-__asm__ volatile ("rep outsb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
+{__asm__ volatile ("rep outsb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
 static inline void rep_insw(pvoid mem, dword count, word port)
-{
-__asm__ volatile ("rep insw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
+{__asm__ volatile ("rep insw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
 static inline void rep_outsw(pvoid mem, dword count, word port)
-{
-__asm__ volatile ("rep outsw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
+{__asm__ volatile ("rep outsw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
+}
+
+/* Other instructions */
+
+void invlpg(page addr)
+{// Linux defines like this
+    __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 
 #endif

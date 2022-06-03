@@ -14,8 +14,6 @@ Underscore case:
 * Static variables
 * Struct fields
 
-Variables and non-inline global functions should not be named exactly after x86 instructions.
-
 Global functions must never be inlined.
 
 Global variables should be avoided unless there is no better way.

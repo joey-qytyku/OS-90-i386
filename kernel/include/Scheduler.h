@@ -15,11 +15,16 @@ typedef struct __attribute__((aligned (4)))
 	short TimeSliceMS;
 	void *x87env;
 	bool active;
+    bool ;
 }ProcCtlBlk; // Alignment ensures fast access
 
 static inline void ClearInts(void) { __asm__ volatile("cli"); }
 static inline void SetInts  (void) { __asm__ volatile("sti"); }
 
-typedef enum {KERNEL, INTERRUPT, USER}Mode;
+typedef enum {
+    KERNEL,
+    INTERRUPT, // If an INT gets INTed
+    USER
+}Mode;
 
 #endif

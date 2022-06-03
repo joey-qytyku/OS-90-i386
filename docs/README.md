@@ -25,9 +25,7 @@ Premium Setup:
 
 PCI and ISA are officially supported buses. VLB, MCA, and EISA should work too because OS/90 keeps the BIOS default settings.
 
-A floating point unit is not required for i386 users. The OS code never uses the floating point unit, but does detect its presence and saves registers on pre-emption if a process uses them and it is in fact present. There are no build options for processors; both i386 and i486+ are supported, but the i486 GCC compiler and tuning is used.
-
-Disk space is TBD.
+A floating point unit is not required for i386 users. The OS code never uses the floating point unit, but does detect its presence and saves registers on pre-emption if a process uses them and it is in fact present. There are no build options for processors; both i386 and i486+ are supported, but the i486 GCC compiler and tuning is used. INVLPG is used by the memory manager if it is detected.
 
 The maximum amount of ram is 1 GB. There is no reason for anything higher. A system should boot if it has more.
 
@@ -65,7 +63,7 @@ See boot.md for some information on the boot process and setting up the bootload
 
 The goal of OS/90 is to create an operating system for very old computers that maximizes DOS compatibility. The DOS compatibility, which extends to some drivers, will hopefully make this OS more useful, as I doubt many developers are going to make 32-bit native drivers for this specific OS. I also thought it would be more fun to work on a DOS/Windows-like operating system. Unix seems done to death in the OSDev community, probably because most of us use Unix-like tools.
 
-# FAQ
+# Q&A
 
 Q: Is OS/90 a real operating system or an interface for DOS?
 A: I think it is an operating system. It has a multitasking kernel and driver interface, as well as 16-bit and 32-bit userspace. It is similar to Windows 3.1 enhanced mode and 95, both of which I consider to be operating systems. Despite this, DOS is a critical component and is used for more than just booting up.
@@ -85,8 +83,18 @@ Q: Do DOS drivers work?
 
 A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of cards.
 
+Q: What type of kernel design is used?
+
+A: Hybrid. There are drivers in KERNL386.EXE but they are only for standard PC hardware. Almost everything else goes in a driver.
+
+Q: I want to write software for OS/90, what resources are available?
+
+A: Everything in DOCS\ is relevant for kernel-mode development. Components like MM and scheduling available to drivers are prefixed with \_DRIVER and are added to the kernel symbol table with EXPORT_SYM. Source code is the most reliable documentation. If there are any questions, feel free to ask me.
+
 ## Pipe Dreams
 
 I may work on a GUI at some time in the distant future. ACPI 1.0 and APM support?
 
 # Credits
+
+Just me rn.

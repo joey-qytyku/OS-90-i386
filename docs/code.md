@@ -1,3 +1,8 @@
+# Code Rules
+
+The entire source code of the OS/90 kernel and associated drivers follow these guidelines. 
+
+
 # C Code Guidelines
 
 Pascal case:
@@ -11,7 +16,9 @@ Underscore case:
 
 Variables and non-inline global functions should not be named exactly after x86 instructions.
 
-Global function should never be inlined.
+Global functions must never be inlined.
+
+Global variables should be avoided unless there is no better way.
 
 All caps:
 * Macro definitions (no function-like macros)

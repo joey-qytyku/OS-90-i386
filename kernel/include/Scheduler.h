@@ -2,12 +2,10 @@
 #define SCHEDULER_H
 
 #include <Type.h>
+#include <IA32.h>
 
-#define VM_32  0  // 32-bit process
-#define VM_16U 1 // User/Concurrent VM
-#define VM_16S 2 // Supervisor/Atomic VM
-
-//extern int GeneralProtect;
+#define VM_32 0
+#define VM_16 1
 
 typedef struct __attribute__((aligned (4)))
 {
@@ -15,7 +13,8 @@ typedef struct __attribute__((aligned (4)))
 	dword eip,eflags;
 	byte VMType;
 	short TimeSliceMS;
-	void *x87Env;
+	void *x87env;
+	bool active;
 }ProcCtlBlk; // Alignment ensures fast access
 
 static inline void ClearInts(void) { __asm__ volatile("cli"); }

@@ -3,10 +3,8 @@
 
 #include <Type.h>
 
-#define INT386  0xE
-#define TRAP386 0xF
-
-#define __PACKED __attribute__((packed))
+#define IDT_INT386  0xE
+#define IDT_TRAP386 0xF
 
 typedef dword page;
 

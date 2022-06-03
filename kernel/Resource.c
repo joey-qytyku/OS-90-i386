@@ -108,7 +108,7 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
-int RequestIRQ(byte irq, PHandler handler)
+__DRVFUNC int RequestIRQ(byte irq, PHandler handler)
 {
     // There can be up to 4 handlers attached to an IRQ
     if (interrupts[irq].index > HANDLERS-1)
@@ -120,3 +120,5 @@ int RequestIRQ(byte irq, PHandler handler)
     INT->index++;
     return 0;
 }
+
+KERNEL_XPSYM(RequestIRQ);

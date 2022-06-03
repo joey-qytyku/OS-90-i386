@@ -89,7 +89,7 @@ A: Hybrid. There are drivers in KERNL386.EXE but they are only for standard PC h
 
 Q: I want to write software for OS/90, what resources are available?
 
-A: Everything in DOCS\ is relevant for kernel-mode development. Components like MM and scheduling available to drivers are prefixed with \_DRIVER and are added to the kernel symbol table with EXPORT_SYM. Source code is the most reliable documentation. If there are any questions, feel free to ask me.
+A: Everything in DOCS\ is relevant for kernel-mode development. Components like MM and scheduling available to drivers are prefixed with \__DRVFUNC and are added to the kernel symbol table with EXPORT_SYM. Source code is the most reliable documentation. If there are any questions, feel free to ask me.
 
 ## Pipe Dreams
 

@@ -13,6 +13,16 @@ typedef struct {
     word h, c, s;
 }CHS_Params;
 
+typedef struct __attribute__((packed))
+{
+    byte    exists:1;    // If the status register is FF, no drive
+    byte    atapi:1;     // If identify fails, it is ATAPI
+    byte    dsel:1;      // Which disk is selected
+        // This is because drive selection is slow
+        // and requires a 15 ns delay (according to OSDev.org)
+}ATA_Drive;
+
+ATA_Drive atapri, atasec;
 
 dword CHS_to_LBA(CHS_Params *p)
 {
@@ -23,20 +33,46 @@ dword CHS_to_LBA(CHS_Params *p)
     return lba;
 }
 
-typedef struct __attribute__((packed))
+static int SetParam(byte drive_num, word sectors, dword lba)
 {
-    byte    exists:1; // If the status register is FF, no drive
-    byte    atapi:1;  // If identify fails, set
-}ATA_Drive;
+    byte bsectors;
+    if (sectors == 256)
+        bsectors = 0;
+    if (sectors > 255)
+        return 1;
+    word io;
+    switch (drive_num) {
+        case 0:
+            //
+        break;
+    }
 
-ATA_Drive atapri, atasec;
+    outb(io+2, wsectors);
+    outb(io+3, (byte)(lba &  0xFF));
+    outb(io+4, (byte)(lba >> 8);
+    outb(io+5, (byte)(lba >> 16));
+}
 
-/* ATA PIO driver */
-
-static void ATA_Read(word io, word sectors, dword lba, void *buff)
+void ATA_Read(word io, word sectors, dword lba, pvoid to)
 {
-    // Drive select, I don't think doing it each time will be that slow
+    byte stat;
 
+    SetParam(io, sectors, lba);
+    outb(io+7, COM_READPIO);
+
+    do {
+        if (sectors == 0)
+            break;
+        insw(to, 256,io+7);
+        stat = inb(io+7);
+        sectors--;
+    }
+    while (STAT_BSY != 0 && stat & STAT_DRQ > 1);
+}
+
+void ATA_Write()
+{
+    // Flush cache
 }
 
 void EarlyInitATA()

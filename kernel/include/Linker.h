@@ -5,6 +5,8 @@
 // 1M is identity mapped to the start of memory on startup
 // because the kernel binary is relocated to higher half
 // subtraction is needed to go to low memory
+
+// Really?
 // phys() should be used for symbols, not absolute addresses (aka integer cast)
 
 #define HIGHER_HALF 0xC0000000

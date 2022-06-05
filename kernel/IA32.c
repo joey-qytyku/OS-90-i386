@@ -85,9 +85,9 @@ static void PIC_Remap(void)
 void InitIA32(void)
 {
     dword _tss0 = (dword)(&main_tss);
-    gdt[TSS].base0 = (word)(_tss0 & 0xFFFF);
-    gdt[TSS].base1 = (byte)((_tss0 >> 16) & 0xFF);
-    gdt[TSS].base2 = 0xC0; // Its going to be this anyway
+    gdt[GDT_TSSD].base0 = (word)(_tss0 & 0xFFFF);
+    gdt[GDT_TSSD].base1 = (byte)((_tss0 >> 16) & 0xFF);
+    gdt[GDT_TSSD].base2 = 0xC0; // Its going to be this anyway
 
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
 

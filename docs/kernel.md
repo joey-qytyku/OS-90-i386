@@ -19,9 +19,9 @@ This hardware is standardized equipment and is not shared with any other modules
 
 OS/90 mostly follows an API-driven layered model.
 
-Besides a few standard devices, the kernel does not do much direct hardware access. The kernel's job is to perform pre-emptive, reentrant multitasking, as well as task termination and execution. 32-bit programs communicate with the operating system through userspace libraries (WIP). 16-bit DOS programs communicate with DOS and the kernel performs arbitration of resources, as there is only one DOS kernel. I consider the kernel to be monolithic because of the built in drivers.
+Besides a few standard devices, the kernel does not do much direct hardware access. The kernel's job is to perform pre-emptive, reentrant multitasking, as well as task termination and execution. 32-bit programs communicate with the operating system through userspace libraries (WIP). 16-bit DOS programs communicate with DOS and the kernel performs arbitration of resources, as there is only one DOS kernel.
 
-Drivers are program that run in ring 0 and have complete control. They are essentially extentions to the kernel. Drivers can take ownership of resources like IRQs, DMA channels, and memory mapped IO. Whenever these resources are accessed, they can be notified and perform the operation on the caller's behalf. If an IRQ is owned by a real-mode driver, it can be replaced.
+Drivers are programs that run in ring 0 and have complete control. They are essentially extentions to the kernel.
 
 # Interrupt Handling
 

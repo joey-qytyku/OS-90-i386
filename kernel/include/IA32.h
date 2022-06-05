@@ -35,11 +35,11 @@ typedef struct __PACKED
 
 typedef struct __PACKED
 {
-    word limit, base0;
-    byte base1;
-    byte access;
-    byte limit_gr;
-    byte base2;
+    word    limit, base0;
+    byte    base1;
+    byte    access;
+    byte    limit_gr;
+    byte    base2;
 }Gdesc;
 
 typedef struct {

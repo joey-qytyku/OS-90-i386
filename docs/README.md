@@ -89,7 +89,10 @@ A: Hybrid. There are drivers in KERNL386.EXE but they are only for standard PC h
 
 Q: I want to write software for OS/90, what resources are available?
 
-A: Everything in DOCS\ is relevant for kernel-mode development. Components like MM and scheduling available to drivers are prefixed with \__DRVFUNC and are added to the kernel symbol table with EXPORT_SYM. Source code is the most reliable documentation. If there are any questions, feel free to ask me.
+A: Everything in DOCS\ is relevant for kernel-mode development. Functions available to drivers are prefixed with \__DRVFUNC and are added to the kernel symbol table with EXPORT_SYM. Source code is the most reliable documentation. If there are any questions, feel free to ask me.
+
+Q: Which version of DOS is best?
+A: In theory, FreeDOS is the best because it has LFN support, but it has many extra packages that could cause compatibility issues. Do not use EMM386 or JEMMEX. Disabling disk caching may also be a good idea.
 
 ## Pipe Dreams
 

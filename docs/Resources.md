@@ -12,6 +12,25 @@ Bus drivers WIP:
 
 ## Interrupts
 
+### Standard config
+
+ATA primary and secondary are both unavailable for other uses, even if the secondary channel has no disks.
+
+|IRQ|Purpose|
+-|-|
+0|8253 PIT
+1|8042 Keyboard
+2|Cascase
+3|COM 2 and 4
+4|COM 1 and 3
+5|LPT 3 or sound card
+6|Floppy disk controller
+7|LPT 1 and 2
+
+There can only be up to 3 LPT ports. COM 2 and 4 may not always be present.
+
+## Overview
+
 To support 16-bit drivers, interrupts can be 16-bit or 32-bit. 16-bit interrupts can be reclaimed later. The bdrv is required to preserve 16-bit interrupts.
 
 Interrupts can be 32-bit non-reclaimable or 16-bit reclaimable. 16-bit drivers used for DOS can be replaced and the drivers for such devices must make sure that the device is properly initialized. For example, assume that the mouse is already configured and not off after startup.

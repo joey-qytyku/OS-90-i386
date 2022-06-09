@@ -85,7 +85,7 @@ A: They should, but are certainly less stable. DOS drivers will probably be the 
 
 Q: What type of kernel design is used?
 
-A: Hybrid. There are drivers in KERNL386.EXE but they are only for standard PC hardware. Almost everything else goes in a driver.
+A: Hybrid. There are drivers in KERNL386.EXE but they are only for standard PC hardware. Almost everything else goes in a driver outside of the kernel but still in the same address space.
 
 Q: I want to write software for OS/90, what resources are available?
 

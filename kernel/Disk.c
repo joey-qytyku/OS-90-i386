@@ -13,7 +13,7 @@ typedef struct {
     word h, c, s;
 }CHS_Params;
 
-typedef struct __attribute__((packed))
+typedef struct
 {
     byte    exists:1;    // If the status register is FF, no drive
     byte    atapi:1;     // If identify fails, it is ATAPI
@@ -33,41 +33,60 @@ dword CHS_to_LBA(CHS_Params *p)
     return lba;
 }
 
-static int SetParam(byte drive_num, word sectors, dword lba)
+// Returns the IO base or zero if error
+static word SetParam(byte drive, word sectors, dword lba)
 {
-    byte bsectors;
-    if (sectors == 256)
+    byte bsectors, dsel;
+    word io;
+
+    if (sectors = 256)
         bsectors = 0;
     if (sectors > 255)
-        return 1;
-    word io;
-    switch (drive_num) {
-        case 0:
-            //
-        break;
-    }
+        return 0;
+
+    //Drive selecting requires reading the status 15 times
+
+    dsel = drive_num & 1;
+    if (drive_num)
+        /*TODO*/;
 
     outb(io+2, wsectors);
     outb(io+3, (byte)(lba &  0xFF));
     outb(io+4, (byte)(lba >> 8);
     outb(io+5, (byte)(lba >> 16));
+
+    return io;
 }
 
-void ATA_Read(word io, word sectors, dword lba, pvoid to)
+/*
+ * @
+*/
+// Returns: the error byte if disk access fails
+// 
+byte ATA_Read(const byte drive,
+word sectors, const dword lba, const pvoid to)
 {
+    const word io = SetParam(drive, sectors, lba);
     byte stat;
 
-    SetParam(io, sectors, lba);
+    if (!io)
+        return ?; // ?
+
     outb(io+7, COM_READPIO);
 
     do {
         if (sectors == 0)
             break;
+
         insw(to, 256,io+7);
         stat = inb(io+7);
+
+        // Check for errors, return error register
+        if (stat & STAT_ERR >0)
+            return inb(io+1);
+
         sectors--;
-    }
-    while (STAT_BSY != 0 && stat & STAT_DRQ > 1);
+    } while (STAT_BSY != 0 && stat & STAT_DRQ > 1);
 }
 
 void ATA_Write()

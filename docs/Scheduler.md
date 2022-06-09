@@ -51,8 +51,33 @@ In the kernel API, CriticalSection() will always disable interrupts. EndCritical
 
 Todo: When are drivers initialized?
 
-## Interrupt API calls
+# Scheduling algorithm
 
-## Scheduling algorithm
+I came up with my own virtual memory algorithm called IOFRQ. It is tied to the virtual memory manager.
 
-I came up with my own virtual memory algorithm called IOFRQ. It is tied to the virtual memory manager and further explained in related documents.
+The concept is that programs that do a lot of filesystem access are also doing a lot with the data and need boost.
+
+Programs that do a lot of algorithmic work without the FS are likely to run slower. There is a workaround for this.
+
+There are three factors: time slice in miliseconds (ts), I/O operations in a time slice (iofrq) and total IO operations in last ts.
+
+iofrq, ts, and tIO are 16-bit numbers.
+
+Time slices are no larger than 1024 miliseconds, or one second. The minimum is 1 MS. The second number cannot be reconfigured but the maximum can be.
+
+iofrq = tIO / TS
+
+Programs that have not done any IO since the last time slice are rewarded with one milisecond. This means that a program that does no IO for increasingly long time slices (impressive) will run very long.
+
+
+Becuse iofrq is determined per slice, a program goes in "cool down" once it is done with IO or has slowed down.
+
+As time slices get longer, it is harder for a process to get even more time because the iofrq will begin to stagnate as a result of the division. IO should not be increasing exponentially.
+
+## Exploiting the Algorithm
+
+Programmers should not need to know how schedulers for specific operating systems work. The goal is that the algo adapts to the programs and improves performance for certain ones.
+
+Programs that do some IO and some processing are the lowest performing. There is essentially and inverse bell curve for performance. If a program does no IO or a lot of it constantly, it will find it harder to get even more time, so the system is mostly safe from exploits. No process gets too much time.
+
+## Interraction with Virtual Memory

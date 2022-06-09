@@ -1,7 +1,9 @@
 #include <Type.h>
 #include <IA32.h>
 
-void KernelMain(void *info)
+struct info {}__PACKED;
+
+void KernelMain(pvoid info)
 {
     InitIA32();
 }

@@ -17,6 +17,8 @@ typedef word*     pword;
 typedef byte*     pbyte;
 typedef dword*    pdword
 
+typedef handle    dword;
+
 // Packed structure
 #define __PACKED   __attribute__( (packed) )
 #define __ALIGN(x) __attribute__( (aligned(x)) )

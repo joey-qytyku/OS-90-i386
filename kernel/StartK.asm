@@ -22,7 +22,7 @@ Begin:
         lgdt    [gdtr]
         lidt    [ldtr]
 
-        mov     ax,10h
+        mov     ax,3 <<3
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
@@ -41,8 +41,7 @@ L:        hlt     ; Nothing to do now, halt
 
 section	.bss
         ;The initialization stack is used only for startup
-        ;When a task runs, ESP0 and ESP3 are set
-        ;VM86 do not use ESP3
+        ;Processes get independent kernel stacks
         align   8
         resb    1024
 InitStack:

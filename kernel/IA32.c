@@ -1,39 +1,40 @@
 #include <IA32.h>
 
+// Includes two IO bitmaps 
 CompleteTSS main_tss;
 
 static Gdesc gdt[GDT_ENTRIES] = {
-    { /* Code 32 */
+    { /* Code kernel */
         .access = 0x9A,
         .base0  = 0,
         .base1  = 0, .base2  = 0,
         .limit  = 0xFFFF,
         .limit_gr = 0xCF
     },
-    {   /* Code extra (for PnP) */
-        .access = 0x9A,
-        .base0  = 0,
-        .base1  = 0,
-        .base2  = 0,
-        .limit  = 0xFFFF,
-        .limit_gr = 0x0F
-    },
-    {   /* Data 1 */
+    {   /* Data kernel */
         .access = 0x92,
         .base0  = 0,
         .base1  = 0, .base2  = 0,
         .limit  = 0xFFFF,
         .limit_gr = 0xCF
-    },
-    {   /* Data 2 */
-        .access = 0x92,
-        .base0  = 0,
-        .base1  = 0,
-        .base2  = 0,
-        .limit  = 0xFFFF,
-        .limit_gr = 0x0F
     },
     {
+        /* Code ring 3 */
+        .access = 0xF8
+        .base0  = 0,
+        .base1  = 0, .base2  = 0,
+        .limit  = 0xFFFF,
+        .limit_gr = 0xCF
+    },
+    {   /* Data ring 3*/
+        .access = 0xF2, // Fix
+        .base0  = 0,
+        .base1  = 0,
+        .base2  = 0,
+        .limit  = 0xFFFF,
+        .limit_gr = 0x0F
+    },
+    {    /* TSS descriptor */
         .access = 0x89,
         .base0  = 0,
         .base1  = 0,
@@ -85,10 +86,13 @@ static void PIC_Remap(void)
 void InitIA32(void)
 {
     dword _tss0 = (dword)(&main_tss);
+    // I may want to find a better way to do this
     gdt[GDT_TSSD].base0 = (word)(_tss0 & 0xFFFF);
     gdt[GDT_TSSD].base1 = (byte)((_tss0 >> 16) & 0xFF);
     gdt[GDT_TSSD].base2 = 0xC0; // Its going to be this anyway
 
+    // The TSS descriptor cache needs to be properly set
+    // once the TSS entry has been properly set up.
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
 
     PIC_Remap();

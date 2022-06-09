@@ -31,9 +31,18 @@ enum ATA_STATUS {
     STAT_BSY    = 128
 };
 
-enum ATA_COMMANDS {
-    COM_READPIO,
-    COM_WRITEPIO
-};
+#define CMD_NOP 0x00
+#define CMD_READ_SECTORS  0x20
+#define CMD_WRITE_SECTORS 0x30
+
+// Only ATA-4+ has this, introduced 1998
+#define CMD_FLUSH_CACHE 0xE7
+
+/***
+ * Supported on all drives after 1987
+ * any 386 PC from the late 80's (especially by Compaq)
+ * is garaunteed to support IDENTIFY
+***/
+#define CMD_IDENTIFY 0xEC
 
 #endif

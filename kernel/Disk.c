@@ -39,10 +39,11 @@ static word SetParam(byte drive, word sectors, dword lba)
     byte bsectors, dsel;
     word io;
 
-    if (sectors = 256)
-        bsectors = 0;
-    if (sectors > 255)
+    // Drive numbers start at 2 for hard drives
+    if (drive < 2 || sectors > 255)
         return 0;
+    else if (sectors = 256)
+        bsectors = 0;
 
     //Drive selecting requires reading the status 15 times
 
@@ -58,19 +59,24 @@ static word SetParam(byte drive, word sectors, dword lba)
     return io;
 }
 
-/*
- * @
+/**
+ * @drive: the drive number starting from 2
+ * Return: -1 if no error but parameters invalid
+ * error byte if error (never zero)
 */
-// Returns: the error byte if disk access fails
-// 
-byte ATA_Read(const byte drive,
+sdword ATA_Read(const byte drive,
 word sectors, const dword lba, const pvoid to)
 {
     const word io = SetParam(drive, sectors, lba);
     byte stat;
 
+    /**
+     * If parameters invalid, fail with code -1
+     * This means the error register was not read
+     * but there is still an error
+    */
     if (!io)
-        return ?; // ?
+        return -1;
 
     outb(io+7, COM_READPIO);
 
@@ -83,7 +89,7 @@ word sectors, const dword lba, const pvoid to)
 
         // Check for errors, return error register
         if (stat & STAT_ERR >0)
-            return inb(io+1);
+            return (dword)inb(io+1);
 
         sectors--;
     } while (STAT_BSY != 0 && stat & STAT_DRQ > 1);
@@ -91,7 +97,8 @@ word sectors, const dword lba, const pvoid to)
 
 void ATA_Write()
 {
-    // Flush cache
+    // Flush cache is only supported on ATA-4 from 1998
+    // IDENTIFY 
 }
 
 void EarlyInitATA()

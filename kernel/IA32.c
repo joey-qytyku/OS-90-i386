@@ -120,6 +120,8 @@ void InitIA32(void)
     // once the TSS entry has been properly initialized
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
 
+    // Mask all interrupts, individualy enabled
+
     // The PICs are ready to send the ISR from CMD port +0 
     // The IRR is not used
     PIC_Remap();

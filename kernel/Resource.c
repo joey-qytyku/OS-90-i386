@@ -116,12 +116,12 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
-__DRVFUNC PInterrupt R_GetIntInfo(byte v)
+__DRVFUNC PInterrupt GetIntInfo(byte v)
 {
 }
 
 /* TODO: ONLY ONE HANDLER */
-__DRVFUNC int R_RequestIRQs(byte lines, PHandler handler, char *name)
+__DRVFUNC int RequestIRQs(byte lines, PHandler handler, char *name)
 {
     return 0;
 }

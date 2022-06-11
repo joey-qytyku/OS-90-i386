@@ -1,0 +1,9 @@
+Update header files and resource.c/h
+V86 interface
+Memory manager (per-process memory mapping and VMEM)
+
+Should memory mapping use handles? Unix uses the address of the mapping.
+
+Changing CR3 will always flush the cache.
+
+If there is no FPU, coprocessor not present should terminate the process.

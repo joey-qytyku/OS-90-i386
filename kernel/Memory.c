@@ -23,8 +23,6 @@ SOFTWARE.
 Memory manager. Implements low-level page frame allocation
 and high level heap management for kernel and user
 
-
-
 ===================================================================+*/
 
 #include <Type.h>
@@ -32,8 +30,8 @@ and high level heap management for kernel and user
 #define NUM_TAILS 1024
 
 typedef struct SelfAllocNode {
-    byte    size_pow2;
-    struct SelfAllocNode frontln, backln;
+    byte size_pow2;
+    struct SelfAllocNode *frontln, *backln;
 }AllocNode,*PAllocNode;
 
 typedef struct SelfHead {
@@ -51,6 +49,12 @@ static dword AddrAlign(pvoid addr, dword bound)
 __DRVFUNC Handle GlobalHeapAlloc(dword size, bool user);
 
 __DRVFUNC void FreezeBlock(Handle h);
+
+__DRVFUNC Handle GlobalMap(pvoid start, pvoid to, dword size);
+__DRVFUNC void GlobalDelMap(Handle m);
+
+// What about mapping physical memory to kernel space?
+// to an arbitrary location?
 
 void InitMem(dword mem1k_after_1m,
 dword mem_after_memhole)

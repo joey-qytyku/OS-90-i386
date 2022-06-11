@@ -3,10 +3,10 @@
 
 #include <Type.h>
 
-#define IDT_INT386  0xE
-#define IDT_TRAP386 0xF
+#define IDT_INT386  0xE /* Interrupts from hardware */
+#define IDT_TRAP386 0xF /* Software INT calls, technically not interrupts but traps */
 
-#define IRQ_BASE 0x20
+#define IRQ_BASE 0x20 /* Both PICs are mapped starting here */
 
 enum {
 GDT_KCODE,
@@ -17,7 +17,7 @@ GDT_TSSD,
 GDT_ENTRIES
 };
 
-typedef dword page;
+typedef dword Page;
 
 /* Data structures */
 
@@ -41,15 +41,21 @@ typedef struct __PACKED
     byte    base2;
 }Gdesc;
 
+// The standard register dump
 typedef struct {
     dword   eax,ebx,ecx,edx,ebp,esp,esi,edi;
-}Context,*PContext;
+}RegsIA32,*PRegsIA32;
 
 // If kernel to kernel switch, ss and esp are invalid
 typedef struct __PACKED {
+/**
+ * When a task switch takes place, the CPU
+ * pushes these values on the ESP0 stack
+ * ESP+18 is the start of the trap frame
+**/
     dword      ss,esp,eflags,cs,eip;
-    Context    regs;
-}State,*PState;
+    RegsIA32   regs; // The lower-half handler saves these
+}*PTrapFrame;
 
 typedef struct __attribute__((packed))
 {
@@ -88,6 +94,8 @@ typedef struct {
 #define ICW4_SLAVE 1<<3
 
 extern void InitIA32(void);
+extern void IA32_SetIntVector(byte, byte, pvoid);
+extern byte IndexISR();
 
 /********* PORT IO DEFINES *********/
 // Check these?
@@ -96,6 +104,8 @@ static inline void outb(word port, byte val)
 {
     asm volatile ("outb %0, %1": :"a"(val), "Nd"(port));
 }
+
+static inline void IOWAIT() {outb(0x80,0);}
 
 static inline byte inb(word port)
 {

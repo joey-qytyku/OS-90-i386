@@ -9,26 +9,23 @@
 #define PORT 1
 #define STD 2
 #define INUSE 4
-
-#define HANDLERS 4
+#define CACHABLE 8
 
 typedef int (*PHandler)(void*);
 
 enum InterruptLVL
 {
-    UNKNOWN = 0,
-    OPEN32,
-    RECL_16,
-    TAKEN_32,
-    STANDARD_32,
-    RECL_32
+    UNKNOWN = 0, /* Temporary, requires HW detection */
+    RECL_16,     /* Potential 16-bit driver */
+    TAKEN_32,    /* A driver is already using */
+    STANDARD_32, /* Standard PC interrupt, cannot be used by a bus */
 };
 
 typedef struct {
-    enum InterruptLVL intlevel;
-    PHandler handlers[HANDLERS];
-    int index;
-    char owners[HANDLERS][8]; // FAT case
+    byte intlevel;
+    bool fast;
+    PHandler handler;
+    char owner[16]; // FAT case w/out extension, zero terminated
 }Interrupt,*PInterrupt;
 
 typedef struct {
@@ -40,4 +37,4 @@ typedef struct
     dword info;
 }IO_Resource; // IO ports or memory mapped IO
 
-int RequestIRQ(byte irq, void (*handler)(void*));
+__DRVFUNC int RequestIRQs(byte, PHandler, char*);

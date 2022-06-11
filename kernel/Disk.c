@@ -4,27 +4,28 @@
 #include <ATA.h>
 #include <x86.h>
 
-typedef struct {
+typedef struct { // TODO: What does this mean?
     word th;
     word ts;
     word tc;
     word cyls_per_head;
 
     word h, c, s;
-}CHS_Params;
+}CHS_Params,*PCHS_Params;
 
 typedef struct
 {
-    byte    exists:1;    // If the status register is FF, no drive
-    byte    atapi:1;     // If identify fails, it is ATAPI
-    byte    dsel:1;      // Which disk is selected
-        // This is because drive selection is slow
-        // and requires a 15 ns delay (according to OSDev.org)
+    byte    exists:1;    /* If the status register is FF, no drive */
+    byte    atapi:1;     /* If identify fails, it is ATAPI */
+    byte    dsel:1;      /* Which disk is selected */
+        /* This is because drive selection is slow
+        // and requires a 15 ns delay (according to OSDev.org) */
+    byte    flush_cache_cmd; /* 0x00 (NOP) if not supported */
 }ATA_Drive;
 
 ATA_Drive atapri, atasec;
 
-dword CHS_to_LBA(CHS_Params *p)
+dword CHS_to_LBA(PCHS_Params p)
 {
     dword lba;
     // I *obviously* did not come up with this
@@ -84,7 +85,7 @@ word sectors, const dword lba, const pvoid to)
         if (sectors == 0)
             break;
 
-        insw(to, 256,io+7);
+        insw(to, 256,io); // ?
         stat = inb(io+7);
 
         // Check for errors, return error register
@@ -95,10 +96,11 @@ word sectors, const dword lba, const pvoid to)
     } while (STAT_BSY != 0 && stat & STAT_DRQ > 1);
 }
 
-void ATA_Write()
+void ATA_Write(const pvoid from, const byte drive,
+word sectors, const dword lba)
 {
     // Flush cache is only supported on ATA-4 from 1998
-    // IDENTIFY 
+    // IDENTIFY
 }
 
 void EarlyInitATA()

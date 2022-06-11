@@ -52,7 +52,7 @@ static xDtr
 };
 
 // Low-level function
-void SetIntVector(byte v, byte attr, void *address)
+void IA32_SetIntVector(byte v, byte attr, pvoid address)
 {
     idt[v].attr = attr; // TODO
     idt[v].offset_15_0  = (dword)address &  0xFFFF;
@@ -65,22 +65,47 @@ static void PIC_Remap(void)
     byte icw1 = ICW1 | CASCADE | ICW1_ICW4 | LEVEL_TRIGGER;
     /* Notes: Different bits tell OCWs and ICWs appart in CMD port
      * Industry standard architecture uses edge triggered interrupts
-     * 8-bytes interrupt vectors are default (ICW[2] = 0)
+     * 8-byte interrupt vectors are default (ICW[2] = 0)
+     * And required for the
     */
 
     // ICW1 to both PIC's
     outb(0x20, icw1);
+    IOWAIT();
     outb(0xA0, icw1);
+    IOWAIT();
 
     // ICW2, set interrupt vectors
-    outb(0x21, 0x20);
-    outb(0xA1, 0x28);
+    outb(0x21, IRQ_BASE);
+    IOWAIT();
+    outb(0xA1, IRQ_BASE+8);
+    IOWAIT();
 
+    // ICW3, set cascade
     outb(0x21, 4);  // ICW3, IRQ 2 is cascade (bitmap)
+    IOWAIT();
     outb(0xA1, 2);  // ICW3 is different for slave PIC (index)
 
     outb(0x21, ICW4_X86);
+    IOWAIT();
     outb(0xA1, ICW4_X86 | ICW4_SLAVE); // Assert PIC2 is slave
+    IOWAIT();
+}
+
+// The in-service register is a bit mask with one turned on
+byte IndexISR()
+{
+    word in_service;
+    byte index;
+
+    IOWAIT();
+    in_service = inb(0x20);
+    IOWAIT();
+    in_service |= inb(0xA0) << 8;
+    IOWAIT();
+
+    // Check?
+    __asm__ ("bsf %0, %1" :"r"(index) :"r"(in_service));
 }
 
 void InitIA32(void)
@@ -91,9 +116,15 @@ void InitIA32(void)
     gdt[GDT_TSSD].base1 = (byte)((_tss0 >> 16) & 0xFF);
     gdt[GDT_TSSD].base2 = 0xC0; // Its going to be this anyway
 
-    // The TSS descriptor cache needs to be properly set
-    // once the TSS entry has been properly set up.
+    // The TSS descriptor cache needs to be set
+    // once the TSS entry has been properly initialized
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
 
+    // The PICs are ready to send the ISR from CMD port +0 
+    // The IRR is not used
     PIC_Remap();
+    outb(0x20,0xB);
+    IOWAIT();
+    outb(0xA0,0xB);
+    IOWAIT();
 }

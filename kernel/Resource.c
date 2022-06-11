@@ -7,10 +7,13 @@
 #include <Type.h>
 #include <Linker.h>     // To get address of BDA
 
+// Get the address of this, not just the name
+char KERNEL_OWNER[8] = {'K','E','R','N','L','3','8','6'};
+
 // Interrupt levels of each IRQ
 static Interrupt interrupts[16] =
-{
-    [0] =   {STANDARD_32, .owners[0]="KERNL386"},  // Timer
+{ // TODO: ADD OWNERS
+    [0] =   {STANDARD_32},  // Timer
     [1] =   {STANDARD_32},  // Keyboard
     [2] =   {STANDARD_32},  // Cascade
     [3] =   {UNKNOWN},      // COM, must detect
@@ -52,6 +55,11 @@ IO_Resource resources[MAX_IO_RSC] = {
      .info = PORT | STD | INUSE},
 
     // GFX/VGA adapter IO ports
+    {
+        .start = 0x3B0,
+        .limit = 0x3DF
+        .info  = PORT | STD | INUSE
+    },
 
     {// GFX/VGA video memory
         .start = 0xA0000,
@@ -108,17 +116,15 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
-__DRVFUNC int RequestIRQ(byte irq, PHandler handler)
+__DRVFUNC PInterrupt R_GetIntInfo(byte v)
 {
-    // There can be up to 4 handlers attached to an IRQ
-    if (interrupts[irq].index > HANDLERS-1)
-    {
-        return 1;
-    }
-    Interrupt *INT = &interrupts[irq];
-    INT->handlers[INT->index] = handler;
-    INT->index++;
+}
+
+/* TODO: ONLY ONE HANDLER */
+__DRVFUNC int R_RequestIRQs(byte lines, PHandler handler, char *name)
+{
     return 0;
 }
 
 KERNEL_XPSYM(RequestIRQ);
+KERNEL_XPSYM(GetIntInfo);

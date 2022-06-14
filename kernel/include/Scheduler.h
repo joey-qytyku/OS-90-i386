@@ -33,6 +33,6 @@ extern void InitScheduler(void);
 static inline void ClearInts(void) { __asm__ volatile("cli"); }
 static inline void SetInts  (void) { __asm__ volatile("sti"); }
 
-#endif /* __PROGRAM_IS__DRIVER */
+#endif /* !__PROGRAM_IS__DRIVER */
 
 #endif /* SCHEDULER_H */

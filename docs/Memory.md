@@ -12,28 +12,44 @@ Allocation tails can be mapped to page-aligned addresses in the memory for both 
 
 MapTail()
 
+Alignment is checked for all page functions.
+
+## Page Table Generation
+
+A function exist for mapping addresses within a page directory. It allows mappings to cross PDE boundaries.
+
+The page directory entry to be used in a mapping is `address >> (PAGE_SHIFT - 6)`.
+
 ## Heap Management
 
-Memory allocation functions return handles. Blocks must be frozen to get the address. Freezing maps the block to an arbitrary location in memory. GlobalAlloc blocks that are frozen map to the kernel address space or user address space depending on parameters.
+Memory allocation functions return handles. Blocks must be frozen to get the address. Freezing maps the block to an arbitrary location in memory. GlobalAlloc blocks that are frozen map to the kernel address space or user address space depending on parameters. Allocated memory may be relocated to save allocation entries.
+
+If GlobalAlloc returns -1, the function failed. Otherwise, it returns the address of the block.
+
+The first argument of the FreezeBlock function is the thread ID. If it's -1, there is no process. This allows for sharing memory.
 
 Kernel example:
 ```c
 void AllocEG()
 {
     Handle h     = GlobalAlloc(0x1000, 0);
-    pbyte  block = FreezeBlock(h, FRZ_R | FRZ_W);
+    pbyte  block = FreezeBlock(-1, h, FRZ_R | FRZ_W);
 }
 ```
 
 ## Virtual Memory
 
-Virtual memories for 32-bit processes are handled at the process level. The kernel determines swapability and priority by the frequency of IO requests.
+Virtual address spaces for 32-bit processes are handled at the process level. The kernel determines swapability and priority by the frequency of IO requests.
 
-Processes can maximize performance by doing as much work as possible with files, because higher IO load will also give more CPU time and reduce page swapping. The system can also be hacked with nonsense FS operations.
+Each program gets a page directory. The kernel/driver pages are shared with the rest of the processes. Drivers are loaded at startup so that each page directory does not need to be modified. The kernel uses its own page directory only what starting up. Multitasking will cause the kernel to share pages with the rest of the programs.
+
+At startup, the memory manager generates the page tables for the kernel.
+
+New page mappings can be loaded from C using inline assembly because the kernel never moves. Writing to CR3 will always refresh the TLB. iF CR3 does not need to be changed, it is not written.
 
 # Kernel API
 
-int GlobalMap(dword pid, void *proc_page, void *to, page c, int access)
+int GlobalMap(dword pid, pvoid proc_page, pvoid to, Page c, sdword access)
 
 Definitions:
 PG_AVAIL, PG_W, PG_R, MAP_FAILED, MAP_SUCCESS

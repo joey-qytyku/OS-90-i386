@@ -43,11 +43,11 @@ Only the last mode actually matters. The current one is always "known" and is un
 
 ## Interrupt interruption
 
-Interrupt handlers (not bottom half) can be interrupted but NOT pre-empted. Other interrupts are completely enabled, but the scheduler is notified to not do any task switching. A critical section must be used to disable them or the handler should be configured to disable the on entry for speed.
+Interrupt handlers (not bottom half) can be interrupted but NOT pre-empted. Other interrupts are completely enabled, but the scheduler is notified to not do any task switching. A critical section must be used to disable them or the handler should be configured to disable them on entry.
 
 The reason INTs can be INTed is because of performance. A slower IRQ handler may slow the whole system if it disables interrupts.
 
-In the kernel API, CriticalSection() will always disable interrupts. EndCritical() will always enable them. The exact implementation is not important.
+In the kernel API, CriticalSection() will always disable interrupts. EndCritical() will always enable them. The exact implementation is not important, but the operations contained wherein will be garaunteed to be atomic.
 
 Todo: When are drivers initialized?
 
@@ -55,9 +55,7 @@ Todo: When are drivers initialized?
 
 I came up with my own virtual memory algorithm called IOFRQ. It is tied to the virtual memory manager.
 
-The concept is that programs that do a lot of filesystem access are also doing a lot with the data and need boost.
-
-Programs that do a lot of algorithmic work without the FS are likely to run slower. There is a workaround for this.
+The concept is that programs that do a lot of filesystem access are also doing a lot with the data and need boost. Programs that do a lot of algorithmic work without the FS are likely to run slower. There is a workaround for this.
 
 There are three factors: time slice in miliseconds (ts), I/O operations in a time slice (iofrq) and total IO operations in last ts.
 
@@ -69,15 +67,16 @@ iofrq = tIO / TS
 
 Programs that have not done any IO since the last time slice are rewarded with one milisecond. This means that a program that does no IO for increasingly long time slices (impressive) will run very long.
 
-
 Becuse iofrq is determined per slice, a program goes in "cool down" once it is done with IO or has slowed down.
 
-As time slices get longer, it is harder for a process to get even more time because the iofrq will begin to stagnate as a result of the division. IO should not be increasing exponentially.
+As time slices get longer, it is harder for a process to get even more time because the iofrq will begin to stagnate as a result of the division. IO should not be increasing exponentially to match.
 
 ## Exploiting the Algorithm
 
-Programmers should not need to know how schedulers for specific operating systems work. The goal is that the algo adapts to the programs and improves performance for certain ones.
+Programmers should not need to know how schedulers for specific operating systems work. The goal is that the algorithm adapts to the programs and improves performance for certain ones.
 
-Programs that do some IO and some processing are the lowest performing. There is essentially and inverse bell curve for performance. If a program does no IO or a lot of it constantly, it will find it harder to get even more time, so the system is mostly safe from exploits. No process gets too much time.
+Programs that do some IO and some processing are the lowest performing. There is essentially and inverse bell curve for performance. If a program does no IO or a lot of it constantly, it will find it harder to get even more time, so the system is mostly safe from exploits that slow down the system. No process gets too much time.
 
 ## Interraction with Virtual Memory
+
+IOFRQ changes the likelihood that pages from a process may be swapped. VMEM works at a per-process basis.

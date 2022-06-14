@@ -47,6 +47,7 @@ static dword AddrAlign(pvoid addr, dword bound)
 {
     return ((dword)addr + bound - 1) & ~(bound-1);
 }
+
 __DRVFUNC Handle GlobalMap(pvoid start, pvoid to, dword size)
 {
 }

@@ -61,7 +61,6 @@ void MiddleDispatch(PTrapFrame tf)
         word port = 0x21;
 
         case RECL_16:
-            // Set IOPB in the TSS
             // Disable interrupts
             // EOI will be sent by the ISR
         break;
@@ -76,6 +75,7 @@ void MiddleDispatch(PTrapFrame tf)
 
             if (vector > 7)
                 port = 0xA1;
+
             outb(port, 0x20);
             IOWAIT();
         default:;

@@ -13,7 +13,7 @@ EFLAGS|
 CS|
 EIP|
 
-ESP+16 is the start of the interrupt stack frame (without error code).
+ESP+48 is the start of the interrupt stack frame (without error code).
 
 The general purpose registers are defined in a separate struct and appear on the stack on logical order. This means they are pushed in reverse. ESP is not included.
 

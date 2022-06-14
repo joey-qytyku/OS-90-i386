@@ -30,4 +30,5 @@ This file contains the initialization procedure
 void KernelMain(pvoid info)
 {
     InitIA32();
+    InitScheduler();
 }

@@ -3,22 +3,40 @@
 
 [section .data]
 
+SingleTask:
+    DB    0
+
 SysClock:
 .whole:
     resd    0
 .fract:
     resd    0
 
-;Timer fires every milisecond
-;the uptime is stored in fixed point format
-;and is represents the hundreths
-;this is a fudge factor because the timer
-;interrupt is inaccurate for counting individual
-;miliseconds
+;Update BIOS time in BDA?
 
-TimerISR:
-    add    dword [SysClock+4],80000000h
-    adc    dword [SysClock],0
+LowHalfISR:
+    push    ebp
+    push    esp ; Nonsense
+    push    edi
+    push    esi
+    push    edx
+    push    ecx
+    push    ebx
+    push    eax
+
+    ;In cdecl, arguments are cleared by the caller
+    ;and locals are cleared by the callee
+    lea     eax,[esp+48]
+    push    eax
+    call    MiddleDispatch
+    add     esp,4 ; It's add not sub
+
+    pop     eax
+    pop     ebx
+    pop     ecx
+    pop     edx
+    pop     esi
+    pop     edi
+    add     esp,4
+    pop     ebp
     iret
-;Update BIOS time?
-

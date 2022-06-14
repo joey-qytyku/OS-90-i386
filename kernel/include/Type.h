@@ -17,7 +17,9 @@ typedef word*     pword;
 typedef byte*     pbyte;
 typedef dword*    pdword
 
-typedef handle    dword;
+typedef Handle    sdword;
+typedef Status    sdword;
+
 
 // Packed structure
 #define __PACKED   __attribute__( (packed) )
@@ -57,6 +59,6 @@ static inline void C_memset(void *a, unsigned int val, int count)
     __builtin_memset(a,val,count);
 }
 
-#endif
+#endif /* __GNUC__*/
 
-#endif // TYPE_H
+#endif /* TYPE_H */

@@ -30,7 +30,7 @@ and high level heap management for kernel and user
 #define NUM_TAILS 1024
 
 typedef struct SelfAllocNode {
-    byte size_pow2;
+    Page size;
     struct SelfAllocNode *frontln, *backln;
 }AllocNode,*PAllocNode;
 
@@ -39,19 +39,23 @@ typedef struct SelfHead {
     PAllocNode head;
 }Head,*PHead;
 
+typedef struct {
+    pvoid    addr;
+}Map;
+
 static dword AddrAlign(pvoid addr, dword bound)
 {
     return ((dword)addr + bound - 1) & ~(bound-1);
 }
+__DRVFUNC Handle GlobalMap(pvoid start, pvoid to, dword size)
+{
+}
+__DRVFUNC void   GlobalDelMap(Handle m);
 
 /* High level function for heap management w/buckets */
 
-__DRVFUNC Handle GlobalHeapAlloc(dword size, bool user);
-
-__DRVFUNC void FreezeBlock(Handle h);
-
-__DRVFUNC Handle GlobalMap(pvoid start, pvoid to, dword size);
-__DRVFUNC void GlobalDelMap(Handle m);
+__DRVFUNC Handle GlobalAlloc(dword size, bool user);
+__DRVFUNC void   FreezeBlock(Handle h, dword flags);
 
 // What about mapping physical memory to kernel space?
 // to an arbitrary location?

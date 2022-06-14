@@ -45,4 +45,4 @@ enum ATA_STATUS {
 ***/
 #define CMD_IDENTIFY 0xEC
 
-#endif
+#endif /* ATA_H */

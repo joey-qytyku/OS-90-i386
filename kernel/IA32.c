@@ -93,7 +93,7 @@ static void PIC_Remap(void)
 }
 
 // The in-service register is a bit mask with one turned on
-byte IndexISR()
+byte InService()
 {
     word in_service;
     byte index;
@@ -120,13 +120,17 @@ void InitIA32(void)
     // once the TSS entry has been properly initialized
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
 
-    // Mask all interrupts, individualy enabled
-
     // The PICs are ready to send the ISR from CMD port +0 
-    // The IRR is not used
+    // The IRR is not used 
     PIC_Remap();
     outb(0x20,0xB);
     IOWAIT();
     outb(0xA0,0xB);
+    IOWAIT();
+
+    // Mask all interrupts, individualy enabled
+    outb(0xA1,0xFF);
+    IOWAIT();
+    outb(0x20,0xFF);
     IOWAIT();
 }

@@ -33,6 +33,7 @@ static Interrupt interrupts[16] =
     // because no other driver has claimed it.
 };
 // First 20 are reserved
+
 IO_Resource resources[MAX_IO_RSC] = {
     {// Master PIC
      .start = 0x20,
@@ -116,15 +117,21 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
+// If multiple ints must be read, call this once
+// with vector zero and use it as an array
 __DRVFUNC PInterrupt GetIntInfo(byte v)
 {
+    return &interrupts[v];
 }
 
-/* TODO: ONLY ONE HANDLER */
-__DRVFUNC int RequestIRQs(byte lines, PHandler handler, char *name)
+/**
+ * If line(s) are standard 32, the interrupt is replaced
+**/
+
+__DRVFUNC Status RequestIntLines(byte lines, PHandler handler, char *name)
 {
     return 0;
 }
-
+ 
 KERNEL_XPSYM(RequestIRQ);
 KERNEL_XPSYM(GetIntInfo);

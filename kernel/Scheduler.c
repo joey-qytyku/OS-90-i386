@@ -3,7 +3,6 @@ Everything process and control flow related
 * Scheduler
 * V86
 * Interrupt handling
-
 */
 
 #include <Scheduler.h>
@@ -18,9 +17,11 @@ byte vm86_caused_gpf=0
 byte emulate_svi=0;
 dword current_proc=0;
 
-Mode last_mode = KERNEL;
+byte last_mode = KERNEL;
 
-void HandleGPF(dword error_selector)
+static unsigned long long uptime = 0;
+
+void HandleGPF(dword error_selector) // Args correct?
 {
     /*
      * The error code is always zero if it is not
@@ -52,26 +53,43 @@ void MonitorV86()
 // Except for timer, which is written in ASM
 void MiddleDispatch(PTrapFrame tf)
 {
-    byte v = GetIntVector();
-
-    PInterrupt intr = GetIntInfo();
+    byte vector = InService();
+    PInterrupt intr = GetIntInfo(vector);
 
     switch (intr->intlevel)
     {
+        word port = 0x21;
+
         case RECL_16:
             // Set IOPB in the TSS
             // Disable interrupts
             // EOI will be sent by the ISR
         break;
         case STANDARD_32: case TAKEN_32:
+
             if (intr->fast)
-                __asm__ volatile ("cli");
-            // Send EOI on behalf of callee
+                 IntsOff();
+            else IntsOn();
+
+            intr->handler();
+            IntsOff();
+
+            if (vector > 7)
+                port = 0xA1;
+            outb(port, 0x20);
+            IOWAIT();
         default:;
     }
 }
-
 /* SPURIOUS IRQ??? */
+
+// Interrupt inting: what about the scheduler?
+// runs with CLI?
+// Time slice passed variable
+// How can I make this faster?
+void HandleIRQ0(PTrapFrame t)
+{
+}
 
 void InitScheduler(void)
 {
@@ -79,8 +97,10 @@ void InitScheduler(void)
 
     C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);
 
-    for (i=0; i<16;i++) {
-        IA32_SetIntVector(IRQ_BASE+i, IDT_INT386, (pvoid)&MiddleDispatch);
-    }
-}
+    // Set the IDT entries to proper values
+    for (i=0; i<16;i++)
+        IA32_SetIntVector(IRQ_BASE+i,IDT_INT386,(pvoid)&MiddleDispatch);
 
+    // Claim the timer IRQ resource and assign a handler
+    RequestIntLines(1, &HandleIRQ0, &KERNEL_OWNER);
+}

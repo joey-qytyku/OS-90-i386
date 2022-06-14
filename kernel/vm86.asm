@@ -2,16 +2,16 @@ global EnterVM86
 extern vm86_caused_gpf, emulate_svi, vm86_tss
 
 STRUC   Reg16
-        _eax
-        _ebx
-        _ecx
-        _edx
-        _esp
-        _ebp
-        _ss
-        _cs
-        _eip
-        _eflags
+    _eax
+    _ebx
+    _ecx
+    _edx
+    _esp
+    _ebp
+    _ss
+    _cs
+    _eip
+    _eflags
 ENDSTRUC
 
 [section .text]
@@ -28,10 +28,10 @@ ENDSTRUC
 
 
 EnterVM86:
-        ;Argument is a pointer to the register list
-        ;Current flags preserved
+    ;Argument is a pointer to the register list
+    ;Current flags preserved
 
-        ;The VM86 mode runs, SS,CS,ESP,EIP must be set using IRET
+    ;The VM86 mode runs, SS,CS,ESP,EIP must be set using IRET
 
 [section .data]
 

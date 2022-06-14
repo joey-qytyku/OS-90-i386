@@ -1,3 +1,6 @@
+#ifndef RESOURCE_H
+#define RESOURCE_H
+
 #include <Type.h>
 
 #define MAX_STD_RSC 64
@@ -24,6 +27,7 @@ enum InterruptLVL
 typedef struct {
     byte intlevel;
     bool fast;
+    bool enabled;
     PHandler handler;
     char owner[16]; // FAT case w/out extension, zero terminated
 }Interrupt,*PInterrupt;
@@ -37,4 +41,8 @@ typedef struct
     dword info;
 }IO_Resource; // IO ports or memory mapped IO
 
-__DRVFUNC int RequestIRQs(byte, PHandler, char*);
+__DRVFUNC int RequestIntLines(byte, PHandler, pchar);
+
+#define RQINT_TAKEN 1
+
+#endif /* RESOURCE_H */

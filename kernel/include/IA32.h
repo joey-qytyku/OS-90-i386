@@ -42,8 +42,9 @@ typedef struct __PACKED
 }Gdesc;
 
 // The standard register dump
+// ESP is nonsense
 typedef struct {
-    dword   eax,ebx,ecx,edx,ebp,esp,esi,edi;
+    dword   eax, ebx, ecx, edx, esi, edi, ebp, esp;
 }RegsIA32,*PRegsIA32;
 
 // If kernel to kernel switch, ss and esp are invalid
@@ -51,11 +52,11 @@ typedef struct __PACKED {
 /**
  * When a task switch takes place, the CPU
  * pushes these values on the ESP0 stack
- * ESP+18 is the start of the trap frame
+ * ESP+48 is the start of the trap frame
 **/
     dword      ss,esp,eflags,cs,eip;
     RegsIA32   regs; // The lower-half handler saves these
-}*PTrapFrame;
+}TrapFrame,*PTrapFrame;
 
 typedef struct __attribute__((packed))
 {
@@ -93,10 +94,6 @@ typedef struct {
 #define ICW4_X86 1
 #define ICW4_SLAVE 1<<3
 
-extern void InitIA32(void);
-extern void IA32_SetIntVector(byte, byte, pvoid);
-extern byte IndexISR();
-
 /********* PORT IO DEFINES *********/
 // Check these?
 
@@ -113,6 +110,9 @@ static inline byte inb(word port)
     asm volatile ("inb %1, %0" :"=a"(ret) :"Nd"(port) );
     return ret;
 }
+
+static IntsOn()  { __asm__ volatile ("sti"); }
+static IntsOff() { __asm__ volatile ("cli"); }
 
 static inline void rep_insb(pvoid mem, dword count, word port)
 {__asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
@@ -137,6 +137,13 @@ void invlpg(page addr)
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 
-/* TASK STATE SEGMENT */
+#ifndef __PROGRAM_IS__DRIVER
+
+extern void InitIA32(void);
+extern void IA32_SetIntVector(byte, byte, pvoid);
+extern byte InService();
 extern struct CompleteTSS main_tss
+
+#endif /* __PROGRAM_IS__DRIVER */
+
 #endif

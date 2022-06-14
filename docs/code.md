@@ -26,6 +26,8 @@ All caps:
 
 Avoid using unions. Never use pre-inc/dec.
 
+NEVER return structs!
+
 # Assembly Guidelines
 
 x86 assembly code must be compatible with the Netwide Assembler.

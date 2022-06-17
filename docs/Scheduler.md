@@ -41,6 +41,8 @@ There are three modes: user, kernel, and interrupt. The last mode (the one which
 
 Only the last mode actually matters. The current one is always "known" and is unimportant.
 
+ESP0 is only used during a ring switch. When this happens, a new stack is loaded. When an interrupt happens on top of an interrupt or kernel code, nothing happens.
+
 ## Interrupt interruption
 
 Interrupt handlers (not bottom half) can be interrupted but NOT pre-empted. Other interrupts are completely enabled, but the scheduler is notified to not do any task switching. A critical section must be used to disable them or the handler should be configured to disable them on entry.

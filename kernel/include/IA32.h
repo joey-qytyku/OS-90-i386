@@ -54,7 +54,7 @@ typedef struct __PACKED {
  * pushes these values on the ESP0 stack
  * ESP+48 is the start of the trap frame
 **/
-    dword      ss,esp,eflags,cs,eip;
+    dword      eip,cs,eflags,ss,esp;
     RegsIA32   regs; // The lower-half handler saves these
 }TrapFrame,*PTrapFrame;
 

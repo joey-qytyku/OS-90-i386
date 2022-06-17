@@ -1,37 +1,46 @@
+STRUC TF
+    _ss:    RESD 1
+    _esp:   RESD 1
+    _eflags:RESD 1
+    _cs:    RESD 1
+    _eip:   RESD 1
+    _eax:   RESD 1
+    _ebx:   RESD 1
+    _ecx:   RESD 1
+    _edx:   RESD 1
+    _esi:   RESD 1
+    _edi:   RESD 1
+    _ebp:   RESD 1
+    _esp:   RESD 1
+ENDSTRUC
+
 global EnterVM86
 extern vm86_caused_gpf, emulate_svi, vm86_tss
 
-STRUC   Reg16
-    _eax
-    _ebx
-    _ecx
-    _edx
-    _esp
-    _ebp
-    _ss
-    _cs
-    _eip
-    _eflags
-ENDSTRUC
-
 [section .text]
-
-;TODO: Integrate with scheduler?
-
-;The DOS kernel cannot multitask or be pre-empted. When a API call
-;takes place (or any 16-bit software interrupt) the call must be
-;serviced with the scheduler temporarily in single task mode.
-;this allows timer interrupts to continue running but the kernel will
-;not switch tasks upon IRQ 0
 
 ;16-bit pre-emptive VM -> INT 21H -> 32-bit kernel -> Serviced in VM86
 
+;Stack frame is not created using ENTER because
+;ESP+4 is the first argument
 
 EnterVM86:
-    ;Argument is a pointer to the register list
-    ;Current flags preserved
+    mov    ebx,[esp+4]
+    mov    eax,[ebx+4+_eax]
 
-    ;The VM86 mode runs, SS,CS,ESP,EIP must be set using IRET
+    mov    ecx,[ebx+TF._ecx]
+    mov    edx,[ebx+TF._edx]
+    mov    esi,[ebx+TF._esi]
+    mov    edi,[ebx+TF._edi]
+
+    ;Push SS, ESP, EFLAGS, CS, EIP
+    push   dword [ebx+TS._ss]
+    push   dword [ebx+TS._esp]
+    push   dword [ebx+TS_.eflags]
+    push   dword [ebx+TS._cs]
+    push   dword [ebx+TS._eip]
+    mov    ebx,[ebx+TF._ebx]
+    iret ; Enter V86
 
 [section .data]
 

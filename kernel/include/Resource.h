@@ -3,7 +3,7 @@
 
 #include <Type.h>
 
-#define MAX_STD_RSC 64
+#define RESRV_RSC 20
 #define MAX_IO_RSC 64
 
 #define MEM 0
@@ -39,7 +39,7 @@ typedef struct
 {   dword start;
     dword limit;
     dword info;
-}IO_Resource; // IO ports or memory mapped IO
+}IO_Resource,PIO_Resource; // IO ports or memory mapped IO
 
 __DRVFUNC int RequestIntLines(byte, PHandler, pchar);
 

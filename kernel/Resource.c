@@ -86,24 +86,31 @@ IO_Resource resources[MAX_IO_RSC] = {
         .limit = 0x3F7,
         .info = PORT | STD | INUSE},
 
-    {.start = 0x376,
-     .limit = 0x377,
-     .info = PORT | STD | INUSE}
+    {// Secondary control port
+        .start = 0x376,
+        .limit = 0x377,
+        .info = PORT | STD | INUSE}
 };
 
-dword next_iorsc = 20;
+static dword cur_iorsc = 20;
 
 void InitResMGR()
-{   // Need volatile?
-    volatile word *bda = (word*)phys(0x400);
-    // Check BIOS data area for number of serial ports
-    for (int i = 0; i<4;i++)
+{
+    const pword bda = (pword)phys(0x400);
+
+    /* Check BIOS data area for number of serial ports
+     * The beginning words are the COM port IO addresses
+     * Zero indictates not present
+    */
+    byte i;
+    for (i = 0; i < 4; i++)
     {
-        if (bda[i] != 0){ // then COM[i] exists
-            resources[next_iorsc].start = bda[i];
-            resources[next_iorsc].limit = bda[i]+7;
+        if (bda[i] != 0) // then COM[i] exists
+        {
+            resources[cur_iorsc].start = bda[i];
+            resources[cur_iorsc].limit = bda[i]+7;
+            cur_iorsc++;
         }
-        next_iorsc++;
     }
 
     /* If a computer has more than one serial port
@@ -117,21 +124,26 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
+__DRVFUNC Status AddIOMemRsc(PIO_Resource new_res)
+{
+    if (cur_iorsc >= MAX_IO_RSC)
+        return -1;
+    C_memcpy(&resources[cur_iorsc], new_res, sizeof(IO_Resource));
+    cur_iorsc++;
+}
+
 // If multiple ints must be read, call this once
 // with vector zero and use it as an array
 __DRVFUNC PInterrupt GetIntInfo(byte v)
 {
-    return &interrupts[v];
+    return &interrupts[v & 0xF];
 }
-
-/**
- * If line(s) are standard 32, the interrupt is replaced
-**/
 
 __DRVFUNC Status RequestIntLines(byte lines, PHandler handler, char *name)
 {
     return 0;
 }
  
-KERNEL_XPSYM(RequestIRQ);
+KERNEL_XPSYM(RequestIntLines);
 KERNEL_XPSYM(GetIntInfo);
+KERNEL_XPSYM(AddIOMemRsc);

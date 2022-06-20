@@ -107,7 +107,7 @@ void MiddleDispatch(PTrapFrame tf)
         if (!intr->fast)
             IntsOn();
 
-        intr->handler();
+        intr->handler(tf);
         IntsOff();
         SendEOI(vector);
     }
@@ -133,5 +133,5 @@ void InitScheduler(void)
         IA32_SetIntVector(IRQ_BASE+i,IDT_INT386,(pvoid)&MiddleDispatch);
 
     // Claim the timer IRQ resource and assign a handler
-    RequestIntLines(1, &HandleIRQ0, &KERNEL_OWNER);
+    RequestFixedLines(1, &HandleIRQ0, &KERNEL_OWNER);
 }

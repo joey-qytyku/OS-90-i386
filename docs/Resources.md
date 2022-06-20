@@ -4,7 +4,6 @@ Drivers for PCI devices interract with PCI.DRV.
 
 Bus drivers WIP:
 * PCI
-* COM
 * PnP ISA
 * USB UHCI
 
@@ -34,19 +33,6 @@ There can only be up to 3 LPT ports. COM 2 and 4 may not always be present.
 To support 16-bit drivers, interrupts can be 16-bit or 32-bit. 16-bit interrupts can be reclaimed later. The bdrv is required to preserve 16-bit interrupts and not allocate them to bus devices.
 
 Interrupts can be 32-bit non-reclaimable or 16-bit reclaimable. 16-bit drivers used for DOS can be replaced and the drivers for such devices must make sure that the device is properly initialized. For example, assume that the mouse is already configured and not off after startup.
-
-int Bus_ProbleLines();
-
-returns a bitmap of 16-bit interrupts (bits on).
-
-int Bus_ClaimLines(word map, char *bus_name)
-
-returns:
-BUS_INT_SUCCESS_FREE
-BUS_INT_SUCCESS_16
-BUS_INT_UNRECL
-BUS_INT_STANDARD (error)
-
 
 ## ISA DMA
 

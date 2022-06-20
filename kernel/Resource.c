@@ -124,12 +124,16 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
-__DRVFUNC Status AddIOMemRsc(PIO_Resource new_res)
+__DRVFUNC Status AddFixedRsc(PIO_Resource new_rsc)
 {
     if (cur_iorsc >= MAX_IO_RSC)
         return -1;
     C_memcpy(&resources[cur_iorsc], new_res, sizeof(IO_Resource));
     cur_iorsc++;
+}
+
+__DRVFUNC Status Bus_AllocatePortIO(word size)
+{
 }
 
 // If multiple ints must be read, call this once
@@ -139,11 +143,12 @@ __DRVFUNC PInterrupt GetIntInfo(byte v)
     return &interrupts[v & 0xF];
 }
 
-__DRVFUNC Status RequestIntLines(byte lines, PHandler handler, char *name)
-{
+// Claiming interrupts can be done repeadedly to change the ISR
+__DRVFUNC Status RequestFixedLines(byte lines, PHandler handler, pchar name
+){
     return 0;
 }
  
-KERNEL_XPSYM(RequestIntLines);
+KERNEL_XPSYM(RequestFixedLines);
 KERNEL_XPSYM(GetIntInfo);
 KERNEL_XPSYM(AddIOMemRsc);

@@ -8,7 +8,7 @@ Drivers are PE-COFF object files with ending with .DRV. They are linked to the k
 struct {
         dword flags;
         int (entry*)(int);
-};
+}DPB,*PDPB;
 ```
 
 Flags: [DMA|INT|BUS]
@@ -20,6 +20,8 @@ DMA: can arb. ISA DMA channels
 # Kernel API
 
 KAPI is the application programming interface provided by the kernel to ring 0 programs called __drivers__. All functions use __cdecl__. That means the stack is cleared by the CALLER, in this case, the kernel.
+
+Critical sections are not required for most kernel functions unless specified, even if they modify interrupts and other volatile tasks because it is implied.
 
 ## Int86(pvoid mem, page mem4k, GeneralRegdump rd)
 
@@ -35,23 +37,45 @@ Allocate page frames and map to a 4096 byte aligned location.
 
 # Bus Drivers
 
-The bdev is supposed to enumerate a bus and report to other drivers the devices that are connected. The kernel assists with this process.
+The main idea as that the bdev arbitrates system resources with the supervision of the kernel and dispatches hardware events. The kernel assists with this process.
 
-The main idea as that the bdev arbitrates system resources with the supervision of the kernel and dispatches hardware events.
-
-The bus should never be enumerated by drivers. Resources should be reassigned by the bus driver if possible.
+Resources should be reassigned by the bus driver if possible.
 
 bdevs can use other bdevs, such as USB using PCI.
 
-## Bus_TakeLines(dword handle, byte lines)
+Bus drivers generate a list of attached devices which are identfied by a universal 128-bit number. It is basically whatever ID the bus provided that specifies the exact type of device and vendor, the latter can be ignored.
+
+For PCI, this includes the vendor ID, device ID, class code, and PROG IF. All these are concatenated into a 64-bit number internally.
+
+## Interrupts
+
+This is further elaborated in other sections. When an interrupt happens, only one ISR is called in the kernel. The master handler then calls the associated high-level handler of an interrupt. This handler can be owned by a bus driver. If that is the case, the driver will then call the device driver.
+
+Not all busses support sharing IRQs so the extra arbitration step may not be necessary.
+
+## Bus_RequestLines(dword handle, byte lines)
 
 When  line is taken, dispatching must be handled by the driver so that a proper ISR is called.
 
-When an IRQ is sent, the kernel will call the bus driver. The bdev then calls a 
+When an IRQ is sent, the kernel will call the bus driver. The bdev then calls a device driver handler.
 
-The kernel only has one ISR for most IRQ vectors. It reads the in service register and calls the owner of the interrupt, which can be both types of drivers.
+The kernel only has one ISR for all IRQ vectors. It reads the in service register and calls the owner of the interrupt, which can be both types of drivers.
 
-## Busdev_RequestAddHandler(dword handle)
+The RequestFixedLines function is for drivers that use a standard interrupt line. The implementation is almost exactly the same.
+
+If the bus wants to, it can have different handlers for different interrupt. They can be modified simply by changing the pointer in the structure within a critical section.
+
+## Bus_ReportDeviceList(PDevice, word length)
+
+Stores the address of the device list so that the kernel can access it later.
+
+## Busdev_RequestDevice(, )
+
+This requests that the bus driver install an ISR for when the device needs attention. The details are hidden from the busdev. It does not have to be a real interrupt and it can be shared.
+
+The procedure that is installed is called by the bus driver.
+
+DEV_ID_NOT_FOUND
 
 ## Busdev_RequestSolitaryIRQ(dword handle);
 

@@ -39,9 +39,9 @@ void AllocEG()
 
 ## Virtual Memory
 
-Virtual address spaces for 32-bit processes are handled at the process level. The kernel determines swapability and priority by the frequency of IO requests.
+Previously, it was considered to determine page swapping at the process level, but this has been changed. Even high priority programs may not need certain pages to be constantly in memory.
 
-Each program gets a page directory. The kernel/driver pages are shared with the rest of the processes. Drivers are loaded at startup so that each page directory does not need to be modified. The kernel uses its own page directory only what starting up. Multitasking will cause the kernel to share pages with the rest of the programs.
+Each program gets a page directory. The kernel/driver pages are shared with the rest of the processes. Drivers are loaded at startup so that each page directory does not need to be modified. The kernel uses its own page directory only for starting up. Multitasking will cause the kernel to share pages with the rest of the programs.
 
 At startup, the memory manager generates the page tables for the kernel.
 

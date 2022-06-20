@@ -3,15 +3,6 @@
 
 [section .data]
 
-SingleTask:
-    DB    0
-
-SysClock:
-.whole:
-    resd    0
-.fract:
-    resd    0
-
 ;Update BIOS time in BDA?
 
 LowHalfISR:

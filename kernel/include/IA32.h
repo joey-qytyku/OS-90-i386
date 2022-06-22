@@ -141,7 +141,7 @@ void invlpg(page addr)
 
 extern void InitIA32(void);
 extern void IA32_SetIntVector(byte, byte, pvoid);
-extern byte InService();
+extern byte GetInService16();
 extern struct CompleteTSS main_tss
 
 #endif /* __PROGRAM_IS__DRIVER */

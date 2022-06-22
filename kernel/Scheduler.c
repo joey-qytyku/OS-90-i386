@@ -13,10 +13,10 @@ Everything process and control flow related
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
 byte vm86_caused_gpf=0
-
 dword current_proc=0;
 
 byte last_mode = KERNEL;
+static dword spurious_interrupts = 0;
 
 // Only applicable to software interrupts
 // Used when emulating INT XX
@@ -48,6 +48,31 @@ pvoid MK_LP(word seg, word off)
 byte bPeek86(word seg, word off) {return *(pbyte)Segment(seg,off);}
 word wPeek86(word seg, word off) {return *(pword)Segment(seg,off);}
 
+void EmulateINT(pword stack, pdword ivt, PTrapFrame context)
+{
+    // Stack must be modified because a real mode ISR
+    // may use the INT instruction
+    // Note the direction of the IA-32 stack is reversed
+    *stack    = (word)context->eflags; /* FLAGS */
+    stack[-1] = (word)context->cs;     /* CS    */
+    stack[-2] = (word)context->eip+2;  /* IP    */
+    context->regs.esp -= 8; /* SP points to next value to use upon push */
+
+    // Continute execution at CS:IP in IVT
+    // IP+2 is after the INT
+    context->regs.eip = (ivt[ins[1]] & 0xFFFF) + 2;
+    context->regs.cs  = ivt[ins[1]] >> 16;
+}
+
+/* CHANGES RETURN CONTEXT */
+void EmulateIRETW(pword stack, PTrapFrame context)
+{
+    context->regs.flags = *stack;
+    context->regs.eip   =  stack[-1]+1;
+    context->regs.cs    = (stack[-2] & 0xFFFF);
+    context->regs.esp += 8;
+}
+
 void MonitorV86(PTrapFrame context)
 {
     // After GPF, saved EIP points to the instruction, NOT AFTER
@@ -58,29 +83,15 @@ void MonitorV86(PTrapFrame context)
     if (*ins == 0xCD) { /* INT (IMMED8) */
         // Has this interrupt been trapped?
         // Capturing required for disk access
-
-        // Stack must be modified because a real mode ISR
-        // may use the INT instruction
-        // Note the direction of the IA-32 stack is reversed
-        *stack    = (word)context->eflags; /* FLAGS */
-        stack[-1] = (word)context->cs;     /* CS    */
-        stack[-2] = (word)context->eip+2;  /* IP    */
-        context->regs.esp -= 8; /* SP points to next value to use upon push */
-
-        // Continute execution at CS:IP in IVT
-        // IP+2 is after the INT
-        context->regs.eip = (ivt[ins[1]] & 0xFFFF) + 2;
-        context->regs.cs  = ivt[ins[1]] >> 16;
+        EmulateINT(stack, ivt, context);
         return;
     }
     else if (0xCF) { /* IRETW */
         // IRET can be called by any real mode software
         // and will not be given special meaning here
-        // Return to CS:IP+2 in the stack
-        context->regs.flags = *stack;
-        context->regs.eip   = stack [-1]+2;
-        context->regs.cs    = (stack[-2] & 0xFFFF);
-        context->regs.esp += 8;
+        // Return to CS:IP+1 in the stack, sizeof(iret) == 1
+        EmulateIRETW(stack, context);
+        return;
     }
 }
 
@@ -89,19 +100,40 @@ inline void SendEOI(byte vector)
     if (vector > 7)
         outb(0xA1, 0x20);
     outb(0x20, 0x20)
+    IOWAIT();
 }
 
-// Called from assembly, ISR for all IRQs
-// Except for timer, which is written in ASM
-void MiddleDispatch(PTrapFrame tf)
+/**
+* Called from assembly, High level ISR for all IRQs
+**/
+void MiddleDispatch(PTrapFrame tf, dword irq)
 {
-    byte vector = InService();
-    PInterrupt intr = GetIntInfo(vector);
+    word inservice16 = GetInService16();
+    PInterrupt intr  = GetIntInfo(irq);
+    // Ugh... a lot of if statements, can I do better?
+
+    /* 1. The ISR is set to zero for both PICs upon SpINT.
+     * 2. If an spurious IRQ comes from master, no EOI is sent
+     * because there is no IRQ. if it is from the slave PIC
+     * EOI is sent to the master only
+    */
+
+    if (irq == 7 && (inservice16 & 0xFF) == 0)
+    CntAndRet:
+        spurious_interrupts++;
+        return;
+    else if (irq == 15 && (inservice16 >> 8) == 0)
+    {
+        // EOI goes to the master if from the slave
+        // Normally takes the IRQ, sends EOI to master
+        SendEOI(0);
+        goto CntAndRet; // -_-
+    }
 
     if (intr->intlevel == RECL_16)
     {
-            // Disable interrupts
-            // EOI will be sent by the ISR
+        // Disable interrupts
+        // EOI will be sent by the ISR
     }
     else if (STANDARD_32 || TAKEN_32)
         if (!intr->fast)
@@ -120,6 +152,10 @@ void MiddleDispatch(PTrapFrame tf)
 // How can I make this faster?
 void HandleIRQ0(PTrapFrame t)
 {
+    static bool time_slice_in_progress;
+    static word ms_left;
+
+    uptime += 0x10000000; // Trust me bro
 }
 
 void InitScheduler(void)
@@ -130,8 +166,14 @@ void InitScheduler(void)
 
     // Set the IDT entries to proper values
     for (i=0; i<16;i++)
-        IA32_SetIntVector(IRQ_BASE+i,IDT_INT386,(pvoid)&MiddleDispatch);
+        IA32_SetIntVector(IRQ_BASE+i, IDT_INT386, (pvoid)&MiddleDispatch);
 
-    // Claim the timer IRQ resource and assign a handler
-    RequestFixedLines(1, &HandleIRQ0, &KERNEL_OWNER);
+    // Claim the timer IRQ resource
+    // The handler is called by dispatcher directly for speed
+    RequestFixedLines(1, NULL, &KERNEL_OWNER);
+
+    /**
+     * Each interrupt has its own vector so that the IRQ number
+     * can be easily deduced in the case of a spurious interrupt
+    ***/
 }

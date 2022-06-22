@@ -93,19 +93,16 @@ static void PIC_Remap(void)
 }
 
 // The in-service register is a bit mask with one turned on
-byte InService()
+word GetInService16()
 {
     word in_service;
-    byte index;
 
     IOWAIT();
     in_service = inb(0x20);
     IOWAIT();
     in_service |= inb(0xA0) << 8;
     IOWAIT();
-
-    // Check?
-    __asm__ ("bsf %0, %1" :"r"(index) :"r"(in_service));
+    return in_service;
 }
 
 void InitIA32(void)

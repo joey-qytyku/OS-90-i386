@@ -67,6 +67,9 @@ void EmulateINT(pword stack, pdword ivt, PTrapFrame context)
 /* CHANGES RETURN CONTEXT */
 void EmulateIRETW(pword stack, PTrapFrame context)
 {
+    // IRET can be called by any real mode software
+    // and will not be given special meaning here
+    // Return to CS:IP+1 in the stack, sizeof(iret) == 1
     context->regs.flags = *stack;
     context->regs.eip   =  stack[-1]+1;
     context->regs.cs    = (stack[-2] & 0xFFFF);
@@ -87,9 +90,6 @@ void MonitorV86(PTrapFrame context)
         return;
     }
     else if (0xCF) { /* IRETW */
-        // IRET can be called by any real mode software
-        // and will not be given special meaning here
-        // Return to CS:IP+1 in the stack, sizeof(iret) == 1
         EmulateIRETW(stack, context);
         return;
     }

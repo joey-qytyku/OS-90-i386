@@ -208,8 +208,8 @@ void InitScheduler(void)
     // The handler is called by dispatcher directly for speed
     RequestFixedLines(1, NULL, &KERNEL_OWNER);
 
-    /**
+    /***
      * Each interrupt has its own vector so that the IRQ number
-     * can be easily deduced in the case of a spurious interrupt
+     * can be automatically deduced in the case of a spurious interrupt
     ***/
 }

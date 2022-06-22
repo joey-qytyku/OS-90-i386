@@ -53,6 +53,8 @@ This is further elaborated in other sections. When an interrupt happens, only on
 
 Not all busses support sharing IRQs so the extra arbitration step may not be necessary.
 
+## Query Devices
+
 ## Bus_RequestLines(dword handle, byte lines)
 
 When  line is taken, dispatching must be handled by the driver so that a proper ISR is called.

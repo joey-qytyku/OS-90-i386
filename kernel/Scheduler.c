@@ -9,20 +9,30 @@ Everything process and control flow related
 #include <Resource.h>
 #include <Type.h>
 #include <IA32.h>
+#include <V86.h> /* EnterV86, reentrant function */
 
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
 byte vm86_caused_gpf=0
 dword current_proc=0;
 
-byte last_mode = KERNEL;
+/* monitor_iret32:
+ *  An IRET in 16-bit code terminates the ISR
+ *  and traps to kernel instead of continuing
+ *  execution in V86M.
+ * Modified by:
+ *  Irq16
+*/
+static bool monitor_iret32 = 0;
+
+static byte  last_mode = KERNEL;
 static dword spurious_interrupts = 0;
 
 // Only applicable to software interrupts
-// Used when emulating INT XX
+// Used when emulating INT XX?>
 void (*trap_capture[256]);
 
-static unsigned long long uptime = 0;// Fixed point
+static unsigned long long uptime = 0; // Fixed point
 
 void HandleGPF(dword error_selector) // Args correct?
 {
@@ -65,7 +75,7 @@ void EmulateINT(pword stack, pdword ivt, PTrapFrame context)
 }
 
 /* CHANGES RETURN CONTEXT */
-void EmulateIRETW(pword stack, PTrapFrame context)
+static void EmulateIRETW(pword stack, PTrapFrame context)
 {
     // IRET can be called by any real mode software
     // and will not be given special meaning here
@@ -74,6 +84,18 @@ void EmulateIRETW(pword stack, PTrapFrame context)
     context->regs.eip   =  stack[-1]+1;
     context->regs.cs    = (stack[-2] & 0xFFFF);
     context->regs.esp += 8;
+}
+
+void Irq16(byte vector) {
+    static pdword ivt = phys(0);
+
+    static TrapFrame tf = {
+        .cs =  ivt[vector] >> 16;
+        .eip = ivt[vector] &  0xFFFF;
+        .eflags = 1<<17
+    };
+
+    EnterV86(tf);
 }
 
 void MonitorV86(PTrapFrame context)
@@ -87,11 +109,25 @@ void MonitorV86(PTrapFrame context)
         // Has this interrupt been trapped?
         // Capturing required for disk access
         EmulateINT(stack, ivt, context);
-        return;
     }
-    else if (0xCF) { /* IRETW */
+    else if (0xCF) /* IRETW */
+    {
+        /* When an IRQ happens, the real mode stack
+         * will be updated but execution continues in protected mode
+         * using the PM stack. This means that the context must not change
+         * IRET is assumed to be used ONLY for exiting out of the interrupt handler
+         * There is simply no other way to differentiate virtual IRETs. 16 traps require
+         * emulation because 16-bit execution continues for the rest of the 16-bit program.
+         * To summarize, use 32-bit drivers whenever possible :)
+        */
         EmulateIRETW(stack, context);
-        return;
+    }
+    else if (0xFA) /* CLI */
+        IntsOff();
+    else if (0xFB) /* STI */
+        IntsOn();
+    else {
+        // Error, if this is a supervisor call, critical error happened
     }
 }
 
@@ -119,14 +155,14 @@ void MiddleDispatch(PTrapFrame tf, dword irq)
     */
 
     if (irq == 7 && (inservice16 & 0xFF) == 0)
-    CntAndRet:
+    {
+        CntAndRet:
         spurious_interrupts++;
         return;
+    }
     else if (irq == 15 && (inservice16 >> 8) == 0)
     {
-        // EOI goes to the master if from the slave
-        // Normally takes the IRQ, sends EOI to master
-        SendEOI(0);
+        SendEOI(0); // Send to master
         goto CntAndRet; // -_-
     }
 

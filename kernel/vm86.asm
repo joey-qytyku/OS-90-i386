@@ -24,7 +24,7 @@ extern vm86_caused_gpf, emulate_svi, vm86_tss
 ;Stack frame is not created using ENTER because
 ;ESP+4 is the first argument
 
-EnterVM86:
+EnterV86:
     mov    ebx,[esp+4]
     mov    eax,[ebx+4+_eax]
 
@@ -32,6 +32,7 @@ EnterVM86:
     mov    edx,[ebx+TF._edx]
     mov    esi,[ebx+TF._esi]
     mov    edi,[ebx+TF._edi]
+    mov    ebp,[ebx+TF._ebp]
 
     ;Push SS, ESP, EFLAGS, CS, EIP
     push   dword [ebx+TS._ss]

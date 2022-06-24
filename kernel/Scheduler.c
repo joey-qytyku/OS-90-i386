@@ -44,9 +44,10 @@ void HandleGPF(dword error_selector) // Args correct?
 
 inline void SendEOI(byte vector)
 {
+
+    outb(0x20, 0x20);
     if (vector > 7)
         outb(0xA1, 0x20);
-    outb(0x20, 0x20)
     IOWAIT();
 }
 

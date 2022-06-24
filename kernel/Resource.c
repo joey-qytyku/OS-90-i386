@@ -58,7 +58,7 @@ IO_Resource resources[MAX_IO_RSC] = {
     // GFX/VGA adapter IO ports
     {
         .start = 0x3B0,
-        .limit = 0x3DF
+        .limit = 0x3DF,
         .info  = PORT | STD | INUSE
     },
 

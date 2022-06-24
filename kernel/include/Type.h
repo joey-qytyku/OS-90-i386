@@ -20,6 +20,12 @@ typedef dword*    pdword
 typedef Handle    sdword;
 typedef Status    sdword;
 
+/* Volatile variables can change at any time without the
+ * compiler being aware. This applies to ISRs and drivers
+ * because they are unpredictable
+ */
+#define INTVAR volatile /* Used by interrupt handler */
+#define DRVMUT volatile /* Driver can modify */
 
 // Packed structure
 #define __PACKED   __attribute__( (packed) )

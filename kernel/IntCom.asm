@@ -11,7 +11,6 @@ TheIRQ:
 ;chip that caused it, so the computer cannot differentiate between
 ;interrupts unless different ISRs are used
 
-
 Low0:
     push    0
 Low1:
@@ -19,11 +18,13 @@ Low1:
 
 %assign i 3
 %rep 16-3
-
-Low%+i:
-    push   i
-    jmp    Continue
+    EXTERN Low%+i
+    Low%+i:
+        push   i
+        jmp    Continue
+    %assign i i+1
 %endrep
+
 Continue:
     pop     dword [TheIRQ]
     push    ebp

@@ -7,7 +7,7 @@
 #include <Type.h>
 #include <Linker.h>     // To get address of BDA
 
-// Get the address of this, not just the name
+// Get the address of this, not the name
 char KERNEL_OWNER[8] = {'K','E','R','N','L','3','8','6'};
 
 // Interrupt levels of each IRQ
@@ -103,7 +103,7 @@ void InitResMGR()
      * Zero indictates not present
     */
     byte i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) // Up to for COM ports on PC
     {
         if (bda[i] != 0) // then COM[i] exists
         {
@@ -124,7 +124,7 @@ void InitResMGR()
     // The first one is assumed to exist
 }
 
-__DRVFUNC Status AddFixedRsc(PIO_Resource new_rsc)
+__DRVFUNC Status AddIOMemRsc(PIO_Resource new_rsc)
 {
     if (cur_iorsc >= MAX_IO_RSC)
         return -1;

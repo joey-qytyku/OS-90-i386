@@ -341,17 +341,15 @@ GotoKernel:
         lgdt    [_GDTR]
 
         ;Pass the information block as a segment
-        ;All real mode segments are 16-byte aligned
-        ;so passing the segment works
-        mov     dx,InfoStructure
+        mov     dx,InfoStructure ; Structure aligned by 16
         shr     dx,4
         mov     cx,ds
         add     dx,cx
 
         ;Switch to protected mode
-        mov	eax,cr0
+        mov     eax,cr0
         or      eax,8000_0001h
-        mov	cr0,eax
+        mov     cr0,eax
         jmp     $+2     ; Clear prefetch cache so CPU does not crash
 
         ;Bravo six, going dark
@@ -402,8 +400,10 @@ XMM:    ;Extended memory move
 .deshan:DW      0
 .desoff:DD      0
 
-InfoStructure:
+InfoStructure: ALIGN 16
+        DB      "__INFO__"
         DW      0       ; Size
+        DB      "__ENDI__"
 
 ;Page tables are zeroed before this is copied in
 IDMap:

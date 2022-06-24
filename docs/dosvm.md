@@ -1,7 +1,5 @@
 # 16-bit virtual machines
 
-Multitasking VM86
-
 # Virtual Machine manager
 
 VMMs are a special type of driver. There can only be one running on a system. This driver is responsible for terminating and creating virtual machines configuring resources etc, interrupts. The kernel provides a simple interface that makes this possible.
@@ -16,7 +14,17 @@ An IRQ handler that is 16-bit reclaimable will be executed by the master IRQ han
 
 # The kernel
 
-The kernel is 32-bit but needs to drop into DOS to perform file IO and trap out of it to do 32-bit disk IO. A VM is not created for th
+The kernel is 32-bit but needs to drop into DOS to perform file IO and trap out of it to do 32-bit disk IO.
+
+## EnterV86
+
+This function takes a pointer to a trap frame and enters V86 using IRET. This function can do two things: return to caller when an virtual IRET occurs or not return at all to run a program until an IRQ happens.
+
+The former requires MonitorV86 to re-enter the caller code by restoring the context which is saved by EnterV86 into a buffer. The monitor basically destroys its stack frame like any other routine, in this case, by calling ShootdownV86. This function restores the old context from the caller. The stacks can be changed in this process because ESP is restored from the buffer using LSS.
+
+Overview: Kernel calls EnterV86 to start running a real mode ISR. When IRET is trapped by the monitor, ShootdownV86 is called. 
+
+V86 is a USER context. The monitor is technically KERNEL, but it cannot be interrupted so it does not matter.
 
 ## Interaction with scheduler
 

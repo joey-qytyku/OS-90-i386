@@ -60,6 +60,16 @@ void IA32_SetIntVector(byte v, byte attr, pvoid address)
     idt[v].zero = 0;
 }
 
+void MkTrapGate(byte vector, pvoid address)
+{
+    IA32_SetIntVector(vector, IDT_TRAP386, address);
+}
+
+void MkIntrGate(byte vector, pvoid address)
+{
+    IA32_SetIntVector(vector, IDT_INT386, address);
+}
+
 static void PIC_Remap(void)
 {
     byte icw1 = ICW1 | CASCADE | ICW1_ICW4 | LEVEL_TRIGGER;
@@ -93,7 +103,7 @@ static void PIC_Remap(void)
 }
 
 // The in-service register is a bit mask with one turned on
-word GetInService16()
+word GetInService16(void)
 {
     word in_service;
 
@@ -116,6 +126,9 @@ void InitIA32(void)
     // The TSS descriptor cache needs to be set
     // once the TSS entry has been properly initialized
     __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
+
+    // 1 in the IOPB means DENY
+    C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);
 
     // The PICs are ready to send the ISR from CMD port +0 
     // The IRR is not used 

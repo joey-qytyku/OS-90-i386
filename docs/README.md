@@ -2,26 +2,14 @@
 
 OS/90 is a work-in-progress operating system inspired by Windows 9x and 3.x architecturally. It is a 32-bit operating system that uses a CLI.
 
-The minimum requirements are as follows:
-* 2 MiB of RAM
-* i386SX
-* PC/AT or compatible
-* MS-DOS 3.0 or higher
-* ISA bus
-
-This setup would not be that slow, but it is the minimum.
-
-The recommended hardware:
-* 8 MiB of RAM
-* i386DX or i486 DX2
-* PC/AT
-* ISA bus with PnP support
-
-Premium Setup:
-* PS/2 compatible
-* 16 MiB of RAM
-* Pentium
-* PCI bus
+Minimum requirements
+|Spec|Minimum|Recommended|Premium|
+-|-|-|-
+RAM | 2MB      | 4MB       | 16MB
+CPU | i386SX   | i486      | Pentium I or II
+PC  | PC/AT    | PC/AT     | PS/2 compatible
+OS  | DOS 3.0  | -         | -
+Bus | ISA      | ISA w/PnP | PCI (any version)
 
 PCI and ISA are officially supported buses. VLB, MCA, and EISA should work too because OS/90 keeps the BIOS default settings.
 
@@ -73,7 +61,7 @@ A: Yes. The OS is designed around plug-and-play functionality. There will never 
 
 Q: Which PC busses are supported?
 
-A: Theoretically all of them, but ISA and PCI are sure to work best.
+A: Theoretically all of them, but ISA PnP and PCI are sure to work best because they have specific drivers.
 
 Q: Does this run on modern computers?
 
@@ -81,18 +69,20 @@ A: As long as it has a PC BIOS (even EFI-CSM) and 32-bit disk access is turned o
 
 Q: Do DOS drivers work?
 
-A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of cards.
+A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of expansion cards.
 
 Q: What type of kernel design is used?
 
-A: Hybrid. There are drivers in KERNL386.EXE but they are only for standard PC hardware. Almost everything else goes in a driver outside of the kernel but still in the same address space.
+A: A hybrid design is used. There are drivers in KERNL386.EXE but they are only for standard PC hardware. Almost everything else goes in a driver outside of the kernel but still in the same address space.
 
 Q: I want to write software for OS/90, what resources are available?
 
-A: Everything in DOCS\ is relevant for kernel-mode development. Functions available to drivers are prefixed with \__DRVFUNC and are added to the kernel symbol table with EXPORT_SYM. Source code is the most reliable documentation. If there are any questions, feel free to ask me.
+A: Everything in DOCS\ is relevant for kernel-mode development. Functions available to drivers are prefixed with \__DRVFUNC and are added to the kernel symbol table with EXPORT_SYM.
+
+Source code is the most reliable documentation. If there are any questions, feel free to ask me.
 
 Q: Which version of DOS is best?
-A: In theory, FreeDOS is the best because it has LFN support, but it has many extra packages that could cause compatibility issues. Do not use EMM386 or JEMMEX. Disabling disk caching may also be a good idea.
+A: In theory, FreeDOS is the best because it has LFN support, but it has many extra packages that could cause compatibility issues. Do not use EMM386 or JEMMEX. Disabling disk caching software may also be a good idea.
 
 ## Pipe Dreams
 

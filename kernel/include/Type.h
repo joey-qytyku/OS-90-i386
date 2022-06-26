@@ -1,24 +1,28 @@
 #ifndef TYPE_H
 #define TYPE_H
 
-#include <stddef.h>
-#include <stdint.h>
+typedef unsigned char  byte;
+typedef unsigned short word;
+typedef unsigned long  dword;
 
-typedef uint16_t  word;
-typedef uint8_t   byte;
-typedef uint32_t  dword;
-
-typedef int16_t   sword;
-typedef int8_t    sbyte;
-typedef int32_t   sdword;
+typedef char  sbyte;
+typedef short sword;
+typedef long  sdword;
 
 typedef void*	  pvoid;
 typedef word*     pword;
 typedef byte*     pbyte;
-typedef dword*    pdword
+typedef dword*    pdword;
 
-typedef Handle    sdword;
-typedef Status    sdword;
+typedef sword*     psword;
+typedef sbyte*     psbyte;
+typedef sdword*    psdword;
+
+typedef sdword Handle;
+typedef sdword Status;
+typedef byte bool;
+
+#define NULL ((void*)(0))
 
 /* Volatile variables can change at any time without the
  * compiler being aware. This applies to ISRs and drivers
@@ -36,7 +40,7 @@ typedef Status    sdword;
  *  is supposedly very inaccurate
 **/
 
-struct FixedPointNumber { long whole, fractional; };
+struct FixedPointNumber { long fractional, whole; };
 
 /* Builtin functions use inline x86 string operations
  * making them way faster that doing it in C.
@@ -45,12 +49,12 @@ struct FixedPointNumber { long whole, fractional; };
 
 #if __GNUC__
 
-static inline void *C_memcpy(void *d, void *s, size_t c)
+static inline void *C_memcpy(void *d, void *s, dword c)
 {
 	return __builtin_memcpy(d, s, c);
 }
 
-static inline void *C_memmove(void *d, void *s, size_t c)
+static inline void *C_memmove(void *d, void *s, dword c)
 {
 	return __builtin_memmove(d, s, c);
 }

@@ -3,8 +3,17 @@
 
 #include <Type.h>
 
-#define IDT_INT386  0xE /* Interrupts from hardware */
-#define IDT_TRAP386 0xF /* Software INT calls, technically not interrupts but traps */
+/**
+ * The only difference between trap and interrupt gates
+ * is that interrupt gates clear interrupts upon entry
+ * and trap gates do not. The EIP points to the address of
+ * the next intruction for software and external hardware sources.
+ * Internal CPU faults, however, save the address of the failed instruction
+ * so that it may be restarted (e.g. page fault) once the error is corrected.
+ */
+
+#define IDT_INT386  0xE /* IF=0 on entry */
+#define IDT_TRAP386 0xF /* IF=1 */
 
 #define IRQ_BASE 0x20 /* Both PICs are mapped starting here */
 
@@ -47,13 +56,13 @@ typedef struct {
     dword   eax, ebx, ecx, edx, esi, edi, ebp, esp;
 }RegsIA32,*PRegsIA32;
 
-// If kernel to kernel switch, ss and esp are invalid
-typedef struct __PACKED {
 /**
  * When a task switch takes place, the CPU
  * pushes these values on the ESP0 stack
  * ESP+48 is the start of the trap frame
 **/
+typedef struct __PACKED {
+
     dword      eip,cs,eflags,ss,esp;
     RegsIA32   regs; // The lower-half handler saves these
 }TrapFrame,*PTrapFrame;
@@ -76,7 +85,7 @@ typedef struct {
         esp0, ss0,
         esp1, ss1,
         esp2, ss2;
-    dword   esp2, cr3, eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi;
+    dword   cr3, eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi;
     dword   es, cs, ss, ds, fs, gs, ldtr;
     word    iobp_off;
     byte    iopb_allow_all[8192];
@@ -88,21 +97,18 @@ typedef struct {
 
 #define ICW1 1<<4
 #define LEVEL_TRIGGER 1<<3
-#define CASCADE 2
 #define ICW1_ICW4 1
 
-#define ICW4_X86 1
+#define ICW4_8086 1
 #define ICW4_SLAVE 1<<3
 
-/********* PORT IO DEFINES *********/
-// Check these?
-
+/* +=================================+
+ *          PORT IO DEFINES
+ * +=================================+ */
 static inline void outb(word port, byte val)
 {
     asm volatile ("outb %0, %1": :"a"(val), "Nd"(port));
 }
-
-static inline void IOWAIT() {outb(0x80,0);}
 
 static inline byte inb(word port)
 {
@@ -111,8 +117,11 @@ static inline byte inb(word port)
     return ret;
 }
 
-static IntsOn()  { __asm__ volatile ("sti"); }
-static IntsOff() { __asm__ volatile ("cli"); }
+/// @brief Output to an unused port to create small delay
+static inline void IOWAIT(void) {outb(0x80,0);}
+
+static inline void IntsOn (void) { __asm__ volatile ("sti"); }
+static inline void IntsOff(void) { __asm__ volatile ("cli"); }
 
 static inline void rep_insb(pvoid mem, dword count, word port)
 {__asm__ volatile ("rep insb"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
@@ -132,18 +141,19 @@ static inline void rep_outsw(pvoid mem, dword count, word port)
 
 /* Other instructions */
 
-void invlpg(page addr)
+void invlpg(Page addr)
 {// Linux defines like this
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 
-#ifndef __PROGRAM_IS__DRIVER
+#ifndef __PROGRAM_IS_DRIVER
 
 extern void InitIA32(void);
-extern void IA32_SetIntVector(byte, byte, pvoid);
-extern byte GetInService16();
-extern struct CompleteTSS main_tss
+extern word GetInService16(void);
 
-#endif /* __PROGRAM_IS__DRIVER */
+extern void MkTrapGate(byte, pvoid);
+extern void MkIntrGate(byte, pvoid);
+
+#endif /* __PROGRAM_IS_DRIVER */
 
 #endif

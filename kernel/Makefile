@@ -1,9 +1,11 @@
 SHELL=/bin/bash
 
-INCLUDE=~/gcc-11.1.0-nolibc/i386-linux/lib/gcc/i386-linux/11.1.0/include
-CFLAGS=-I $(INCLUDE) -I ./include/ -Os -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall
+GCCVER := 12.1.0
 
-TCHAIN=~/gcc-11.1.0-nolibc/i386-linux/bin
+INCLUDE=~/gcc-$(GCCVER)-nolibc/i386-linux/lib/gcc/i386-linux/$(GCCVER)/include
+CFLAGS := -I $(INCLUDE) -I ./include/ -Os -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall
+
+TCHAIN := ~/gcc-$(GCCVER)-nolibc/i386-linux/bin
 
 CC=$(TCHAIN)/i386-linux-gcc
 LINK=$(TCHAIN)/i386-linux-ld

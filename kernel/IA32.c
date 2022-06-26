@@ -20,7 +20,7 @@ static Gdesc gdt[GDT_ENTRIES] = {
     },
     {
         /* Code ring 3 */
-        .access = 0xF8
+        .access = 0xF8,
         .base0  = 0,
         .base1  = 0, .base2  = 0,
         .limit  = 0xFFFF,
@@ -39,20 +39,19 @@ static Gdesc gdt[GDT_ENTRIES] = {
         .base0  = 0,
         .base1  = 0,
         .base2  = 0,
-        .limit  = sizeof (main_tss)-1,
+        .limit  = sizeof(main_tss)-1,
         .limit_gr = 0
     },
 };
 
 static Intd idt[256];
 
+/* Ignore not used warnings, refferenced in StartK.asm */
 static xDtr
-    gdtr = {.limit=sizeof(gdt)-1, .address=&gdt},
-    idtr = {.limit=0x2000,        .address=&idt
-};
+gdtr = {.limit=sizeof(gdt)-1,.address=(dword)&gdt},
+idtr = {.limit=0x2000,       .address=(dword)&idt};
 
-// Low-level function
-void IA32_SetIntVector(byte v, byte attr, pvoid address)
+static void SetIntVector(byte v, byte attr, pvoid address)
 {
     idt[v].attr = attr; // TODO
     idt[v].offset_15_0  = (dword)address &  0xFFFF;
@@ -62,22 +61,26 @@ void IA32_SetIntVector(byte v, byte attr, pvoid address)
 
 void MkTrapGate(byte vector, pvoid address)
 {
-    IA32_SetIntVector(vector, IDT_TRAP386, address);
+    SetIntVector(vector, IDT_TRAP386, address);
 }
 
 void MkIntrGate(byte vector, pvoid address)
 {
-    IA32_SetIntVector(vector, IDT_INT386, address);
+    SetIntVector(vector, IDT_INT386, address);
 }
+
+/**
+ * @brief Reprogram the PICs
+ * 
+ * @section NOTES
+ * Different bits tell OCWs and ICWs appart in CMD port
+ * Industry standard architecture uses edge triggered interrupts
+ * 8-byte interrupt vectors are default (ICW[2] = 0)
+**/
 
 static void PIC_Remap(void)
 {
-    byte icw1 = ICW1 | CASCADE | ICW1_ICW4 | LEVEL_TRIGGER;
-    /* Notes: Different bits tell OCWs and ICWs appart in CMD port
-     * Industry standard architecture uses edge triggered interrupts
-     * 8-byte interrupt vectors are default (ICW[2] = 0)
-     * And required for the
-    */
+    byte icw1 = ICW1 | ICW1_ICW4;
 
     // ICW1 to both PIC's
     outb(0x20, icw1);
@@ -96,9 +99,9 @@ static void PIC_Remap(void)
     IOWAIT();
     outb(0xA1, 2);  // ICW3 is different for slave PIC (index)
 
-    outb(0x21, ICW4_X86);
+    outb(0x21, ICW4_8086);
     IOWAIT();
-    outb(0xA1, ICW4_X86 | ICW4_SLAVE); // Assert PIC2 is slave
+    outb(0xA1, ICW4_8086 | ICW4_SLAVE); // Assert PIC2 is slave
     IOWAIT();
 }
 
@@ -125,22 +128,24 @@ void InitIA32(void)
 
     // The TSS descriptor cache needs to be set
     // once the TSS entry has been properly initialized
-    __asm__ volatile ("ltr %0"::"r"(GDT_TSSD<<3));
+    __asm__ volatile ("ltr (%0)"::"r"(GDT_TSSD<<3));
 
     // 1 in the IOPB means DENY
     C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);
 
-    // The PICs are ready to send the ISR from CMD port +0 
-    // The IRR is not used 
     PIC_Remap();
+
+    /* Tell the PICs to send the ISR through CMD port reads
+     * The kernel does need the IRR
+     */
     outb(0x20,0xB);
     IOWAIT();
     outb(0xA0,0xB);
     IOWAIT();
 
-    // Mask all interrupts, individualy enabled
+    // Mask all interrupts, writes to data port is OCW3/IMR
     outb(0xA1,0xFF);
     IOWAIT();
-    outb(0x20,0xFF);
+    outb(0x21,0xFF);
     IOWAIT();
 }

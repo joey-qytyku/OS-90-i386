@@ -16,7 +16,6 @@ STRUC TF
 ENDSTRUC
 
 global EnterVM86
-extern vm86_caused_gpf, emulate_svi, vm86_tss
 
 [section .bss]
 Buffer:

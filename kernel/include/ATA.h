@@ -40,7 +40,7 @@ enum ATA_STATUS {
 
 /***
  * Supported on all drives after 1987
- * any 386 PC from the late 80's (especially by Compaq)
+ * any 386 PC from the late 80's (mostly Compaq)
  * is garaunteed to support IDENTIFY
 ***/
 #define CMD_IDENTIFY 0xEC

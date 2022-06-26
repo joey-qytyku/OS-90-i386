@@ -1,14 +1,23 @@
-/* Resource management for the IBM PC/AT architecture and above
- * it uses a flat list for all resource types
+/**
+ * @file Resource.c
+ * @author Joey Qytyku
+ * @brief Resource management for PC/AT
+ * @version 0.1
+ * @date 2022-06-25
+ * 
+ * @copyright Copyright (c) 2022
+ * @section DESCRIPTION
+ * Provides functions for drivers to claim interrupts, DMA, IO,
+ * and memory addresses as part of a bus or single driver
  *
  */
 
+#include <lib/Drivers.h>
 #include <Resource.h>
 #include <Type.h>
-#include <Linker.h>     // To get address of BDA
+#include <Linker.h> // To get address of BDA
 
-// Get the address of this, not the name
-char KERNEL_OWNER[8] = {'K','E','R','N','L','3','8','6'};
+const psbyte KERNEL_OWNER = "KERNL386.EXE";
 
 // Interrupt levels of each IRQ
 static Interrupt interrupts[16] =
@@ -32,9 +41,15 @@ static Interrupt interrupts[16] =
     // If an interrupt comes from a 16-bit IRQ then it is assumed to be 16-bit
     // because no other driver has claimed it.
 };
-// First 20 are reserved
 
-IO_Resource resources[MAX_IO_RSC] = {
+static dword cur_iorsc = 20;
+
+/**
+ * A flat list of a memory and IO space usage. Standard IO
+ * spaces found on all PC-compatibles are pre-included.
+ * 20 entries are reserved (0-19).
+ */
+static IO_Resource resources[MAX_IO_RSC] = {
     {// Master PIC
      .start = 0x20,
      .limit = 0x21,
@@ -92,8 +107,6 @@ IO_Resource resources[MAX_IO_RSC] = {
         .info = PORT | STD | INUSE}
 };
 
-static dword cur_iorsc = 20;
-
 void InitResMGR()
 {
     const pword bda = (pword)phys(0x400);
@@ -128,12 +141,27 @@ __DRVFUNC Status AddIOMemRsc(PIO_Resource new_rsc)
 {
     if (cur_iorsc >= MAX_IO_RSC)
         return -1;
-    C_memcpy(&resources[cur_iorsc], new_res, sizeof(IO_Resource));
+    C_memcpy(&resources[cur_iorsc], new_rsc, sizeof(IO_Resource));
     cur_iorsc++;
 }
 
-__DRVFUNC Status Bus_AllocatePortIO(word size)
+/** UNFINISHED!!!!!!!!!!!!!!!!
+ * @brief Acquires a range of unused port-mapped IO
+ * and gives to a bus driver. Resources are not deallocated
+ * so there is no issue of fragmentation, just finds a space that fits
+ * @param size Bytes to allocate
+ **/
+__DRVFUNC Status Bus_AllocateIO(word size)
 {
+    dword size_of_entry;
+    dword current_address;
+    int i;
+    for (int i = 0; i<cur_iorsc-1; i++)
+    {
+        size_of_entry = resources[i].limit - resources[cur_iorsc].start;
+
+    }
+    return 0;
 }
 
 // If multiple ints must be read, call this once
@@ -143,12 +171,8 @@ __DRVFUNC PInterrupt GetIntInfo(byte v)
     return &interrupts[v & 0xF];
 }
 
-// Claiming interrupts can be done repeadedly to change the ISR
-__DRVFUNC Status RequestFixedLines(byte lines, PHandler handler, pchar name
-){
+__DRVFUNC Status RequestFixedLines(byte lines, PHandler handler, psbyte name)
+{
     return 0;
 }
- 
-KERNEL_XPSYM(RequestFixedLines);
-KERNEL_XPSYM(GetIntInfo);
-KERNEL_XPSYM(AddIOMemRsc);
+

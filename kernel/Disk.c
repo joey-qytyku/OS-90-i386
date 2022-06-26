@@ -1,8 +1,21 @@
+/**
+ * @file Disk.c
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2022-06-25
+ * 
+ * @copyright Copyright (c) 2022
+ * Unfinished:
+ * ATA_SetParam
+ * ATA_Write
+ * Identification for cache flushing
+**/
 
 #include <Resource.h>
 #include <Type.h>
 #include <ATA.h>
-#include <x86.h>
+#include <IA32.h>
 
 typedef struct { // TODO: What does this mean?
     word th;
@@ -25,7 +38,7 @@ typedef struct
 
 ATA_Drive atapri, atasec;
 
-dword CHS_to_LBA(PCHS_Params p)
+dword CHS2LBA(PCHS_Params p)
 {
     dword lba;
     // I *obviously* did not come up with this
@@ -35,37 +48,37 @@ dword CHS_to_LBA(PCHS_Params p)
 }
 
 // Returns the IO base or zero if error
-static word SetParam(byte drive, word sectors, dword lba)
+static word SetParam(byte drive_num, word sectors, dword lba)
 {
     byte bsectors, dsel;
     word io;
 
     // Drive numbers start at 2 for hard drives
-    if (drive < 2 || sectors > 255)
+    if (drive_num < 2 || sectors > 255)
         return 0;
-    else if (sectors = 256)
+    else if (sectors == 256)
         bsectors = 0;
 
     //Drive selecting requires reading the status 15 times
-
     dsel = drive_num & 1;
     if (drive_num)
         /*TODO*/;
 
-    outb(io+2, wsectors);
+    outb(io+2, sectors);
     outb(io+3, (byte)(lba &  0xFF));
-    outb(io+4, (byte)(lba >> 8);
+    outb(io+4, (byte)(lba >> 8));
     outb(io+5, (byte)(lba >> 16));
 
     return io;
 }
 
 /**
- * @drive: the drive number starting from 2
- * Return: -1 if no error but parameters invalid
- * error byte if error (never zero)
+ * @param drive     The drive number starting from 2
+ * @return          Two meanings
+ * @retval          -1 if no error but parameters invalid
+ * @retval          Error byte if error (never zero if error)
 */
-sdword ATA_Read(const byte drive,
+Status ATA_Read(const byte drive,
 word sectors, const dword lba, const pvoid to)
 {
     const word io = SetParam(drive, sectors, lba);
@@ -75,17 +88,17 @@ word sectors, const dword lba, const pvoid to)
      * If parameters invalid, fail with code -1
      * This means the error register was not read
      * but there is still an error
-    */
+    **/
     if (!io)
         return -1;
 
-    outb(io+7, COM_READPIO);
+    outb(io+7, CMD_READ_SECTORS);
 
     do {
         if (sectors == 0)
             break;
 
-        insw(to, 256,io); // ?
+        rep_insw(to, 256, io); // ?
         stat = inb(io+7);
 
         // Check for errors, return error register

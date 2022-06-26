@@ -1,6 +1,7 @@
 #ifndef RESOURCE_H
 #define RESOURCE_H
 
+#include <lib/Drivers.h>
 #include <Type.h>
 
 #define RESRV_RSC 20
@@ -14,7 +15,11 @@
 #define INUSE 4
 #define CACHABLE 8
 
+#define OWNER_NAME_SIZE 16
+
 typedef int (*PHandler)(void*);
+
+extern const psbyte KERNEL_OWNER;
 
 enum InterruptLVL
 {
@@ -29,7 +34,7 @@ typedef struct {
     bool fast;
     bool enabled;
     PHandler handler;
-    char owner[16]; // FAT case w/out extension, zero terminated
+    char owner[OWNER_NAME_SIZE];
 }Interrupt,*PInterrupt;
 
 typedef struct {
@@ -39,10 +44,10 @@ typedef struct
 {   dword start;
     dword limit;
     dword info;
-}IO_Resource,PIO_Resource; // IO ports or memory mapped IO
-
-__DRVFUNC int RequestIntLines(byte, PHandler, pchar);
+}IO_Resource,*PIO_Resource; // IO ports or memory mapped IO
 
 #define RQINT_TAKEN 1
 
+__DRVFUNC Status RequestFixedLines(byte,PHandler,psbyte);
+__DRVFUNC PInterrupt GetIntInfo(byte );
 #endif /* RESOURCE_H */

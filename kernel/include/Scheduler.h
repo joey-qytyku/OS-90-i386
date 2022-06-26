@@ -30,16 +30,7 @@ typedef struct __ALIGN(4)
 #ifndef __PROGRAM_IS__DRIVER
 
 extern void InitScheduler(void);
-static inline void ClearInts(void) { __asm__ volatile("cli"); }
-static inline void SetInts  (void) { __asm__ volatile("sti"); }
 
-// Returns the index
-inline byte bBitScanFwd(byte map_to_scan)
-{
-    byte bit_index;
-    __asm__ ("bsf %0, %1" :"r"(bit_index) :"r"(map_to_scan));
-    return bit_index;
-}
 #endif /* !__PROGRAM_IS__DRIVER */
 
 #endif /* SCHEDULER_H */

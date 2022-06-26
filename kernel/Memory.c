@@ -27,6 +27,10 @@ and high level heap management for kernel and user
 
 #include <Type.h>
 #include <Linker.h>
+#include <IA32.h>
+
+#include <lib/Drivers.h>
+
 #define NUM_TAILS 1024
 
 typedef struct SelfAllocNode {
@@ -40,7 +44,7 @@ typedef struct SelfHead {
 }Head,*PHead;
 
 typedef struct {
-    pvoid    addr;
+    pvoid addr;
 }Map;
 
 static dword AddrAlign(pvoid addr, dword bound)

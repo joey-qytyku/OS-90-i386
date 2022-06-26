@@ -1,35 +1,50 @@
-static DRVMUT void (*trap_capture[256]);
+#include <Scheduler.h>
+#include <Linker.h> /* phys() */
+#include <IA32.h>
+#include <V86.h> /* EnterV86, ShootdownV86 */
+#include <Type.h>
 
-/* monitor_iret32:
- *  An IRET in 16-bit code terminates the ISR and traps to kernel
- *  instead of continuing execution in V86M.
- * Modified by:
- *  Irq16
-*/
+static DRVMUT void (*trap_capture[256]);
 static bool monitor_iret32 = 0;
 
+const pdword real_mode_ivt = (pvoid)phys(0);
+
 inline pvoid MK_LP(word seg, word off)
-{   // Make linear pointer
+{
     return (pvoid)((seg<<4) + off);
 }
 
-static byte bPeek86(word seg, word off) {return *(pbyte)Segment(seg,off);}
-static word wPeek86(word seg, word off) {return *(pword)Segment(seg,off);}
+/* DOS will change the stack of an IRQ */
 
-static void EmulateINT(pword stack, pdword ivt, PTrapFrame context)
+static byte bPeek86(word seg, word off) {return *(pbyte)MK_LP(seg,off);}
+static word wPeek86(word seg, word off) {return *(pword)MK_LP(seg,off);}
+
+/**
+ * @brief Helper function that emulates the INT instruction for V86 mode
+ * This is not for running BIOS calls
+ * @param stack A pointer the stack being used, pre-calculated by caller
+ * @param context A pointer to the trap frame
+ * @param v Interrupt vector in the real mode IVT
+ */
+static void EmulateINT(pword stack, PTrapFrame context, byte v)
 {
-    // Stack must be modified because a real mode ISR
-    // may use the INT instruction
-    // Note the direction of the IA-32 stack is reversed
+    /**
+     * Stack must be modified because a real mode ISR
+     * may use the INT instruction
+     * Note the direction of the IA-32 stack is reversed
+    **/
+
     *stack    = (word)context->eflags; /* FLAGS */
     stack[-1] = (word)context->cs;     /* CS    */
     stack[-2] = (word)context->eip+2;  /* IP    */
     context->regs.esp -= 8; /* SP points to next value to use upon push */
 
-    // Continute execution at CS:IP in IVT
-    // IP+2 is after the INT
-    context->regs.eip = (ivt[ins[1]] & 0xFFFF) + 2;
-    context->regs.cs  = ivt[ins[1]] >> 16;
+    /**
+     * Continute execution at CS:IP in IVT
+     */
+
+    context->eip = (real_mode_ivt[v] & 0xFFFF);
+    context->cs  =  real_mode_ivt[v] >> 16;
 }
 
 /* CHANGES RETURN CONTEXT */
@@ -38,22 +53,12 @@ static void EmulateIRETW(pword stack, PTrapFrame context)
     // IRET can be called by any real mode software
     // and will not be given special meaning here
     // Return to CS:IP+1 in the stack, sizeof(iret) == 1
-    context->regs.flags = *stack;
-    context->regs.eip   =  stack[-1]+1;
-    context->regs.cs    = (stack[-2] & 0xFFFF);
-    context->regs.esp += 8;
-}
 
-void Irq16(byte vector) {
-    static pdword ivt = phys(0);
-
-    static TrapFrame tf = {
-        .cs =  ivt[vector] >> 16,
-        .eip = ivt[vector] &  0xFFFF,
-        .eflags = 1<<17
-    };
-    monitor_iret32 = true;
-    EnterV86(tf);
+    // Keeps the top bits of EFLAGS, which should not be changed by real mode software
+    context->eflags = *stack | (context->eflags & 0xFFFF0000);
+    context->eip   =  stack[-1]+1;
+    context->cs    = (stack[-2] & 0xFFFF);
+    context->regs.esp += 8; // Correct?
 }
 
 static void MonitorV86(PTrapFrame context)
@@ -61,19 +66,18 @@ static void MonitorV86(PTrapFrame context)
     // After GPF, saved EIP points to the instruction, NOT AFTER
     pbyte ins   = MK_LP(context->cs, context->eip);
     pword stack = MK_LP(context->ss, context->esp);
-    pdword ivt  = (pdword)phys(0);
 
     if (*ins == 0xCD) { /* INT (IMMED8) */
         // Has this interrupt been trapped?
         // Capturing required for disk access
-        EmulateINT(stack, ivt, context);
+        EmulateINT(stack, context, ins[1]);
     }
     else if (0xCF) /* IRETW */
     {
         /* When an IRQ happens, the real mode stack
-         * will be updated but execution continues in protected mode
-         * using the PM stack. This means that the context must not change
-         * IRET is assumed to be used ONLY for exiting out of the interrupt handler
+         * will be updated but execution continues in protected mode using the PM stack.
+         * This means that the context must not change IRET is assumed
+         * to be used ONLY for exiting out of the interrupt handler
          * There is simply no other way to differentiate virtual IRETs. 16 traps require
          * emulation because 16-bit execution continues for the rest of the 16-bit program.
         */
@@ -95,5 +99,6 @@ static void MonitorV86(PTrapFrame context)
     else {
         // Error, if this is a supervisor call, critical error happened
     }
+    // Segment changing instructions do not require emulation
 }
 

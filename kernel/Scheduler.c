@@ -1,18 +1,11 @@
-/*
-Everything process and control flow related
-* Scheduler
-* V86
-* Interrupt handling
-*/
-
 // Note: Variables shared by ISRs and kernel must be volatile because
 // they can change unpredictably
 
-#include <Scheduler.h>
 #include <Resource.h>
 #include <Type.h>
 #include <IA32.h>
 #include <V86.h>
+#include <Scheduler.h>
 
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
@@ -42,7 +35,7 @@ void HandleGPF(dword error_selector) // Args correct?
     // If not, terminate the current task
 }
 
-inline void SendEOI(byte vector)
+static inline void SendEOI(byte vector)
 {
 
     outb(0x20, 0x20);
@@ -93,7 +86,7 @@ void MiddleDispatch(PTrapFrame tf, dword irq)
         intr->handler(tf);
 
         IntsOff();
-        SendEOI(vector);
+        SendEOI(irq);
     }
 }
 /* SPURIOUS IRQ??? */
@@ -102,7 +95,7 @@ void MiddleDispatch(PTrapFrame tf, dword irq)
 // runs with CLI?
 // Time slice passed variable
 // How can I make this faster?
-void HandleIRQ0(PTrapFrame t)
+int HandleIRQ0(PTrapFrame t)
 {
     static bool time_slice_in_progress;
     static word ms_left;
@@ -114,10 +107,6 @@ void InitScheduler(void)
 {
     int i;
 
-    // Set the IDT entries to proper values
-    for (i=0; i<16;i++) {
-        IA32_SetIntVector(IRQ_BASE+i, IDT_INT386, (pvoid)&MiddleDispatch);
-    }
     // Claim the timer IRQ resource
     // The handler is called by dispatcher directly for speed
     RequestFixedLines(1, NULL, &KERNEL_OWNER);

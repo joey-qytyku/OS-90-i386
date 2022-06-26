@@ -22,7 +22,7 @@ Begin:
         lgdt    [gdtr]
         lidt    [ldtr]
 
-        mov     ax,3 <<3
+        mov     ax,3<<3
         mov     ds,ax
         mov     es,ax
         mov     ss,ax

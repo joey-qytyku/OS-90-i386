@@ -20,7 +20,7 @@ static INTVAR dword spurious_interrupts = 0;
 
 static unsigned long long uptime = 0; // Fixed point
 
-void HandleGPF(dword error_selector) // Args correct?
+static void GeneralProtect(dword error_selector) // Args correct?
 {
     /*
      * The error code is always zero if it is not
@@ -118,4 +118,5 @@ void InitScheduler(void)
     // Index the ISRs since they are same size?
 
     /* The exception handlers */
+
 }

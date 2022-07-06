@@ -49,15 +49,15 @@ use and modify and use it to load other kernels.
 %define LNE 10,13,'$'
 
 PAGE_SHIFT      EQU	12
-PUTSTR          EQU	byte 9
-EXIT            EQU	byte 4Ch
-OPEN_RO         EQU	byte 3D00h
-CLOSE           EQU	byte 3Eh
-READ            EQU	byte 3Fh
+PUTSTR          EQU	9
+EXIT            EQU	4Ch
+OPEN_RO         EQU	3D00h
+CLOSE           EQU	3Eh
+READ            EQU	3Fh
 
-SEEK_SET	EQU	word 4200h
-SEEK_CUR	EQU	word 4201h
-SEEK_END	EQU	word 4202h
+SEEK_SET	EQU	4200h
+SEEK_CUR	EQU	4201h
+SEEK_END	EQU	4202h
 
         ORG	100h
         jmp	Main

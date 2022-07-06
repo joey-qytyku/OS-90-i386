@@ -1,11 +1,16 @@
 // Note: Variables shared by ISRs and kernel must be volatile because
 // they can change unpredictably
 
-#include <Resource.h>
-#include <Type.h>
-#include <IA32.h>
-#include <V86.h>
+// The FPU registers only need to be saved when
+// another process tries to use them
+// Scheduler priority for FPU switch?
+
+#include <Platform/Resource.h>
+#include <Platform/8259.h>
+#include <Platform/IA32.h>
 #include <Scheduler.h>
+#include <Type.h>
+#include <V86.h>
 
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
@@ -15,12 +20,48 @@ dword current_proc=0;
 static INTVAR byte  last_mode = KERNEL;
 static INTVAR dword spurious_interrupts = 0;
 
-// Only applicable to software interrupts
-// Used when emulating INT XX?>
-
 static unsigned long long uptime = 0; // Fixed point
 
-static void GeneralProtect(dword error_selector) // Args correct?
+void Divide0()
+{}
+
+void Debug()
+{}
+
+void NMI()
+{}
+
+void Breakpoint()
+{}
+
+void Overflow()
+{}
+
+void BoundRangeExceeded()
+{}
+
+void InvalidOp()
+{}
+
+void DevNotAvail()
+{}
+
+void DoubleFault()
+{}
+
+void SegOverrun()
+{}
+
+void InvalidTSS()
+{}
+
+void SegNotPresent()
+{}
+
+void StackSegFault()
+{}
+
+void GeneralProtect()
 {
     /*
      * The error code is always zero if it is not
@@ -44,20 +85,34 @@ static inline void SendEOI(byte vector)
     IOWAIT();
 }
 
-/**
-* Called from assembly, High level ISR for all IRQs
-**/
+// Interrupt inting: what about the scheduler?
+// runs with CLI?
+// Time slice passed variable
+// How can I make this faster?
+int HandleIRQ0(PTrapFrame t)
+{
+    static bool time_slice_in_progress;
+    static word ms_left;
+
+    uptime += 0x10000000; // Trust me bro
+}
+
+/// \brief      Master IRQ handler
+/// \param tf   Register dump
+/// \param irq  The IRQ number according to the relative vector called
+///             see more information in Intr_Trap.asm
+/// \todo Less if statements?
+//
 void MiddleDispatch(PTrapFrame tf, dword irq)
 {
     // Simpler way to do this? Use inlines for both ISRs?
     word inservice16 = GetInService16();
-    PInterrupt intr  = GetIntInfo(irq);
+    const PInterrupt intr  = FastGetIntInfo(irq);
 
-    /* 1. The ISR is set to zero for both PICs upon SpINT.
-     * 2. If an spurious IRQ comes from master, no EOI is sent
-     * because there is no IRQ. if it is from the slave PIC
-     * EOI is sent to the master only
-    */
+    /// 1. The ISR is set to zero for both PICs upon SpINT.
+    /// 2. If an spurious IRQ comes from master, no EOI is sent
+    /// because there is no IRQ. if it is from the slave PIC
+    /// EOI is sent to the master only
 
     last_mode = INTERRUPT;
 
@@ -73,50 +128,41 @@ void MiddleDispatch(PTrapFrame tf, dword irq)
             return;
     }
 
-    if (intr->intlevel == RECL_16)
+    /* Call IRQ#0 directly if that is detected */
+    if (!irq)
     {
-        // Disable interrupts
-        // EOI will be sent by the ISR
+        HandleIRQ0(tf);
     }
-    else if (STANDARD_32 || TAKEN_32)
+
+    if (intr->intlevel == STANDARD_32 || intr->intlevel == TAKEN_32)
     {
         if (!intr->fast)
             IntsOn();
 
-        intr->handler(tf);
+        intr->handler(tf); // Return value?
 
         IntsOff();
         SendEOI(irq);
     }
-}
-/* SPURIOUS IRQ??? */
-
-// Interrupt inting: what about the scheduler?
-// runs with CLI?
-// Time slice passed variable
-// How can I make this faster?
-int HandleIRQ0(PTrapFrame t)
-{
-    static bool time_slice_in_progress;
-    static word ms_left;
-
-    uptime += 0x10000000; // Trust me bro
+    else if (RECL_16)
+    {
+        // Disable interrupts
+        // EOI will be sent by the ISR
+    }
 }
 
-void InitScheduler(void)
+void InitScheduler()
 {
-    int i;
 
     // Claim the timer IRQ resource
     // The handler is called by dispatcher directly for speed
-    RequestFixedLines(1, NULL, &KERNEL_OWNER);
+    IntrRequestFixed(1, NULL, 1, KERNEL_OWNER);
 
-    /***
-     * Each interrupt has its own vector so that the IRQ number
-     * can be automatically deduced in the case of a spurious interrupt
-    ***/
+    //
+    // Each interrupt has its own vector so that the IRQ number
+    // can be automatically deduced in the case of a spurious interrupt
     // Index the ISRs since they are same size?
 
-    /* The exception handlers */
+    // The exception handlers are already installed by IA32.h
 
 }

@@ -1,3 +1,11 @@
 {
-    "C_Cpp.errorSquiggles": "Disabled"
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "ia32.h": "c",
+        "resource.h": "c",
+        "ata.h": "c",
+        "8259.h": "c",
+        "scheduler.h": "c",
+        "drivers.h": "c"
+    }
 }

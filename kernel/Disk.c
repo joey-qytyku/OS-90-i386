@@ -12,10 +12,10 @@
  * Identification for cache flushing
 **/
 
-#include <Resource.h>
+#include <Platform/Resource.h>
+#include <Platform/ATA.h>
+#include <Platform/IA32.h>
 #include <Type.h>
-#include <ATA.h>
-#include <IA32.h>
 
 typedef struct { // TODO: What does this mean?
     word th;
@@ -101,12 +101,11 @@ word sectors, const dword lba, const pvoid to)
         rep_insw(to, 256, io); // ?
         stat = inb(io+7);
 
-        // Check for errors, return error register
-        if (stat & STAT_ERR >0)
+        if ((stat & STAT_ERR) >0) // Error Bit set?
             return (dword)inb(io+1);
 
         sectors--;
-    } while (STAT_BSY != 0 && stat & STAT_DRQ > 1);
+    } while (STAT_BSY != 0 && (stat & STAT_DRQ) > 1);
 }
 
 void ATA_Write(const pvoid from, const byte drive,

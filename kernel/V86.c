@@ -1,11 +1,12 @@
+#include <Platform/IA32.h>
+#include <Platform/8259.h>
 #include <Scheduler.h>
-#include <Linker.h> /* phys() */
-#include <IA32.h>
-#include <V86.h> /* EnterV86, ShootdownV86 */
+#include <Linker.h>     /* phys() */
+#include <V86.h>        /* EnterV86, ShootdownV86 */
 #include <Type.h>
 
 static DRVMUT void (*trap_capture[256]);
-static bool monitor_iret32 = 0;
+static INTVAR bool monitor_iret32 = 0;
 
 const pdword real_mode_ivt = (pvoid)phys(0);
 
@@ -39,7 +40,7 @@ static void EmulateINT(pword stack, PTrapFrame context, byte v)
     stack[-2] = (word)context->eip+2;  /* IP    */
     context->regs.esp -= 8; /* SP points to next value to use upon push */
 
-    /**
+    /*
      * Continute execution at CS:IP in IVT
      */
 
@@ -67,13 +68,13 @@ static void MonitorV86(PTrapFrame context)
     pbyte ins   = MK_LP(context->cs, context->eip);
     pword stack = MK_LP(context->ss, context->esp);
 
-    if (*ins == 0xCD) { /* INT (IMMED8) */
+    switch (*ins)
+    {
+    case 0xCD: /* INT (IMMED8) */
         // Has this interrupt been trapped?
         // Capturing required for disk access
         EmulateINT(stack, context, ins[1]);
-    }
-    else if (0xCF) /* IRETW */
-    {
+    case 0xCF: /* IRETW */
         /* When an IRQ happens, the real mode stack
          * will be updated but execution continues in protected mode using the PM stack.
          * This means that the context must not change IRET is assumed
@@ -93,12 +94,21 @@ static void MonitorV86(PTrapFrame context)
         } else {
             EmulateIRETW(stack, context);
         }
-    }
-    else if (0xFA) IntsOff(); /* CLI */
-    else if (0xFB) IntsOn();  /* STI */
-    else {
+    break;
+
+    case 0xFA: /* CLI */
+        IntsOff();
+        context->eip++;
+    break;
+    case 0xFB: /* STI */
+        IntsOn();
+        context->eip++;
+    break;
+
+    default:
         // Error, if this is a supervisor call, critical error happened
-    }
     // Segment changing instructions do not require emulation
+    break;
+    }
 }
 

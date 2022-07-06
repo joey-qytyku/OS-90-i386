@@ -53,6 +53,8 @@ This is further elaborated in other sections. When an interrupt happens, only on
 
 Not all busses support sharing IRQs so the extra arbitration step may not be necessary.
 
+When OS/90 boots, it scans the interrupt vector table IRQ sections for any changes.
+
 ## Query Devices
 
 ## Bus_RequestLines(dword handle, byte lines)
@@ -65,7 +67,7 @@ The kernel only has one ISR for all IRQ vectors. It reads the in service registe
 
 The RequestFixedLines function is for drivers that use a standard interrupt line. The implementation is almost exactly the same.
 
-If the bus wants to, it can have different handlers for different interrupt. They can be modified simply by changing the pointer in the structure within a critical section.
+If the bus wants to, it can have different handlers for different interrupts by requesting several times.
 
 ## Bus_ReportDeviceList(PDevice, word length)
 

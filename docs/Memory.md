@@ -2,6 +2,12 @@
 
 OS/90 supports virtual memory with paging. The MMGR can access up to 1GB of physical memory (minus non-contiguities). Programs can have access to 1G of virtual addressing space.
 
+## Page Fault and Double Fault Handling
+
+A page fault handler is not supposed to access memory that is not present because that would cause a double fault. The double fault handler detects if a variable indicating that a page fault was being handled is set. If it's set, the #DF handler can find out how the #DF happened because the previous context variable is never modified by exception handlers.
+
+The double fault is unrecoverable and will lead to a panic
+
 ## Page Frame Allocation
 
 The start of the available memory is found by looking above the kernel BSS section. Linked lists are used to keep track of page allocations. A head points to the start of a linked list.

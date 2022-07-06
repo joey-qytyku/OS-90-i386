@@ -1,39 +1,27 @@
 # Boot process and Legacy Drivers
 
-## Goals and Summary of Design
+## GRABIRQ.SYS
 
-OS/90 is designed to maximize DOS compatibility. It can load and execute DOS drivers and applications. 90.COM is the program that initializes the system. Before this runs, MS-DOS is loaded by the boot sector and parses CONFIG.SYS (see note). COMMAND.COM executes next. AUTOEXEC.BAT is executed by the COMMAND.COM and TSR drivers are loaded in conventional memory. 90.COM performs the boot process.
+This is a device driver loaded by the DOS kernel on startup. It traps INT 21H calls and records modifications to the real mode interrupt vector table using the DOS API calls 25H and 35H. This is so that IRQ lines assumed to be free can be used by devices and busses with plug-and-play support (ISA PNP/PCI).
 
-16-bit DOS drivers can be used by the operating system. Device drivers (not speaking of .SYS files in CONFIG) always hook interrupts (often an IRQ). DOS drivers cannot be loaded after this.
+This driver is required and its installation is checked on boot.
 
-## 90.COM
+## OS90.COM
 
-This file is the main boostrap program. It requires HIMEM.SYS or some other XMS driver to be loaded. Only the 2.0 feature set is used, so older versions should work. XMS is used so that pre-existing drivers using extended memory blocks can work. The high memory area cannot be shared. Do not use DOS=HIGH or the system will overwrite the DOS kernel and crash the system.
-
-Write to EMB directly? Bad idea?
+This program loads the kernel and communicates some information that is easier to get in real mode.
 
 # HMA Issues
 
-The HMA is used for startup and later on for ISA DMA. XMS 2.0 lets only one program can use it at a time, and in this case that is the 32-bit kernel. Remove DOS=HIGH from confg.sys and anything that uses it.
+The HMA is used for startup and later on for ISA DMA. XMS 2.0 lets only one program can use it at a time, and in this case that is the 32-bit kernel. Remove DOS=HIGH from confg.sys and anything that may use it. All software is required to have a no-HMA option.
 
 # DOS drivers
 
-16-bit drivers will work. The DOS .SYS driver model is unsupported by the 32-bit kernel, but the DOS kernel and programs can still use them within a DOS VM. TSR programs like MS Mouse will also function as expected as the mouse interrupt is expected to be 16-bit.
+16-bit drivers will work. The DOS .SYS driver model is unsupported by the 32-bit kernel, but the DOS kernel and programs can still use them within a DOS VM. TSR programs like MS Mouse will also function as expected as the mouse interrupt is expected to be 16-bit. Plug-and-play ISA card drivers work even if the ISAPNP driver is not installed. These utilities may do various things with the cards, but will certainly not manipulate card select numbers set by the BIOS. PnP configuration utilities may do this.
 
-## ISA PnP drivers
-
-There are 16-bit plug-and-play drivers for ISA cards. Such drivers will send the initiation key and perform configuration on a detected card when it recognizes the card identification. ISA PnP drivers presumably use the real-mode PnP BIOS interface to get CSN information.
-
-OS/90 supports plug-and-play ISA and detects what resources have been assigned to each card. It does not reassign card select numbers as configured by the BIOS (This may be an issue).
+The ISAPNP bus driver scans the cards on the system for their reosurce assignments. If a card uses interrupts identified as 16-bit, the interrupt resources cannot be modified because the 16-bit driver will not expect that. Otherwise, resources are changed. The isolation protocol is not performed by ISAPNP and CSNs are preserved.
 
 In short, ISA plug-and-play cards can operate with 16-bit DOS drivers just fine.
-
-# Notes
-
-Upper memory blocks are not supported. EMM386 should __NEVER__ be used! Loading device drivers into a UMB will not do anything (they will be loaded low)
 
 # Parameters
 
 The PSP of the bootloader is passed to the kernel for parsing. They are case insensitive.
-
-/NODRIVERS

@@ -22,9 +22,9 @@ SOFTWARE.
 This file contains the initialization procedure
 ===================================================================+*/
 
-#include <Type.h>
-#include <IA32.h>
+#include <Platform/IA32.h>
 #include <Scheduler.h>
+#include <Type.h>
 
 void KernelMain(pvoid info)
 {

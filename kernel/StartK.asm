@@ -17,27 +17,40 @@ Begin:
         sub     ecx,LKR_STARTBSS
         shr     ecx,2
         mov     edi,LKR_STARTBSS
-        rep     stosd
+        rep stosd
 
         lgdt    [gdtr]
-        lidt    [ldtr]
+        lidt    [idtr]
+        lldt    [null_ldtr]
 
         mov     ax,3<<3
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
+
+        ;I may not use these for anything
         xor     ax,ax
-        mov     fs,ax   ;I will not use these for anything
+        mov     fs,ax
         mov     gs,ax
 
         jmp    8h:Cont
 Cont:
-        mov     esp,InitStack  ; Set up a stack
-        ;Far call not used because GCC cant return
-        call    KernelMain
+        mov     esp,InitStack   ; Set up a stack
+        call    KernelMain      ; GCC does not far return
 
-L:        hlt     ; Nothing to do now, halt
+L:      hlt     ; Nothing to do now, halt
         jmp L   ; if interrupted, handle and halt again
+
+;---------------------------------
+;The LDT is never used by the OS
+;but it must be loaded anyway
+;
+null_ldt:
+        DQ      0       ;Null descriptor
+null_ldtr:
+        DW      8
+        DD      null_ldt
+
 
 section	.bss
         ;The initialization stack is used only for startup

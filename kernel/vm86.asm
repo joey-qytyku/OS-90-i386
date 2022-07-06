@@ -15,7 +15,9 @@ STRUC TF
     ._size:
 ENDSTRUC
 
-global EnterVM86
+
+global EnterV86
+global ShootdownV86
 
 [section .bss]
 Buffer:
@@ -23,8 +25,22 @@ Buffer:
 
 [section .text]
 
+;----------------------------
 ;Re-enter caller of EnterV86
 ShootdownV86:
+    cli
+    ;Load the context saved by EnterV86
+    mov    ebx,Buffer        ; Get pointer to register dump
+    mov    eax,[ebx+TF._eax]
+
+    mov    ecx,[ebx+TF._ecx]
+    mov    edx,[ebx+TF._edx]
+    mov    esi,[ebx+TF._esi]
+    mov    edi,[ebx+TF._edi]
+    mov    ebp,[ebx+TF._ebp]
+    mov    ebx,[ebx+TF._ebx]
+
+    iret
 
 ;16-bit pre-emptive VM -> INT 21H -> 32-bit kernel -> Serviced in VM86
 ;Stack frame is not created using ENTER because
@@ -32,10 +48,15 @@ ShootdownV86:
 EnterV86:
     ;Save context
 
-    ;Loading the registers
+    ;Load the registers
     mov    ebx,[esp+4]        ; Get pointer to register dump
-    mov    eax,[ebx+4+_eax]
+    mov    [EnterContext.goto], dword .goto
+    jmp    EnterContext
+.goto
+    iret ; Enter V86
 
+EnterContext:
+    mov    eax,[ebx+TF._eax]
     mov    ecx,[ebx+TF._ecx]
     mov    edx,[ebx+TF._edx]
     mov    esi,[ebx+TF._esi]
@@ -43,12 +64,14 @@ EnterV86:
     mov    ebp,[ebx+TF._ebp]
 
     ;Push SS, ESP, EFLAGS, CS, EIP
-    push   dword [ebx+TS._ss]
-    push   dword [ebx+TS._esp]
-    push   dword [ebx+TS_.eflags]
-    push   dword [ebx+TS._cs]
-    push   dword [ebx+TS._eip]
-    mov    ebx,[ebx+TF._ebx]
-    iret ; Enter V86
+    push   dword [ebx+TF._ss]
+    push   dword [ebx+TF._esp]
+    push   dword [ebx+TF._eflags]
+    push   dword [ebx+TF._cs]
+    push   dword [ebx+TF._eip]
+    mov    ebx,  [ebx+TF._ebx]
+    jmp    near  [.goto]
+.goto:
+    DD     0
 
 [section .data]

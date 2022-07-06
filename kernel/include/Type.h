@@ -14,10 +14,6 @@ typedef word*     pword;
 typedef byte*     pbyte;
 typedef dword*    pdword;
 
-typedef sword*     psword;
-typedef sbyte*     psbyte;
-typedef sdword*    psdword;
-
 typedef sdword Handle;
 typedef sdword Status;
 typedef byte bool;
@@ -26,14 +22,14 @@ typedef byte bool;
 
 /* Volatile variables can change at any time without the
  * compiler being aware. This applies to ISRs and drivers
- * because they are unpredictable
+ * because they are unpredictable and also assembly code that
+ * modifies a C variable
  */
 #define INTVAR volatile /* Used by interrupt handler */
 #define DRVMUT volatile /* Driver can modify */
+#define ASMVAR volatile /* Assembly code may modify */
 
 // Packed structure
-#define __PACKED   __attribute__( (packed) )
-#define __ALIGN(x) __attribute__( (aligned(x)) )
 
 /*  The timer interrupt uses fixed point rather than FPU
  *  This is because milisecond precision time counting
@@ -48,6 +44,9 @@ struct FixedPointNumber { long fractional, whole; };
 */
 
 #if __GNUC__
+
+#define __PACKED   __attribute__( (packed) )
+#define __ALIGN(x) __attribute__( (aligned(x)) )
 
 static inline void *C_memcpy(void *d, void *s, dword c)
 {

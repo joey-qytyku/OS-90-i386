@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 
-GCCVER := 12.1.0
+GCCVER := 10.1.0
 
 INCLUDE=~/gcc-$(GCCVER)-nolibc/i386-linux/lib/gcc/i386-linux/$(GCCVER)/include
 CFLAGS := -I $(INCLUDE) -I ./include/ -Os -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall

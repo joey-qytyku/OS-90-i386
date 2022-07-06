@@ -25,11 +25,10 @@ and high level heap management for kernel and user
 
 ===================================================================+*/
 
+#include <DriverLib/Drivers.h>
 #include <Type.h>
 #include <Linker.h>
-#include <IA32.h>
-
-#include <lib/Drivers.h>
+#include <Memory.h>
 
 #define NUM_TAILS 1024
 

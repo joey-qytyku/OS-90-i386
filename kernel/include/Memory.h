@@ -13,5 +13,12 @@
 #define PG_RDWR  1<<1
 #define PG_PRES  1<<0
 
+typedef dword Page;
+
+static inline void invlpg(Page addr)
+{// Linux defines like this
+    __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
+}
+
 #endif /* MEMORY_H */
 

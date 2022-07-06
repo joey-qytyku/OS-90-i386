@@ -8,13 +8,13 @@
                 "${workspaceFolder}/kernel/include"
             ],
             "defines": [],
-            "compilerPath": "/home/joey/gcc-12.1.0-nolibc/i386-linux/bin/i386-linux-gcc",
+            "compilerPath": "/home/joey/gcc-10.1.0-nolibc/i386-linux/bin/i386-linux-gcc",
             "cStandard": "gnu99",
             "cppStandard": "gnu++17",
             "intelliSenseMode": "linux-gcc-x86",
             "compilerArgs": [
                 "-I ${workspaceFolder}/kernel/include",
-                "-I /home/joey/gcc-12.1.0-nolibc/i386-linux/lib/gcc/i386-linux/12.1.0/include"
+                "-I /home/joey/gcc-12.1.0-nolibc/i386-linux/lib/gcc/i386-linux/10.1.0/include"
             ]
         }
     ],

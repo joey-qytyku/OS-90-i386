@@ -6,22 +6,39 @@ Minimum requirements
 |Spec|Minimum|Recommended|Premium|
 -|-|-|-
 RAM | 2MB      | 4MB       | 16MB
-CPU | i386SX   | i486      | Pentium I or II
+CPU | i386SX   | i486DX    | Pentium I or II
 PC  | PC/AT    | PC/AT     | PS/2 compatible
 OS  | DOS 3.0  | -         | -
 Bus | ISA      | ISA w/PnP | PCI (any version)
 
-PCI and ISA are officially supported buses. VLB, MCA, and EISA should work too because OS/90 keeps the BIOS default settings.
 
-A floating point unit is not required for i386 users. The OS code never uses the floating point unit, but does detect its presence and saves registers on pre-emption if a process uses them and it is in fact present. There are no build options for processors; both i386 and i486+ are supported, but the i486 GCC compiler and tuning is used. INVLPG is used by the memory manager if it is detected.
+# Warnings
 
-The maximum amount of ram is 1 GB. There is no reason for anything higher. A system should boot if it has more.
+* Do not use a compressed drive or 32-bit disk access will fail!
 
-Do not use EMS hardware. No LIM EMS cards are plug and play so they will only cause problems once PnP support is added. LIM EMS is emulated by the kernel and allows for many more memory blocks.
+The kernel will call the 16-bit filesystem but traps disk access and perform it in protected mode for performance.
 
-Plug and play cards should not co-exist with non-pnp cards. If this is required, the legacy ISA card drivers should be loaded first so that the resource manager can reserve its IRQs, DMAs, and ports. PCI may provide the better experience as it is very well documented.
+* Do not use .SYS drivers block device access, it will not work!
+The entire OS has no support at all for the DOS driver model (.SYS) and never will. Character device drivers may still work if they do not perform direct hardware access.'
 
-Installing on MS-DOS 7.0 may be possible, but this version is bundled with Windows, so there is no point.
+* Do not use disk cache software
+I have not tested this, but SMARTDRV will cache disk contents to memory, sometimes XMS blocks. It will not be able to flush disk contnets when the OS boots.
+
+# Things That do NOT work
+
+Programs for DOS run in a protected environment, so direct hardware access will probably fail (IO ports). Changing video modes is possible.
+
+# Editions
+
+There are editions for computers of different age.
+
+|Edition|Compiler Tuning|Included Drivers|
+-|-|-
+Type C| i386      | ~
+Type B| i486      | ISAPNP
+Type A| Pentium   | PCI, ISAPNP, UHCI
+
+Because instructions execute completely differently, each edition is tuned for a certain processor.
 
 # Installation
 
@@ -40,8 +57,6 @@ Reinstalling OS/90 is necessary to update. User files are not store in the OS90 
 # Limitations
 
 In the current design, the 32-bit userspace runtime has not been specified. It will be in the future. Filesystem access is 16-bit only, but disk access is 32-bit for performance reasons.
-
-OS/90 may not work properly with MS-DOS 7 and above. Windows ME reports as MS-DOS 8 and is completely gutted in terms of DOS functionality so that is not a concern.
 
 # After install
 

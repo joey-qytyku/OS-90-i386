@@ -79,10 +79,9 @@ void GeneralProtect()
 static inline void SendEOI(byte vector)
 {
 
-    outb(0x20, 0x20);
+    pic_outb(0x20, 0x20);
     if (vector > 7)
-        outb(0xA1, 0x20);
-    IOWAIT();
+        pic_outb(0xA1, 0x20);
 }
 
 // Interrupt inting: what about the scheduler?
@@ -163,6 +162,6 @@ void InitScheduler()
     // can be automatically deduced in the case of a spurious interrupt
     // Index the ISRs since they are same size?
 
-    // The exception handlers are already installed by IA32.h
+    // The exception handlers are already installed by IA32.c
 
 }

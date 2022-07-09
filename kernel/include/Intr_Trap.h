@@ -39,28 +39,13 @@ extern void LowStackSegFault();
 extern void LowGeneralProtect();
 extern void LowPageFault();
 
-
-// Low exception handlers, explained in Intr_Trap.h
-// Not inserted individually, copied
-// from a function pointer array
-//
 extern void Low0();
-extern void Low1();
-extern void Low2();
-extern void Low3();
-extern void Low4();
-extern void Low5();
-extern void Low6();
-extern void Low7();
-extern void Low8();
-extern void Low9();
-extern void Low10();
-extern void Low11();
-extern void Low12();
-extern void Low13();
-extern void Low14();
-extern void Low15();
 
+// In the assembly file, there are instructions for
+// each bottom third ISR that save the IRQ number.
+// The opcodes: EB 02 6A 08
+//
+#define BOTTOM_ISR_TABLE_LEN 4
 
 // Defined in Intr_Trap.asm
 extern dword GetErrCode(void);

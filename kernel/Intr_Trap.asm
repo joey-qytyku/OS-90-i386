@@ -53,21 +53,15 @@ EXTERN MiddleDispatch
 ;chip that caused it, so the computer cannot differentiate between
 ;interrupts unless different ISRs are used
 
-EXTERN Low0
-Low0:
-    push    dword 0
-EXTERN Low1
-Low1:
-    push    dword 1
-
-%assign i 3
-%rep 16-3
-    EXTERN Low %+ i
+%assign i 0
+%rep 16
     Low %+ i:
-        push   dword i
-        jmp    Continue
+        push   byte i ; 2 byte
+        jmp    short Continue ; 2 byte
     %assign i i+1
 %endrep
+
+EXTERN Low %+ i
 
 ;-----------------------
 ;Keep handling the IRQ

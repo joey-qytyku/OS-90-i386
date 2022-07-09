@@ -48,11 +48,11 @@ typedef struct __PACKED
     byte    base2;
 }Gdesc;
 
-#define GDT_RING0_CSEG 0xcf9a000000ffffULL
-#define GDT_RING0_DSEG 0xcf92000000ffffULL
-#define GDT_RING3_CSEG 0xcff8000000ffffULL
-#define GDT_RING0_DSEG 0xff2000000ffffULL
-#define GDT_RING0_TSS  0x890000002068ULL
+#define GDTDEF_R0_CSEG 0x00cf9a000000ffffULL
+#define GDTDEF_R0_DSEG 0x00cf92000000ffffULL
+#define GDTDEF_R3_CSEG 0x00cff8000000ffffULL
+#define GDTDEF_R3_DSEG 0x000ff2000000ffffULL
+#define GDTDEF_R0_TSS  0x0000890000002068ULL
 
 // The standard register dump
 // ESP is nonsense

@@ -1,7 +1,7 @@
 /**
  * @file Disk.c
- * @author your name (you@domain.com)
- * @brief 
+ * @author Joey Qytyku
+ * @brief ATA support, floppy drives TODO
  * @version 0.1
  * @date 2022-06-25
  * 
@@ -83,6 +83,8 @@ word sectors, const dword lba, const pvoid to)
 {
     const word io = SetParam(drive, sectors, lba);
     byte stat;
+
+    // Disable interrupts
 
     /**
      * If parameters invalid, fail with code -1

@@ -1,10 +1,11 @@
 // Monitor Co-processor
 // If MP and TS are set, the WAIT instruction causes #NM
-// (coprocessor/device not available). (also ESC). 
+// (coprocessor/device not available). (also ESC).
+// In other words, it decides if FWAIT is affected by the TS bit
 #define CR0_MP (1<<1)
 
 // Emulate
-// If set, X87 instructions cause #UD
+// If set, X87 instructions cause #UD so that they may be emulated
 // Some kernels use it instead of lazy switching, so that
 // FPU registers are saved and restored for a process
 // that uses them, OS/90 uses lazy switching instead

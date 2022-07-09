@@ -20,8 +20,9 @@
 #include <Linker.h> // To get address of BDA
 
 const char *KERNEL_OWNER = "KERNL386.EXE";
-`````````   
+
 // Interrupt levels of each IRQ
+
 static DRVMUT Interrupt interrupts[16] =
 { // TODO: ADD OWNERS
     [0] =   {STANDARD_32},  // Timer
@@ -56,71 +57,131 @@ static DRVMUT word ints_masked;
 // package and takes control of the system instead for i486SX PCs
 //
 
-/**
- * A flat list of a memory and IO space usage. Standard IO
- * spaces found on all PC-compatibles are pre-included.
- * 20 entries are reserved (0-19).
- */
-static DRVMUT dword       cur_iorsc = 0;
-static DRVMUT IO_Resource resources[MAX_IO_RSC] = { // FPU reset?
+//
+// A flat list of a memory and IO space usage.
+// Entries included are supposed to work on
+// nearly all configurations.
+//
+// ADD SUPPORT FOT PLUG AND PLAY BIOS AUTOCONFIGURATION!!!!
+static DRVMUT dword       cur_iorsc = 0; // UPDATE
+static DRVMUT IO_Resource resources[MAX_IO_RSC] =
+{
     {// Master PIC
-     .start = 0x20,
-     .limit = 0x21,
-     .info = PORT | STD | INUSE},
-
+        .start = 0x20,
+        .limit = 0x21,
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
     {// 8042 mouse/keyboard controller
-     .start = 0x60,
-     .limit = 0x64,
-     .info = PORT | STD | INUSE},
-
+        .start = 0x60,
+        .limit = 0x64,
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
     {// Slave PIC
-     .start = 0xA0,
-     .limit = 0xA1,
-     .info = PORT | STD | INUSE},
-
+        .start = 0xA0,
+        .limit = 0xA1,
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
     {// Floppy disk controller
-     .start = 0x3F0,
-     .limit = 0x3F5,
-     .info = PORT | STD | INUSE},
+        .start = 0x3F0,
+        .limit = 0x3F5,
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
 
     // GFX/VGA adapter IO ports
     {
         .start = 0x3B0,
         .limit = 0x3DF,
-        .info  = PORT | STD | INUSE
+        .info  = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
     },
 
     {// GFX/VGA video memory
         .start = 0xA0000,
         .limit = 0xBFFFF,
-        .info = MEM | STD | INUSE},
+        .info = MEM | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
 
     {// ROM and video BIOS shadow
         .start = 0xC0000,
         .limit = 0xFFFFF,
-        .info = MEM | STD | INUSE},
+        .info = MEM | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
 
     // Primary ATA controller
     {
         .start = 0x1F0,
         .limit = 0x1F7,
-        .info = PORT | STD | INUSE},
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
     // Secondary ATA or same as primary if not present
     {
-        .start = 0x170
-        .limit = 0x177},
+        .start = 0x170,
+        .limit = 0x177,
+        .info  = PORT | STD | INUSE
+        .owner = KERNEL_OWNER
+    },
 
     {// Primary ATA control port
         .start = 0x3F6,
         .limit = 0x3F7,
-        .info = PORT | STD | INUSE},
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
 
     {// Secondary control port
         .start = 0x376,
         .limit = 0x377,
-        .info = PORT | STD | INUSE}
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
+    {// Programmable option select, PS/2, never used
+        .start = 0x90,
+        .limit = 0x9F,
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
+    {// External floating point unit
+        .start = 0xF0,
+        .limit = 0xFF,
+        .info = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
+    { // LED info panel (PS/2)
+        .start = 0x108,
+        .limit = 0x10F,
+        .info  = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
+    {// Game port, provided by some sound cards
+        .start = 0x200,
+        .limit = 0x20F,
+        .info  = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    },
+    // No COM or LPT, they are figured out later
+    {// Extended NMI
+        .start = 0x461,
+        .limit = 0x465,
+        .info  = PORT | STD | INUSE,
+        .owner = KERNEL_OWNER
+    }
 };
 
+void FindConflict(void)
+{
+}
+
+/// @brief add a new port/memory mapped resource entry
+/// Can be used for a device which expects static assignments
+/// or for a PnP bus driver with autoconf disabled for compatibility
+///
 __DRVFUNC Status AddIOMemRsc(PIO_Resource new_rsc)
 {
     if (cur_iorsc >= MAX_IO_RSC)
@@ -137,23 +198,69 @@ __DRVFUNC Status AddIOMemRsc(PIO_Resource new_rsc)
  **/
 __DRVFUNC Status Bus_AllocateIO(word size, byte align)
 {
-    dword size_of_entry;
+    dword size_of_portspace;
     dword current_address;
     int i;
     for (int i = 0; i<cur_iorsc-1; i++)
-    {
-        size_of_entry = resources[i].limit - resources[cur_iorsc].start;
+    { // Plus 1?
+        size_of_portspace = resources[i].limit - resources[cur_iorsc].start + 1;
 
     }
     return 0;
 }
 
+//============================================================================
+// Plug and play BIOS support
+//============================================================================
+
+#define PNP_ROM_STRING BYTESWAP(0x24506e50) // "$PnP"
+
+static FarPointer32 pnp16_pmode_fptr;
+
+// Scan the ROM space for "$PnP" at a 2K boundary
+void SetupPnP()
+{
+    const volatile // ROM space should not be prefetched or modified
+    pdword rom = (pdword)0xF0000;
+    int i;
+
+    for (i=0; i<65536/0x800;i++)
+    {
+        if (*rom = PNP_ROM_STRING)
+            goto hasPnP;
+    }
+    hasPnP:
+    // Get the entry point
+}
+
+//
+// Call wrapper for PnP calls
+//
+void CallBiosPnP()
+{}
+
+
+//
+// ADD RESOURCE ENTRIES FOR MOTHERBOARD DEVICES
+// This gets the device nodes from the PnP BIOS and adds
+// the information to the resource. The kernel does not
+// recognize devices, only resources.
+//
+static void PlugAndPlayCfg()
+{}
+
+//============================================================================
+// Interrupt Management Functions
+//============================================================================
+
 /**
  * @brief Get the Int Info object, not for drivers
  * @param v IRQ number
+ * @section Arguments
+ * dword to avoid unnecessary sign extention
  * @return A pointer to the interrupt, 4-bit normalized
  */
-PInterrupt FastGetIntInfo(byte v)
+PInterrupt FastGetIntInfo(dword v)
 {
     return &interrupts[v & 0xF];
 }
@@ -209,7 +316,7 @@ __DRVFUNC Status IntrRequestFixed(word bmp_intlines, PHandler handler, bool fast
  * @brief   Unmask the interrupts specified, modifies the interrupt array
  *          so that it says enabled and that the state of the IRQ can be
  *          found without having to read the IMR
- * @param bmp_intlines A bitmap of the interrupt lines
+ * @param bmp_intlines A bitmap of the interrupt lines to activate
  * @return Notification
  * @retval RQINT_INUSE32  In use by another driver
  * @retval RQINT_STANDARD This interrupt is stanard hardware
@@ -217,79 +324,11 @@ __DRVFUNC Status IntrRequestFixed(word bmp_intlines, PHandler handler, bool fast
 */
 __DRVFUNC void IntrEnable(word bmp_intlines)
 {
+    ints_masked |= bmp_intlines;
 }
-
-/*+===========================
-Hardware detection functions
-==============================*/
-
-
-/// @brief Detect which interrupt are unused by ISA devices
-/// @section Explaination
-/// Windows 9x has a special IO.SYS that detects modifications
-/// to interrupt vectors so that it can call 16-bit drivers.
-/// A program called GRABIRQ.SYS records modifications to IRQ
-/// vectors by hooking the DOS interrupts for that purpose.
-static void DetectFreeInt(void)
-{
-}
-
-
-static void DetectPs2Mouse(void)
-{
-}
-
-/// @brief Detect how many COM ports there are and where they
-/// are located by reading BDA. The IO base is usually standard
-/// but some BIOSes allow ports to be changed.
-/// If a computer has more than one serial port
-/// @section Notes
-/// then IRQ 3 and 4 are both for COM
-/// COM2 and COM4 => IRQ#3
-/// COM1 and COM3 => IRQ#4
- */
-
-static void DetectCOM(void)
-{
-    byte i, com_ports;
-    const pword bda = (pword)phys(0x400+0);
-
-    /// Check BIOS data area for number of serial ports
-    /// The beginning words are the COM port IO addresses
-    /// Zero indictates not present
-    ///
-    for (i = 0; i < 4; i++) // Up to four COM ports on PC
-    {
-        if (bda[i] != 0) // then COM[i] exists
-        {
-            IO_Resource new = {
-                .start = bda[i],
-                .limit = bda[i]+7,
-                .info  = INUSE | STD | PORT,
-            };
-            AddIOMemRsc(&new);
-            com_ports++;
-        }
-    }
-    if (com_ports > 1)
-    {
-        // If there is only one COM, IRQ#3 may be
-        // configured to use something else, perhaps
-        // a 16-bit driver
-
-    }
-}
-
 
 void InitResMGR(bool fpu_present, bool fpu_internal)
 {
-    DetectCOM();
-
-    // Parallel ports do not share interrupts
-    // If there are two, IRQ 5 is for the second one
-
-    // Is there a PCI bus? If so, CF8-CFC are not available
-
     cur_iorsc = 20;
 }
 

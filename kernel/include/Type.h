@@ -5,18 +5,28 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-typedef char  sbyte;
-typedef short sword;
-typedef long  sdword;
+typedef char	sbyte;
+typedef short	sword;
+typedef long	sdword;
+typedef	long long sqword;
+typedef	unsigned long long qword;
+
 
 typedef void*	  pvoid;
 typedef word*     pword;
 typedef byte*     pbyte;
 typedef dword*    pdword;
+typedef qword*	  pqword;
 
 typedef sdword Handle;
 typedef sdword Status;
 typedef byte bool;
+
+#define BIT_IS_SET(num, bit) ((n & 1<<bit)>0)
+
+// The BSWAP instruction is only supported by i486 and above
+// but this is only a macro
+#define BYTESWAP(value) ((value & 0xFF) << 24) | ((value & 0xFF00) << 8) | ((value & 0xFF0000)>>8) | ((value & 0xFF000000) >> 24)
 
 #define NULL ((void*)(0))
 

@@ -6,6 +6,8 @@
         "ata.h": "c",
         "8259.h": "c",
         "scheduler.h": "c",
-        "drivers.h": "c"
+        "drivers.h": "c",
+        "intr_trap.h": "c",
+        "x87.h": "c"
     }
 }

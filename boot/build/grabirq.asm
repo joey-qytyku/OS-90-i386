@@ -13,55 +13,64 @@ BASE_MASTER EQU 8h
 BASE_SLAVE  EQU 70h
 
 Header:
-    DW  0
-    DW  0
-    DW  8000h
-    DW  Strategy
-    DW  Interrupt
-    DB  "@#O9!_~2" ;Nonsense name so it cannot be called
+        DW      0
+        DW      0
+        DW      8000h       ; "Character device"
+        DW      Strategy
+        DW      Interrupt
+        DB      "@#O9!_~2" ;Nonsense name so it cannot be called
 
-Rest21h: DD 0
-Error:   DB "Error caused by GRABIRQ",10,13,'$'
+Rest21h: DD     0
+Error:   DB     "Error caused by GRABIRQ",10,13,'$'
 
 ModIRQ:
-    DB  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        DB      0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 Strategy:
-    retf
+        retf
 
 NewHandler:
-    cmp ah,SINT
-    jne .cont
+        cmp ah,SINT
+        jne .cont
 
-    ;AL contains the vector being changed
-    push ax
-    pop ax
+        ;AL contains the vector being changed
+        pusha
+        or      al,7
+        cmp     al,BASE_MASTER+7
+        je      
+
+        popa
 
 .cont:
-    jmp [Rest21h]
+        jmp [Rest21h]
+
+Error_Called:
+        mov     ah,9
+        mov     dx,Error
+        int     21h
+        jmp $
 
 Interrupt:
-    ;This is used for the INIT call and nothing else
-    cmp al,0
-    jnz
+        cmp     al,0
+        jnz     Error_Called
 
-    ;Store the INT 21H handler
-    mov ah,GINT
-    mov al,21h
-    int 21h
+        push    es
+        mov     ah,GINT
+        mov     al,21h
+        int     21h
 
-    mov [Rest21h],bx
-    mov [Rest21h+2],es
+        mov     [Rest21h],bx
+        mov     [Rest21h+2],es
+        pop     es
 
-    ;Hook the 21H handler
-    mov ah,SINT
-    mov al,21h
-    mov bx,NewHandler
-    int 21h
+        mov     ah,SINT
+        mov     al,21h
+        mov     bx,NewHandler
+        int     21h
 
-    retf
+        retf
 
 NotINIT:
-    mov dx,Error
-    jmp $
+        mov dx,Error
+        jmp $
 

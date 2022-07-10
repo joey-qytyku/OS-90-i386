@@ -10,7 +10,7 @@ cd ..
 
 echo "==|   BUILDING KERNEL   |=="
 
-cd kernel2
+cd kernel
 make all
 cd ..
 

@@ -22,13 +22,13 @@ typedef sdword Handle;
 typedef sdword Status;
 typedef byte bool;
 
-#define BIT_IS_SET(num, bit) ((num & 1<<bit)>0)
+#define BIT_IS_SET(num,bit) ((num & (1<<bit))>0)
 
 // The BSWAP instruction is only supported by i486 and above
 // but this is only a macro. I figured this out myself :)
 #define BYTESWAP(value) ((value & 0xFF) << 24) | ((value & 0xFF00) << 8) | ((value & 0xFF0000)>>8) | ((value & 0xFF000000) >> 24)
-
 #define NULL ((void*)(0))
+#define ASNL "\t\n"
 
 //
 // Volatile variables can change at any time without the
@@ -39,7 +39,7 @@ typedef byte bool;
 #define INTVAR volatile /* Used by interrupt handler */
 #define DRVMUT volatile /* Driver can modify */
 #define ASMVAR volatile /* Assembly code may modify */
-#define DONT_DELETE     /* Do not optimize away variable */
+//#define DONT_DELETE     /* Do not optimize away variable */
 
 #ifdef __PROGRAM_IS_DRIVER
 #define KRNMUT volatile // Kernel may modify

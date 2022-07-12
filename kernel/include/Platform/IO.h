@@ -29,4 +29,4 @@ static inline void rep_outsw(pvoid mem, dword count, word port)
 {__asm__ volatile ("rep outsw"::"esi"(mem),"ecx"(count),"dx"(port) :"esi","edi","dx");
 }
 
-#endif IO_H
+#endif /* IO_H */

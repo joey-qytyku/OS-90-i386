@@ -53,9 +53,7 @@ static inline word GetInService16(void)
     word in_service;
 
     in_service = pic_inb(0x20);
-    IOWAIT();
     in_service |= pic_inb(0xA0) << 8;
-    IOWAIT();
     return in_service;
 }
 

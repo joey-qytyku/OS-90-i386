@@ -64,6 +64,9 @@ __DRVFUNC void   FreezeBlock(Handle h, dword flags);
 // What about mapping physical memory to kernel space?
 // to an arbitrary location?
 
+void PageFault()
+{}
+
 void InitMem(dword mem1k_after_1m,
 dword mem_after_memhole)
 {

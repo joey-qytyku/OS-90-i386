@@ -1,8 +1,8 @@
 #include <Platform/IA32.h>
 #include <Platform/8259.h>
 #include <Platform/X87.h>
-#include <Atomic.h>
 #include <Intr_Trap.h>
+#include <Atomic.h>
 
 
 #define IDT_SIZE 256
@@ -15,7 +15,7 @@ static qword gdt[GDT_ENTRIES] = {
     [GDT_KDATA] = GDTDEF_R0_DSEG,
     [GDT_UCODE] = GDTDEF_R3_CSEG,
     [GDT_UDATA] = GDTDEF_R3_DSEG,
-    [GDT_TSSD]  = 0
+    [GDT_TSSD]  = GDTDEF_R0_TSS
 };
 
 // Table of exception vectors
@@ -59,27 +59,24 @@ static inline void FillIDT(void)
         MkIntrGate(idt, EXCEPT_IMPLEMENTED + i, &Low0 + i*4);
 }
 
-// Adapted from OSDEV. I could not get mine to work. The compiler
-// removed operations for some reason and the GDT was never set
-// Hope optimizations do not ruin the rest of my code :(
-//
-static void create_descriptor(dword base, dword limit, word entry)
+// Compiler is really bad at optimizing this so I did it manually
+static void AppendAddress(pvoid *gdt_entry, dword address)
 {
-    qword descriptor = GDTDEF_R0_TSS;
- 
-    // Create the high 32 bit segment
-    descriptor  =  limit       & 0x000F0000;         // set limit bits 19:16
-    descriptor |= (base >> 16) & 0x000000FF;         // set base bits 23:16
-    descriptor |=  base        & 0xFF000000;         // set base bits 31:24
- 
-    // Shift by 32 to allow for low part of segment
-    descriptor <<= 32;
- 
-    // Create the low 32 bit segment
-    descriptor |= base  << 16;                       // set base bits 15:0
-    descriptor |= limit  & 0x0000FFFF;               // set limit bits 15:0
-    gdt[entry] = descriptor;
+    __asm__ volatile (
+    "mov    $8,     %%cl"     ASNL
+    "mov    %0,     %%eax"    ASNL
+    "mov    %1,     %%ebx"    ASNL
+    "mov    %%ax,   2(%%ebx)" ASNL
+    "shr    %%cl,   %%eax"    ASNL
+    "mov    %%al,   3(%%ebx)" ASNL
+    "shr    %%cl,   %%eax"    ASNL
+    "mov    %%ah,   7(%%ebx)" ASNL
+    :
+    :"eax"(address),"ebx"(gdt_entry)
+    :"ebx","eax","flags"
+    );
 }
+
 
 /// @brief Reprogram the PICs
 /// @section NOTES
@@ -136,7 +133,7 @@ void InitIA32(void)
     //
     // SET UP TASK STATE SEGMENT
     //
-    create_descriptor((dword)&main_tss, sizeof main_tss,);
+    AppendAddress(&gdt[GDT_TSSD], (dword)&main_tss);
     __asm__ volatile ("ltr (%0)"::"r"(GDT_TSSD<<3):"memory");
 
     C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);

@@ -61,6 +61,9 @@ void SegNotPresent()
 void StackSegFault()
 {}
 
+void FloatError()
+{}
+
 void GeneralProtect()
 {
     /*

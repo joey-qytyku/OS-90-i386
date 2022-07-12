@@ -12,6 +12,7 @@
  *
  */
 
+// Note: Write detected hardware to a file
 #include <DriverLib/Drivers.h>
 #include <Platform/Resource.h>
 #include <Platform/8259.h>      /* Changing interrupt masks */
@@ -63,7 +64,7 @@ static DRVMUT word ints_masked;
 // nearly all configurations.
 //
 
-static DRVMUT dword       cur_iorsc = 0; // UPDATE
+static DRVMUT dword cur_iorsc = 0; // UPDATE
 
 // This is empty because if there is no PnP support
 // resource management is determined by the
@@ -84,6 +85,7 @@ __DRVFUNC Status AddIOMemRsc(PIO_Resource new_rsc)
         return -1;
     C_memcpy(&resources[cur_iorsc], new_rsc, sizeof(IO_Resource));
     cur_iorsc++;
+    return 0;
 }
 
 /** UNFINISHED!!!!!!!!!!!!!!!!
@@ -140,9 +142,9 @@ __DRVFUNC Status IntrRequestFixed(word bmp_intlines, PHandler handler, bool fast
     int irq;
     for (irq=0; irq < 16; irq++)
     {
-        if ((bmp_intlines >> bit) & 1)
+        if (BIT_IS_SET(bmp_intlines, irq)) // Make this faster
         {
-            const Interrupt *theint = interrupts[irq];
+            PInterrupt theint = &interrupts[irq];
 
             IntsOff();
             switch (theint->intlevel)
@@ -173,10 +175,6 @@ __DRVFUNC Status IntrRequestFixed(word bmp_intlines, PHandler handler, bool fast
  *          so that it says enabled and that the state of the IRQ can be
  *          found without having to read the IMR
  * @param bmp_intlines A bitmap of the interrupt lines to activate
- * @return Notification
- * @retval RQINT_INUSE32  In use by another driver
- * @retval RQINT_STANDARD This interrupt is stanard hardware
- * @retval RQINT_TAKEN 0  Taken without any issues
 */
 __DRVFUNC void IntrEnable(word bmp_intlines)
 {
@@ -187,5 +185,3 @@ void InitResMGR(bool fpu_present, bool fpu_internal)
 {
     cur_iorsc = 20;
 }
-
-

@@ -15,6 +15,7 @@
 #include <Platform/Resource.h>
 #include <Platform/ATA.h>
 #include <Platform/IA32.h>
+#include <Platform/IO.h>
 #include <Type.h>
 
 typedef struct { // TODO: What does this mean?

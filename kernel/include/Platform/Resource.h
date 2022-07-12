@@ -35,8 +35,9 @@ typedef struct {
     byte intlevel;
     PHandler handler;
     bool fast;
+    word pnp_id;
     char* owner;
-}Interrupt,*PInterrupt;
+}Interrupt,* DRVMUT PInterrupt;
 
 typedef struct {
 }COM_Port;

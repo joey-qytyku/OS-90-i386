@@ -13,17 +13,19 @@ global PnCallBiosInternal
 
 PnInsertEntryPoint:
 
-
-;Uses regparam(1), no base pointer
-;CArgs(dword argc, dword func, ...)
+;Uses regparam(1)
+;(register dword argc, dword func, ...) -> word (exit status)
 PnCallBiosInternal:
+    push    esi
+    push    eax
     ;In memory, arguments are in sequential order
     ;The following will copy the low word of each
     ;32-bit argument AFTER the first one back by one word
-    ;------***-------------
+    ;to narrow them to 16-bit words for PnP 16-bit PM interface
+
     ; |A32|A32|A32|EIP|
     ; |---|-|A|A|A|EIP|
-    ;----------------------
+    
     ;Because stack addressing is relative, extra
     ;bytes will not cause any problems
 
@@ -31,11 +33,16 @@ PnCallBiosInternal:
     lea     esi,[esp+4] ;First argument address
     std
 .L:
+    jecxz   .Done
     add     esi,4       ;Goes to second arg on 1st iteration
     mov     eax,[esi]
     mov     [esi+2],ax
-    loop    .L
-
+    jmp     .L
+.Done:
     ;Call PnP entry point
 
+    ;AX=Exit status
+
+    cld
+    leave
     ret

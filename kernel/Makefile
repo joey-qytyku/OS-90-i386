@@ -13,18 +13,19 @@ LINK=$(TCHAIN)/i386-linux-ld
 CSOURCE=$(wildcard *.c)
 ASOURCE=$(wildcard *.asm)
 
-OBJ=$(patsubst %.c,%.o,$(wildcard *.c)) $(patsubst %.asm,%.o,$(wildcard *.asm))
+OBJ=$(patsubst %.c,%.c.o,$(wildcard *.c)) $(patsubst %.asm,%.asm.o,$(wildcard *.asm))
 
 AS=nasm
 ASFLAGS=-felf
 
-%.o: %.c
+%.c.o: %.c
 	$(CC) $(CFLAGS) -c $< -o build/$@
 
-%.o: %.asm
+%.asm.o: %.asm
 	$(AS) $(ASFLAGS) $< -o build/$@
 
 KERNL386.EXE: $(OBJ)
+	echo Linking object files: [$(OBJ)]
 	$(LINK) -T Kernel.ld $(addprefix build/, $(OBJ)) -o build/Kernel
 	objcopy -S -O binary build/Kernel build/KERNL386.EXE
 

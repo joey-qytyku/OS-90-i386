@@ -9,7 +9,7 @@
 // Includes two IO bitmaps 
 CompleteTSS main_tss;
 
-__ALIGN 64
+__ALIGN(64)
 static qword gdt[GDT_ENTRIES] = {
     [GDT_KCODE] = GDTDEF_R0_CSEG,
     [GDT_KDATA] = GDTDEF_R0_DSEG,

@@ -48,6 +48,9 @@ typedef struct __PACKED
     byte    base2;
 }Gdesc;
 
+// The data/stack segment enabled the BIG bit
+// so that Plug-and-play BIOS recognizes it as
+// a 32-bit stack
 #define GDTDEF_R0_CSEG 0x00cf9a000000ffffULL
 #define GDTDEF_R0_DSEG 0x00cf92000000ffffULL
 #define GDTDEF_R3_CSEG 0x00cff8000000ffffULL

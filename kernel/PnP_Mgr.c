@@ -30,8 +30,6 @@ void SetupPnP()
     // but the firmware is required to support 32-bit stacks
 }
 
-// Sends error if a call needed by the kernel is
-
 //
 // ADD RESOURCE ENTRIES FOR MOTHERBOARD DEVICES
 // This gets the device nodes from the PnP BIOS and adds

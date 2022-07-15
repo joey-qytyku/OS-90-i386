@@ -22,7 +22,7 @@ typedef struct __ALIGN(4)
     bool    run;       /* Is structure valid        */
     bool    use87;     /* Does thread use x86 FPU   */
 	pvoid   x87env;    /* NULL if use87 false       */
- 	short   ts;        /* Miliseconds left counter  */
+ 	word    ts;        /* Miliseconds left counter  */
     bool    ioperm;    /* IO permission bitmap      */
     pvoid   next;      /* Front link to next thread */
 }Thread,*PThread;

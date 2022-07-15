@@ -38,8 +38,8 @@ typedef byte bool;
 //
 #define INTVAR volatile /* Used by interrupt handler */
 #define DRVMUT volatile /* Driver can modify */
-#define ASMVAR volatile /* Assembly code may modify */
-//#define DONT_DELETE     /* Do not optimize away variable */
+
+#define ASM_LINK __attribute__(( regparm(0) ))
 
 #ifdef __PROGRAM_IS_DRIVER
 #define KRNMUT volatile // Kernel may modify

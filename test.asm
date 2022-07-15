@@ -5,19 +5,36 @@ main:
         mov     ds,ax
         mov     ss,ax
         mov     sp,0FFF8h
+        mov     ax,900h
+        mov     es,ax
         sti
 
-        movd    mm0,[value]
-        movd    mm1,[value2]
-        paddb   mm1,mm0
-        movd    eax,mm0
-        emms
-        jmp $
+        push    6
+        push    5
+        push    2
+        call    dword pnp
+
+pnp:
+    push ebp
+    mov  ebp,esp
+    std
+    mov     ecx,[ebp+8]  ;Number of args
+    lea     esi,[ebp+12] ;Start address, SECOND ARG
+
+.L:
+    jecxz   .Done
+
+    ;Load the argument, ESI+4
+    lodsd
+    add     esi,6
+    mov     word [es:esi],ax
+    dec ecx
+
+    jmp     .L
 
 
-align 32
-value: DQ       ~0
-value2: DB 0,0,0,0,0,0,0,1
+.Done:
+jmp $
 
 times 510-($-$$) DB 0
 DW 0AA55h

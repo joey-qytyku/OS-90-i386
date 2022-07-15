@@ -26,7 +26,7 @@ This file contains the initialization procedure
 #include <Scheduler.h>
 #include <Type.h>
 
-void KernelMain(pvoid info)
+void KernelMain(void)
 {
-    InitIA32();
+//    InitIA32();
 }

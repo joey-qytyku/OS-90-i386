@@ -4,12 +4,12 @@
 #include <Intr_Trap.h>
 #include <Atomic.h>
 
-
 #define IDT_SIZE 256
 
 // Includes two IO bitmaps 
 CompleteTSS main_tss;
 
+__ALIGN 64
 static qword gdt[GDT_ENTRIES] = {
     [GDT_KCODE] = GDTDEF_R0_CSEG,
     [GDT_KDATA] = GDTDEF_R0_DSEG,
@@ -17,6 +17,8 @@ static qword gdt[GDT_ENTRIES] = {
     [GDT_UDATA] = GDTDEF_R3_DSEG,
     [GDT_TSSD]  = GDTDEF_R0_TSS
 };
+
+char test = '!';
 
 // Table of exception vectors
 static void (*except[EXCEPT_IMPLEMENTED])() =
@@ -40,14 +42,9 @@ static void (*except[EXCEPT_IMPLEMENTED])() =
 
 static Intd idt[IDT_SIZE];
 
-// Ignore not used warnings, refferenced in StartK.asm
-xDtr
-gdtr = {.limit=sizeof(gdt)-1,.address=(dword)&gdt},
-idtr = {.limit=0x2000,       .address=(dword)&idt};
-
-static Mutex ldt_lock;
-void AcquireLDT(void) { AcquireLock(&ldt_lock); }
-void ReleaseLDT(void) { ReleaseLock(&ldt_lock); }
+// Ignore not used warnings, used in StartK.asm
+xDtr gdtr = {.limit=sizeof(gdt) -1, .address=(dword)&gdt};
+xDtr idtr = {.limit=(IDT_SIZE*8)-1, .address=(dword)&idt};
 
 static inline void FillIDT(void)
 {
@@ -60,7 +57,10 @@ static inline void FillIDT(void)
 }
 
 // Compiler is really bad at optimizing this so I did it manually
-static void AppendAddress(pvoid *gdt_entry, dword address)
+// This function does not modify the rest of the GDT entry
+// and only touches the address fields
+//
+static void AppendAddress(pvoid gdt_entry, dword address)
 {
     __asm__ volatile (
     "mov    $8,     %%cl"     ASNL
@@ -76,7 +76,6 @@ static void AppendAddress(pvoid *gdt_entry, dword address)
     :"ebx","eax","flags"
     );
 }
-
 
 /// @brief Reprogram the PICs
 /// @section NOTES
@@ -116,16 +115,15 @@ static Status SetupX87(void)
     // exception is sent to the dedicated vector
     // otherwise, an IRQ is sent. IRQ#13 is hardwired
 
-    dword _cr0;
-    __asm__ volatile ("mov %%cr0, %0":"=r"(_cr0)::"memory");
+    dword cr0;
+    __asm__ volatile ("mov %%cr0, %0":"=r"(cr0)::"memory");
 
     //
     // If the EM bit is turned on at startup it
     // is assumed that the FPU is not meant to be used
     //
-    if (BIT_IS_SET(_cr0, CR0_EM))
+    if (BIT_IS_SET(cr0, CR0_EM))
         return 0;
-
 }
 
 void InitIA32(void)
@@ -134,7 +132,7 @@ void InitIA32(void)
     // SET UP TASK STATE SEGMENT
     //
     AppendAddress(&gdt[GDT_TSSD], (dword)&main_tss);
-    __asm__ volatile ("ltr (%0)"::"r"(GDT_TSSD<<3):"memory");
+    __asm__ volatile ("ltr %%ax" : : "ax"(GDT_TSSD<<3) : "memory");
 
     C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);
 

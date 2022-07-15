@@ -91,21 +91,18 @@ static inline void SendEOI(byte vector)
 // runs with CLI?
 // Time slice passed variable
 // How can I make this faster?
-int HandleIRQ0(PTrapFrame t)
+static int HandleIRQ0(PTrapFrame t)
 {
     static bool time_slice_in_progress;
     static word ms_left;
 
     uptime += 0x10000000; // Trust me bro
+    return 0;
 }
 
-/// \brief      Master IRQ handler
-/// \param tf   Register dump
-/// \param irq  The IRQ number according to the relative vector called
-///             see more information in Intr_Trap.asm
-/// \todo Less if statements?
-//
-void MiddleDispatch(PTrapFrame tf, dword irq)
+// EAX and EDX pass the arguments for simplicity
+__attribute__(( regparam(2) ))
+void InMasterDispatch(PTrapFrame tf, dword irq)
 {
     // Simpler way to do this? Use inlines for both ISRs?
     word inservice16 = GetInService16();
@@ -118,22 +115,19 @@ void MiddleDispatch(PTrapFrame tf, dword irq)
 
     last_mode = INTERRUPT;
 
+    // Is this IRQ#0? If so, handle it directly
+    if (BIT_IS_SET(inservice16, 0))
+        HandleIRQ0(tf);
+
+    // Is this a spurious IRQ? If so, do not handle.
     if (irq == 7 && (inservice16 & 0xFF) == 0)
-    {
-        goto CountAndRet; /* -_- */
-    }
+        goto CountAndRet; // (-_-)
     else if (irq == 15 && (inservice16 >> 8) == 0)
     {
         SendEOI(0); // Send to master
         CountAndRet:
             spurious_interrupts++;
             return;
-    }
-
-    /* Call IRQ#0 directly if that is detected */
-    if (!irq)
-    {
-        HandleIRQ0(tf);
     }
 
     if (intr->intlevel == STANDARD_32 || intr->intlevel == TAKEN_32)

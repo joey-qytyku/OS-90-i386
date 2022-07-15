@@ -3,7 +3,7 @@ SHELL=/bin/bash
 GCCVER := 10.1.0
 
 INCLUDE=~/gcc-$(GCCVER)-nolibc/i386-linux/lib/gcc/i386-linux/$(GCCVER)/include
-CFLAGS := -I $(INCLUDE) -I ./include/ -Os -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -march=i386 -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall
+CFLAGS := -I $(INCLUDE) -I ./include/ -O2 -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -march=i386 -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall
 
 TCHAIN := ~/gcc-$(GCCVER)-nolibc/i386-linux/bin
 
@@ -26,7 +26,7 @@ ASFLAGS=-felf
 
 KERNL386.EXE: $(OBJ)
 	$(LINK) -T Kernel.ld $(addprefix build/, $(OBJ)) -o build/Kernel
-	objcopy -O binary build/Kernel build/KERNL386.EXE
+	objcopy -S -O binary build/Kernel build/KERNL386.EXE
 
 all: KERNL386.EXE
 

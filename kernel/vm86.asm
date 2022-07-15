@@ -16,8 +16,8 @@ STRUC TF
 ENDSTRUC
 
 
-global EnterV86
-global ShootdownV86
+global ScEnterV86
+global ScShootdownV86
 
 [section .bss]
 Buffer:
@@ -27,7 +27,7 @@ Buffer:
 
 ;----------------------------
 ;Re-enter caller of EnterV86
-ShootdownV86:
+ScShootdownV86:
     cli
     ;Load the context saved by EnterV86
     mov    ebx,Buffer        ; Get pointer to register dump
@@ -52,7 +52,7 @@ EnterV86:
     mov    ebx,[esp+4]        ; Get pointer to register dump
     mov    [EnterContext.goto], dword .goto
     jmp    EnterContext
-.goto
+.goto:
     iret ; Enter V86
 
 EnterContext:

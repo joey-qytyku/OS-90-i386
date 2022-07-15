@@ -10,7 +10,7 @@ static INTVAR bool monitor_iret32 = 0;
 
 const pdword real_mode_ivt = (pvoid)phys(0);
 
-inline pvoid MK_LP(word seg, word off)
+static inline pvoid MK_LP(word seg, word off)
 {
     return (pvoid)((seg<<4) + off);
 }
@@ -29,6 +29,7 @@ static word wPeek86(word seg, word off) {return *(pword)MK_LP(seg,off);}
  */
 static void EmulateINT(pword stack, PTrapFrame context, byte v)
 {
+
     /**
      * Stack must be modified because a real mode ISR
      * may use the INT instruction
@@ -40,9 +41,9 @@ static void EmulateINT(pword stack, PTrapFrame context, byte v)
     stack[-2] = (word)context->eip+2;  /* IP    */
     context->regs.esp -= 8; /* SP points to next value to use upon push */
 
-    /*
-     * Continute execution at CS:IP in IVT
-     */
+    //
+    // Continute execution at CS:IP in IVT
+    //
 
     context->eip = (real_mode_ivt[v] & 0xFFFF);
     context->cs  =  real_mode_ivt[v] >> 16;
@@ -62,7 +63,7 @@ static void EmulateIRETW(pword stack, PTrapFrame context)
     context->regs.esp += 8; // Correct?
 }
 
-static void MonitorV86(PTrapFrame context)
+void ScMonitorV86(PTrapFrame context)
 {
     // After GPF, saved EIP points to the instruction, NOT AFTER
     pbyte ins   = MK_LP(context->cs, context->eip);
@@ -75,8 +76,8 @@ static void MonitorV86(PTrapFrame context)
         // Capturing required for disk access
         EmulateINT(stack, context, ins[1]);
     case 0xCF: /* IRETW */
-        /* When an IRQ happens, the real mode stack
-         * will be updated but execution continues in protected mode using the PM stack.
+        /* When an IRQ happens, the real mode stack will be updated but
+         * execution continues in protected mode using the PM stack.
          * This means that the context must not change IRET is assumed
          * to be used ONLY for exiting out of the interrupt handler
          * There is simply no other way to differentiate virtual IRETs. 16 traps require
@@ -88,9 +89,9 @@ static void MonitorV86(PTrapFrame context)
              * An IRQ is sent to real mode using EnterV86(), called by Irq16()
              * The trap frame passed to it will be modified when the V86 code is
              * executing. Because IRET terminates the ISR to go to kernel
-             * it return to the caller of EnterV86.
+             * it returns to the caller of EnterV86.
             ***/
-            ShootdownV86(); // Re-enter caller of EnterV86
+            ScShootdownV86(); // Re-enter caller of EnterV86
         } else {
             EmulateIRETW(stack, context);
         }

@@ -15,8 +15,6 @@
     push    ecx
     push    ebx
     push    eax
-
-
 %endm
 
 %macro RestTrapRegs 0
@@ -46,7 +44,7 @@
 %endm
 
 [section .text]
-EXTERN MiddleDispatch
+EXTERN InMasterDispatch
 
 ;------------------------------------------------------------------
 ;In case of a spurious interrupt, the ISR will be zero in the PIC
@@ -55,6 +53,7 @@ EXTERN MiddleDispatch
 
 %assign i 0
 %rep 16
+GLOBAL Low %+ i
     Low %+ i:
         push   byte i ; 2 byte
         jmp    short Continue ; 2 byte
@@ -62,22 +61,17 @@ EXTERN MiddleDispatch
     %assign i i+1
 %endrep
 
-EXTERN Low %+ i
-
 ;-----------------------
 ;Keep handling the IRQ
 Continue:
     pop     dword [TheIRQ]
     SaveTrapRegs
 
-    ;In cdecl, arguments are cleared by the caller
-    ;and locals are cleared by the callee
-
-    push    dword [TheIRQ]        ; To avoid the global variable
+    ;reparam is used by InMasterDispatch
     lea     eax,[esp+48]
-    push    eax
-    call    MiddleDispatch
-    add     esp,4 ; It's add not sub
+    mov     edx,[TheIRQ]
+    call    InMasterDispatch
+    add     esp,4
 
     pop     eax
     pop     ebx
@@ -93,7 +87,6 @@ global GetErrCode
 GetErrCode:
     mov     eax,[ErrorCode]
     ret
-
 
 MakeExcept Divide0, NOCODE
 

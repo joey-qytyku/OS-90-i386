@@ -16,7 +16,7 @@
 typedef dword Page;
 
 static inline void invlpg(Page addr)
-{// Linux defines like this
+{
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 

@@ -2,6 +2,7 @@ extern LKR_STARTBSS
 extern LKR_END
 extern KernelMain
 extern gdtr,idtr
+extern test
 
 ;Problems: IO functions are broken or something?
 
@@ -17,9 +18,13 @@ Begin:
         sub     ecx,LKR_STARTBSS
         shr     ecx,2
         mov     edi,LKR_STARTBSS
-        rep stosd
+        rep     stosd
+
+        mov     al,[test]
+        jmp $
 
         lgdt    [gdtr]
+        jmp $
         lidt    [idtr]
         lldt    [null_ldtr]
 
@@ -27,6 +32,7 @@ Begin:
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
+
 
         ;I may not use these for anything
         xor     ax,ax

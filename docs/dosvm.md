@@ -1,0 +1,69 @@
+# 16-bit virtual machines
+
+# Virtual Machine manager
+
+VMMs are a special type of driver. There can only be one running on a system. This driver is responsible for terminating and creating virtual machines configuring resources etc, interrupts. The kernel provides a simple interface that makes this possible.
+
+TSR programs do not work.
+
+# Restrictions
+
+# Interrupt Calls and IRQs
+
+An IRQ handler that is 16-bit reclaimable will be executed by the master IRQ handler using the V86 interface.
+
+# The kernel
+
+The kernel is 32-bit but needs to drop into DOS to perform file IO and trap out of it to do 32-bit disk IO.
+
+## EnterV86
+
+This function takes a pointer to a trap frame and enters V86 using IRET. This function can do two things: return to caller when an virtual IRET occurs or not return at all to run a program until an IRQ happens.
+
+The former requires MonitorV86 to re-enter the caller code by restoring the context which is saved by EnterV86 into a buffer. The monitor basically destroys its stack frame like any other routine, in this case, by calling ShootdownV86. This function restores the old context from the caller. The stacks can be changed in this process because ESP is restored from the buffer using LSS.
+
+Overview: Kernel calls EnterV86 to start running a real mode ISR. When IRET is trapped by the monitor, ShootdownV86 is called. 
+
+V86 is a USER context. The monitor is technically KERNEL, but it cannot be interrupted so it does not matter.
+
+## Interaction with scheduler
+
+When the kernel runs in V86 mode, interrupts are enabled and are always caught by the IDT. This means that the kernel can preempt programs running in this mode unless interrupts are disabled prior.
+
+# Implementation of V86 Monitor
+
+The TSS is never modified by the monitor or the basic V86 interface. It is modified at a per-process basis by the scheduler.
+
+Each task gets a supervisor stack. When the kernel handles exceptions and interrupts, it can discard the stack. When the next int/except happens, it will use the same stack specified in the TSS, which is modified for each task appropriately.
+
+The V86 monitor is called by the GPF handler. When it returns, the real mode code will continue to run.
+
+See more in scheduler.md
+
+Stacks, TSS?
+
+# Configuration of VM16 tasks
+
+The resource manager determines which interrupts are 16-bit or 32-bit. 16-bit IRQs are serviced in the physical DOS and only apply to the OS when it performs DOS/BIOS calls. The kernel capture table is for software interrupts. It can send a software interrupt back to itself or 
+
+Each 16-bit process has its own local capture table.
+
+The function GlobalMap(dword pid, void *proc_page, void *to, page c, int access) can be used to change the mappings of pages in V86 tasks as well as 32-bit tasks. This can be used to facilitate IPC for VM32 and allow for accessing framebuffers.
+
+GlobalMap(thepid, 0xB8, framebuffer, 16, PG_RW);
+
+# API
+
+Int16()
+SetGlobalCapture(byte vector, byte type)
+
+#define SWI_16 0
+#define SWI_32 1
+
+# XMS Emulation
+
+HIMEM.SYS is never used by the kernel. The kernel emulates the latest XMS specification so that DOS programs go through the 32-bit memory manager. TSR programs may use HMBs, so there is no way to override this.
+
+XMS does not use an interrupt. It uses 
+
+The A20 functions always respond with the A20 gate being on.

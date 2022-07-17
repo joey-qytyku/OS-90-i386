@@ -1,0 +1,13 @@
+>>> Plug and Play and IDE native mode (July 16)
+
+When I ran Windows 95 in Qemu and looked at the registry, it showed PNPBIOS codes. The DS and SS segment cache did not have the BIG bit enabled (I think). This indicates the W95 is using a
+separate stack segment to call the BIOS because the D/S bit is the only way for the BIOS to detect a 32-bit stack. Qemu reports specification-required PNP calls as unimplemented when using the real mode
+interface. This suggests that W95 is using the 16-bit PM interface successfully on QEMU as there is no other way for it to get those codes. I do not have the W95 HD IMG atm and cannot download it now.
+
+On the OSDev forum, a user said that the legacy 14/15 IRQs are not garaunteed to be configured by the BIOS for IDE native mode only controllers and can be set to whatever the BIOS likes. How should PCI.DRV
+handle IDE controllers? Should native-only controller be reconfigured and how? One possibility it to overlap it with the PC/AT assignments. Regardless, I will have to depend on the resources being PC standard
+by default before a PCI IDE driver can loaded by the built-in one.
+
+>>> Adition to last
+
+

@@ -21,7 +21,6 @@ Begin:
         rep     stosd
 
         mov     al,[test]
-        jmp $
 
         lgdt    [gdtr]
         jmp $
@@ -32,7 +31,6 @@ Begin:
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
-
 
         ;I may not use these for anything
         xor     ax,ax

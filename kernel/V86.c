@@ -5,8 +5,8 @@
 #include <V86.h>        /* EnterV86, ShootdownV86 */
 #include <Type.h>
 
-static DRVMUT void (*trap_capture[256]);
-static INTVAR bool monitor_iret32 = 0;
+static DRVMUT void (*trap_capture[128])(PTrapFrame*);
+static INTVAR bool supervisor_call = 0;
 
 const pdword real_mode_ivt = (pvoid)phys(0);
 
@@ -20,13 +20,15 @@ static inline pvoid MK_LP(word seg, word off)
 static byte bPeek86(word seg, word off) {return *(pbyte)MK_LP(seg,off);}
 static word wPeek86(word seg, word off) {return *(pword)MK_LP(seg,off);}
 
-/**
- * @brief Helper function that emulates the INT instruction for V86 mode
- * This is not for running BIOS calls
- * @param stack A pointer the stack being used, pre-calculated by caller
- * @param context A pointer to the trap frame
- * @param v Interrupt vector in the real mode IVT
- */
+//
+// Brief:
+//     Helper function that emulates the INT instruction for V86 mode
+//     This is not for running BIOS calls. executing_an_isr EXPECTED ZERO
+// Arguments:
+//  stack         A pointer the stack being used, pre-calculated by caller
+//  context       A pointer to the trap frame
+//  v             Interrupt vector in the real mode IVT
+//
 static void EmulateINT(pword stack, PTrapFrame context, byte v)
 {
 
@@ -35,7 +37,6 @@ static void EmulateINT(pword stack, PTrapFrame context, byte v)
      * may use the INT instruction
      * Note the direction of the IA-32 stack is reversed
     **/
-
     *stack    = (word)context->eflags; /* FLAGS */
     stack[-1] = (word)context->cs;     /* CS    */
     stack[-2] = (word)context->eip+2;  /* IP    */
@@ -63,27 +64,45 @@ static void EmulateIRETW(pword stack, PTrapFrame context)
     context->regs.esp += 8; // Correct?
 }
 
+// TODO:
+//    Make IRET the stop code for all supervisor calls (INT and IRQ)
+//    There is no reason why a user program would use IRET
+
+// The V86 monitor for 16-bit tasks, ISRs, and PM BIOS/DOS calls
+// Called by GP# handler
 void ScMonitorV86(PTrapFrame context)
 {
     // After GPF, saved EIP points to the instruction, NOT AFTER
     pbyte ins   = MK_LP(context->cs, context->eip);
     pword stack = MK_LP(context->ss, context->esp);
 
+    if (*ins == 0xCD)
+    {
+        // Has this interrupt been trapped?
+        // If so, call the 32-bit trap handler instead
+        // and pass it the context pointer
+        if (trap_capture[ins[1]] != NULL)
+            trap_capture[ins[1]](context);
+        else EmulateINT(stack, context, ins[1]);
+    }
+
+    //
+    // The following is for emulating privileged instructions
+    // These may be used by an ISR or by the
+    // kernel to access DOS/BIOS INT calls
+    //
+
     switch (*ins)
     {
-    case 0xCD: /* INT (IMMED8) */
-        // Has this interrupt been trapped?
-        // Capturing required for disk access
-        EmulateINT(stack, context, ins[1]);
     case 0xCF: /* IRETW */
         /* When an IRQ happens, the real mode stack will be updated but
          * execution continues in protected mode using the PM stack.
-         * This means that the context must not change IRET is assumed
+         * This means that the context must not change. IRET is assumed
          * to be used ONLY for exiting out of the interrupt handler
-         * There is simply no other way to differentiate virtual IRETs. 16 traps require
+         * There is simply no other way to differentiate virtual IRETs. 16-bit traps require
          * emulation because 16-bit execution continues for the rest of the 16-bit program.
         */
-        if (monitor_iret32)
+        if (executing_an_isr)
         {
             /* Applicable to interrupt handlers:
              * An IRQ is sent to real mode using EnterV86(), called by Irq16()
@@ -93,6 +112,7 @@ void ScMonitorV86(PTrapFrame context)
             ***/
             ScShootdownV86(); // Re-enter caller of EnterV86
         } else {
+            // In this case, IRETW was used by a 
             EmulateIRETW(stack, context);
         }
     break;
@@ -108,7 +128,7 @@ void ScMonitorV86(PTrapFrame context)
 
     default:
         // Error, if this is a supervisor call, critical error happened
-    // Segment changing instructions do not require emulation
+        // Segment changing instructions do not require emulation
     break;
     }
 }

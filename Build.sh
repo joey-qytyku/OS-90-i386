@@ -19,8 +19,6 @@ cd ..
 dosbox
 
 qemu-system-i386 -hda msdos.img\
-    -device ne2k_isa,iobase=0x320,irq=9\
-    -M isapc\
     -m 4\
     -no-reboot\
     -no-shutdown

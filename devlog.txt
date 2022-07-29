@@ -8,6 +8,11 @@ On the OSDev forum, a user said that the legacy 14/15 IRQs are not garaunteed to
 handle IDE controllers? Should native-only controller be reconfigured and how? One possibility it to overlap it with the PC/AT assignments. Regardless, I will have to depend on the resources being PC standard
 by default before a PCI IDE driver can loaded by the built-in one.
 
->>> Adition to last
+
+>> 2022-07-29
+
+I have decided to GPL this code. I must move the msdos.img file because it
+contains proprietary software by Microsoft.
+
 
 

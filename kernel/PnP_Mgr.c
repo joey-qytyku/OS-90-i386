@@ -13,17 +13,18 @@ cstring KERNEL_OWNER = "KERNL386.EXE";
 // nearly all configurations.
 //
 
-static DRVMUT dword cur_iorsc = 0; // UPDATE
+static MCHUNX dword cur_iorsc = 0;
 
 // This is empty because if there is no PnP support
 // resource management is determined by the
-// configuration of the PC
-static DRVMUT IO_Resource resources[MAX_IO_RSC];
+// configuration of the PC, otherwise, PnP BIOS reports all
+// motherboard devices
+static MCHUNX IO_Resource resources[MAX_IO_RSC];
 
 // Non-standard IRQs are FREE but if they are found
 // to have been modified by a DOS program they
 // are set to RECL_16
-static DRVMUT Interrupt interrupts[NUM_INT] =
+static MCHUNX Interrupt interrupts[NUM_INT] =
 { // TODO: ADD OWNERS
     [0] =   {STANDARD_32},  // Timer
     [1] =   {STANDARD_32},  // Keyboard

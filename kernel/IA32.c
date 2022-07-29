@@ -4,12 +4,12 @@
 #include <Intr_Trap.h>
 #include <Atomic.h>
 
+// Note that DPMI is called with INT 3Ch
 #define IDT_SIZE 256
 
-// Includes two IO bitmaps 
+// Includes two IO bitmaps
 CompleteTSS main_tss;
 
-__ALIGN(64)
 static qword gdt[GDT_ENTRIES] = {
     [GDT_KCODE] = GDTDEF_R0_CSEG,
     [GDT_KDATA] = GDTDEF_R0_DSEG,
@@ -17,6 +17,12 @@ static qword gdt[GDT_ENTRIES] = {
     [GDT_UDATA] = GDTDEF_R3_DSEG,
     [GDT_TSSD]  = GDTDEF_R0_TSS
 };
+
+static Intd idt[IDT_SIZE];
+
+// Ignore not used warnings, used in StartK.asm
+xDtr gdtr = {.limit=sizeof(gdt) -1, .address=(dword)&gdt};
+xDtr idtr = {.limit=(IDT_SIZE*8)-1, .address=(dword)&idt};
 
 char test = '!';
 
@@ -40,12 +46,6 @@ static void (*except[EXCEPT_IMPLEMENTED])() =
     LowPageFault
 };
 
-static Intd idt[IDT_SIZE];
-
-// Ignore not used warnings, used in StartK.asm
-xDtr gdtr = {.limit=sizeof(gdt) -1, .address=(dword)&gdt};
-xDtr idtr = {.limit=(IDT_SIZE*8)-1, .address=(dword)&idt};
-
 static inline void FillIDT(void)
 {
     // 15 exceptions, 16 IRQs? Think about it.
@@ -60,30 +60,30 @@ static inline void FillIDT(void)
 // This function does not modify the rest of the GDT entry
 // and only touches the address fields
 //
-static void AppendAddress(pvoid gdt_entry, dword address)
+static inline void AppendAddress(pvoid gdt_entry, dword address)
 {
     __asm__ volatile (
-    "mov    $8,     %%cl"     ASNL
-    "mov    %0,     %%eax"    ASNL
-    "mov    %1,     %%ebx"    ASNL
+    "mov    $8,     %%cl"  ASNL
+    "mov    %0,     %%eax" ASNL
+    "mov    %1,     %%ebx" ASNL
     "mov    %%ax,   2(%%ebx)" ASNL
     "shr    %%cl,   %%eax"    ASNL
     "mov    %%al,   3(%%ebx)" ASNL
     "shr    %%cl,   %%eax"    ASNL
     "mov    %%ah,   7(%%ebx)" ASNL
     :
-    :"eax"(address),"ebx"(gdt_entry)
-    :"ebx","eax","flags"
+    :"r"(address),"r"(gdt_entry)
+    :"ebx","eax","flags","memory"
     );
 }
 
-/// @brief Reprogram the PICs
-/// @section NOTES
-/// Different bits tell OCWs and ICWs appart in CMD port
-/// Industry standard architecture uses edge triggered interrupts
-/// 8-byte interrupt vectors are default (ICW[2] = 0)
-/// 8259.h contains info on IOWAIT and the IRQ_BASE
-///
+// @brief Reprogram the PICs
+// @section NOTES
+// Different bits tell OCWs and ICWs appart in CMD port
+// Industry standard architecture uses edge triggered interrupts
+// 8-byte interrupt vectors are default (ICW[:2] = 0)
+// 8259.h contains info on IOWAIT and the IRQ_BASE
+//
 static void PIC_Remap(void)
 {
     byte icw1 = ICW1 | ICW1_ICW4;
@@ -124,6 +124,8 @@ static Status SetupX87(void)
     //
     if (BIT_IS_SET(cr0, CR0_EM))
         return 0;
+
+    // If present the
 }
 
 void InitIA32(void)

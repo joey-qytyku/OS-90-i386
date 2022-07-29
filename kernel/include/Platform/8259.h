@@ -48,11 +48,11 @@ static inline void IntsOn (void) { __asm__ volatile ("sti":::"memory"); }
 static inline void IntsOff(void) { __asm__ volatile ("cli":::"memory"); }
 
 // The in-service register is a bit mask with one turned on
-static inline word GetInService16(void)
+static inline word InGetInService16(void)
 {
     word in_service;
 
-    in_service = pic_inb(0x20);
+    in_service  = pic_inb(0x20);
     in_service |= pic_inb(0xA0) << 8;
     return in_service;
 }

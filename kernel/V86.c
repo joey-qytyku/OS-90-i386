@@ -1,3 +1,15 @@
+#if 0
+V86 handling code
+
+Timeline:
+2022-07-21:
+    All IRETs from IRQ or kernel DOS/BIOS calls are now exit codes
+    If from user program, access violation causes temrination.
+    This streamlines the V86 code a little.
+
+#endif
+
+
 #include <Platform/IA32.h>
 #include <Platform/8259.h>
 #include <Scheduler.h>
@@ -23,10 +35,10 @@ static word wPeek86(word seg, word off) {return *(pword)MK_LP(seg,off);}
 //
 // Brief:
 //     Helper function that emulates the INT instruction for V86 mode
-//     This is not for running BIOS calls. executing_an_isr EXPECTED ZERO
+//     This is not for running BIOS calls.
 // Arguments:
 //  stack         A pointer the stack being used, pre-calculated by caller
-//  context       A pointer to the trap frame
+//  context       A pointer to a trap frame, not from a saved context
 //  v             Interrupt vector in the real mode IVT
 //
 static void EmulateINT(pword stack, PTrapFrame context, byte v)
@@ -50,7 +62,10 @@ static void EmulateINT(pword stack, PTrapFrame context, byte v)
     context->cs  =  real_mode_ivt[v] >> 16;
 }
 
-/* CHANGES RETURN CONTEXT */
+
+//
+// Modifies the return context. This is so that
+//
 static void EmulateIRETW(pword stack, PTrapFrame context)
 {
     // IRET can be called by any real mode software
@@ -76,6 +91,10 @@ void ScMonitorV86(PTrapFrame context)
     pbyte ins   = MK_LP(context->cs, context->eip);
     pword stack = MK_LP(context->ss, context->esp);
 
+    //
+    // Software interrupts may be called by anything and must be emulated
+    // if that interrupt has not been captured by a VMM.
+    //
     if (*ins == 0xCD)
     {
         // Has this interrupt been trapped?
@@ -89,47 +108,41 @@ void ScMonitorV86(PTrapFrame context)
     //
     // The following is for emulating privileged instructions
     // These may be used by an ISR or by the
-    // kernel to access DOS/BIOS INT calls
+    // kernel to access DOS/BIOS INT calls.
     //
-
-    switch (*ins)
+    if (supervisor_call)
     {
-    case 0xCF: /* IRETW */
-        /* When an IRQ happens, the real mode stack will be updated but
-         * execution continues in protected mode using the PM stack.
-         * This means that the context must not change. IRET is assumed
-         * to be used ONLY for exiting out of the interrupt handler
-         * There is simply no other way to differentiate virtual IRETs. 16-bit traps require
-         * emulation because 16-bit execution continues for the rest of the 16-bit program.
-        */
-        if (executing_an_isr)
+        switch (*ins)
         {
-            /* Applicable to interrupt handlers:
-             * An IRQ is sent to real mode using EnterV86(), called by Irq16()
-             * The trap frame passed to it will be modified when the V86 code is
-             * executing. Because IRET terminates the ISR to go to kernel
-             * it returns to the caller of EnterV86.
-            ***/
+        case 0xCF: /* IRETW */
+            // IRET is treated as the termination of both an ISR and a software
+            // interrupt by the V86 monitor. This is because IRET has no purpose
+            // besides that and in the case of IRQs, there is not another
+            // point to terminate the ISR and return to the kernel.
+            // Summary:
+            //      DOS program -> error, not supposed to use IRET
+            //      IRQ         -> return to caller
+            //      INTx        -> return to caller
+            // Some programs may want to set an ISR, but the IRET
+            // will never be reached by normal code.
+
             ScShootdownV86(); // Re-enter caller of EnterV86
-        } else {
-            // In this case, IRETW was used by a 
-            EmulateIRETW(stack, context);
-        }
-    break;
+        break;
 
-    case 0xFA: /* CLI */
-        IntsOff();
-        context->eip++;
-    break;
-    case 0xFB: /* STI */
-        IntsOn();
-        context->eip++;
-    break;
+        case 0xFA: /* CLI */
+            IntsOff();
+            context->eip++;
+        break;
+        case 0xFB: /* STI */
+            IntsOn();
+            context->eip++;
+        break;
 
-    default:
-        // Error, if this is a supervisor call, critical error happened
-        // Segment changing instructions do not require emulation
-    break;
+        default:
+            // CRITICAL ERROR, btw mov sreg,r16 needs no emulation
+        break;
+        }// END OF SWITCH
     }
-}
+
+} // On return, code continues to execute
 

@@ -1,33 +1,40 @@
 # OS/90
 
-OS/90 is a work-in-progress operating system inspired by Windows 9x and 3.x architecturally. It is a 32-bit operating system that uses a CLI.
+OS/90 is a work-in-progress operating system inspired by Windows 9x and IBM OS/2.
 
 Minimum requirements
 |Spec|Minimum|Recommended|Premium|
 -|-|-|-
 RAM | 2MB      | 4MB       | 16MB
-CPU | i386SX   | i486DX    | Pentium I or II
+CPU | i386SX   | i486DX    | Pentium CPU
 PC  | PC/AT    | PC/AT     | PS/2 compatible
 OS  | DOS 3.0  | -         | -
 Bus | ISA      | ISA w/PnP | PCI (any version)
 
-OS/90 is a Plug-and-play operating system. Enable this option in the BIOS. If the system does not have a PnP BIOS, it will disable resource management and      
+* OS/90 is a Plug-and-play operating system. Enable this option in the BIOS. If the system does not have a PnP BIOS, it will run the same way.
+* DOS should have a decent amount of memory free.
+
 
 # Warnings
+
+* Floppy disk support is experimental
+
+This technology is infamously unreliable and I do not have computer with a floppy drive to test certain features.
 
 * Do not use a compressed drive or 32-bit disk access will fail!
 
 The kernel will call the 16-bit filesystem but traps disk access to perform it in protected mode for performance.
 
-* Do not use .SYS drivers block device access, it will not work!
-The entire OS has no support at all for the DOS driver model (.SYS) and never will. Character device drivers may still work if they do not perform direct hardware access.'
-
 * Do not use disk cache software
 I have not tested this, but SMARTDRV will cache disk contents to memory, sometimes XMS blocks. It will not be able to flush disk contnets when the OS boots.
 
+* Summary
+
+Run DOS light for compatibility.
+
 # Editions
 
-There are editions for computers of different ages. The -march is for the 386, so compatibility is garaunteed regardless of the CPU being used. Processor specific instructions may be used but only after being detected in real-time.
+There are editions for computers with different hardware. The -march is for the 386, so compatibility is garaunteed regardless of the CPU being used. Processor specific instructions may be used but only after being detected in real-time.
 
 |Edition|Compiler Tuning|Included Drivers|
 -|-|-
@@ -35,7 +42,13 @@ Type C| i386      | ~
 Type B| i486      | ISAPNP
 Type A| Pentium   | PCI, ISAPNP, UHCI
 
+# Build from Source
 
+A Unix-like environment
+
+The makefile probably needs to be modified to refference the appropriate toolchain.
+
+NASM, DOSBox, git, qemu, and make must be installed. Once everything is set up, simply type ./Build.sh (chmod +x Build.sh if it does not work).
 
 # Installation
 
@@ -45,11 +58,11 @@ The install files are provided in the release ZIP file. Unzip and copy to a CDRO
 
 Uninstalling is easy :)
 
-OS/90 is self-contained and does not modify the DOS system at all. Delete the files in OS90.
+OS/90 is self-contained and does not modify the DOS system at all. Delete the files in OS90. CONFIG.SYS must be updates to remove the GRABIRQ.SYS driver.
 
 # Update
 
-Reinstalling OS/90 is necessary to update. User files are not store in the OS90 directory.
+Reinstalling OS/90 is necessary to update. User files are not stored in the OS90 directory.
 
 # Limitations
 
@@ -58,10 +71,6 @@ In the current design, the 32-bit userspace runtime has not been specified. It w
 # After install
 
 See boot.md for some information on the boot process and setting up the bootloader.
-
-# Goals
-
-The goal of OS/90 is to create an operating system for very old computers that maximizes DOS compatibility. The DOS compatibility, which extends to some drivers, will hopefully make this OS more useful, as I doubt many developers are going to make 32-bit native drivers for this specific OS. I also thought it would be more fun to work on a DOS/Windows-like operating system. Unix seems done to death in the OSDev community, probably because most of us use Unix-like tools.
 
 # Q&A
 
@@ -77,10 +86,9 @@ A: Theoretically all of them, but ISA PnP and PCI are sure to work best because 
 
 Q: Does this run on modern computers?
 
-A: As long as it has a PC BIOS (even EFI-CSM) and 32-bit disk access is turned off (or IDE compatibility) for using SATA drives, there should be no problems. PCIe is compatible with PCI. Both PCI configuration mechanisms are supported.
+A: As long as it has a PC BIOS (even EFI-CSM) and 32-bit disk access is turned off (or IDE compatibility) for using SATA drives, there should be no problems. PCIe is compatible with PCI in software.
 
 Q: Do DOS drivers work?
-
 A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of expansion cards.
 
 Q: What type of kernel design is used?
@@ -98,8 +106,8 @@ A: In theory, FreeDOS is the best because it has LFN support, but it has many ex
 
 ## Pipe Dreams
 
-I may work on a GUI at some time in the distant future. ACPI 1.0 and APM support?
+GUI? ACPI (yuck)?
 
 # Credits
 
-Matt Godbolt - godbolt.org is a GODsend
+Matt Godbolt - godbolt.org is a very useful tool/

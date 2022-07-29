@@ -51,15 +51,15 @@ static dword AddrAlign(pvoid addr, dword bound)
     return ((dword)addr + bound - 1) & ~(bound-1);
 }
 
-__DRVFUNC Handle GlobalMap(pvoid start, pvoid to, dword size)
+__DRVFUNC Handle MeGlobalMap(pvoid start, pvoid to, dword size)
 {
 }
-__DRVFUNC void   GlobalDelMap(Handle m);
+__DRVFUNC void MeGlobalDelMap(Handle m);
 
 /* High level function for heap management w/buckets */
 
-__DRVFUNC Handle GlobalAlloc(dword size, bool user);
-__DRVFUNC void   FreezeBlock(Handle h, dword flags);
+__DRVFUNC Handle MeGlobalAlloc(dword size, bool user);
+__DRVFUNC void   MeFreezeBlock(Handle h, dword flags);
 
 // What about mapping physical memory to kernel space?
 // to an arbitrary location?

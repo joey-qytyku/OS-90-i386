@@ -15,7 +15,7 @@
 
 typedef dword Page;
 
-static inline void invlpg(Page addr)
+static inline void i486_invlpg(Page addr)
 {
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }

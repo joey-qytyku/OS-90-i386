@@ -1,16 +1,36 @@
 # Memory Management
 
-OS/90 supports virtual memory with paging. The MMGR can access up to 1GB of physical memory (minus non-contiguities). Programs can have access to 1G of virtual addressing space.
+OS/90 supports virtual memory with paging. The MMGR can access up to 1GB of physical memory (minus non-contiguities and memory holes). Programs can have access to 1G of virtual addressing space.
+
+## Detection
+
+INT 15H is used for memory detection.
+
+AX=E801h is used to detect memory larger that 15MB.
+
+AH=88h is the second function used if the previous is not implemented. This only supports up to 15MB of RAM.
+
+E820 is not supported.
+
+The ISA memory hole is always assumed to be present.
+
+## Relation with Plug and Play
+
+The resource list allows memory ranges to be owned by a specific program. This is supposed to be used by __devices__, not software.
+
+Information on the extended memory used by the kernel and drivers is not reported, as that is not the purpose of plug-and-play.
 
 ## Page Fault and Double Fault Handling
 
 A page fault handler is not supposed to access memory that is not present because that would cause a double fault. The double fault handler detects if a variable indicating that a page fault was being handled is set. If it's set, the #DF handler can find out how the #DF happened because the previous context variable is never modified by exception handlers.
 
-The double fault is unrecoverable and will lead to a panic
+The double fault is unrecoverable and will lead to a panic.
 
 ## Page Frame Allocation
 
-The start of the available memory is found by looking above the kernel BSS section. Linked lists are used to keep track of page allocations. A head points to the start of a linked list.
+The start of the available memory is found by looking above the kernel BSS section.
+
+Linked lists are used to keep track of page allocations. A head points to the start of a linked list.
 
 A list element represents a certain number of pages at a relative location (to the previous element). Calculating physical addresses is expensive. For this reason, a small software cache holds the recently calculated effective addresses matched with their heads (?). It can be configured to be larger, but increasing the size requires the kernel to loop through more elements.
 
@@ -51,7 +71,7 @@ Each program gets a page directory. The kernel/driver pages are shared with the 
 
 At startup, the memory manager generates the page tables for the kernel.
 
-New page mappings can be loaded from C using inline assembly because the kernel never moves. Writing to CR3 will always refresh the TLB. iF CR3 does not need to be changed, it is not written.
+New page mappings can be loaded from C using inline assembly because the kernel never moves. Writing to CR3 will always refresh the TLB. If CR3 does not need to be changed, it is not written.
 
 # Kernel API
 

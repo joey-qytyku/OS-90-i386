@@ -36,7 +36,8 @@ Ke - System calls
 In - Interrupts
 Sc - Scheduler
 Me - Memory manager
-Re - Resource manager/Plug-and-play
+Pn - Resource manager/Plug-and-play
+Ia - IA32 and IBM PC related functions
 Fs - Filesystem
 Di - Interal disk driver
 

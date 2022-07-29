@@ -97,6 +97,7 @@ static int HandleIRQ0(PTrapFrame t)
     static word ms_left;
 
     uptime += 0x10000000; // Trust me bro
+    // Update the DOS/BIOS time in BDA?
     return 0;
 }
 
@@ -105,8 +106,8 @@ __attribute__(( regparam(2) ))
 void InMasterDispatch(PTrapFrame tf, dword irq)
 {
     // Simpler way to do this? Use inlines for both ISRs?
-    word inservice16 = GetInService16();
-    const PInterrupt intr  = FastGetIntInfo(irq);
+    word inservice16 = InGetInService16();
+    const PInterrupt intr  = InFastGetIntInfo(irq);
 
     /// 1. The ISR is set to zero for both PICs upon SpINT.
     /// 2. If an spurious IRQ comes from master, no EOI is sent
@@ -124,7 +125,7 @@ void InMasterDispatch(PTrapFrame tf, dword irq)
         goto CountAndRet; // (-_-)
     else if (irq == 15 && (inservice16 >> 8) == 0)
     {
-        SendEOI(0); // Send to master
+        SendEOI(0); // Send to master in case of spurious 15
         CountAndRet:
             spurious_interrupts++;
             return;
@@ -153,6 +154,9 @@ void InitScheduler()
     // Claim the timer IRQ resource
     // The handler is called by dispatcher directly for speed
     IntrRequestFixed(1, NULL, 1, KERNEL_OWNER);
+
+    // Now get IRQ#13 and assign the ISR
+    // IntrRequestFixed
 
     //
     // Each interrupt has its own vector so that the IRQ number

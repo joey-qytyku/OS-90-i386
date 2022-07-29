@@ -1,0 +1,14 @@
+The following content is public domain.
+
+All files within:
+
+kernel
+drivers
+docs
+boot
+old
+
+All files in the project root except:
+
+msdos.img - contains an installation of MS-DOS, a proprietary operating system by Microsoft.
+It may not be present in the future for this reason.

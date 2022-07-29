@@ -22,13 +22,18 @@ typedef sdword Handle;
 typedef sdword Status;
 typedef byte bool;
 
+typedef byte*       string
+typedef const byte*	mstring
+
 #define BIT_IS_SET(num,bit) ((num & (1<<bit))>0)
 
 // The BSWAP instruction is only supported by i486 and above
 // but this is only a macro. I figured this out myself :)
-#define BYTESWAP(value) ((value & 0xFF) << 24) | ((value & 0xFF00) << 8) | ((value & 0xFF0000)>>8) | ((value & 0xFF000000) >> 24)
 #define NULL ((void*)(0))
-#define ASNL "\t\n"
+
+#define ASNL "\n\t"
+#define ASM_LINK __attribute__(( regparm(0) ))
+#define BYTESWAP(value) ((value & 0xFF) << 24) | ((value & 0xFF00) << 8) | ((value & 0xFF0000)>>8) | ((value & 0xFF000000) >> 24)
 
 //
 // Volatile variables can change at any time without the
@@ -36,19 +41,16 @@ typedef byte bool;
 // because they are unpredictable and also assembly code that
 // modifies a C variable
 //
-#define INTVAR volatile /* Used by interrupt handler */
-#define DRVMUT volatile /* Driver can modify */
+#define INTVAR volatile /* Used by interrupt handler  */
+#define MCHUNX volatile /* May change unexpectedly :) */
+IDNSTC
+IDNSTC
 
-#define ASM_LINK __attribute__(( regparm(0) ))
-
-#ifdef __PROGRAM_IS_DRIVER
-#define KRNMUT volatile // Kernel may modify
-#endif
-
-/* Builtin functions use inline x86 string operations
- * making them way faster that doing it in C.
- * string operand size can also be deduced by the compiler
-*/
+//
+// Builtin functions use inline x86 string operations
+// making them way faster that doing it in C.
+// string operand size can also be deduced by the compiler
+//
 
 #if __GNUC__
 

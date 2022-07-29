@@ -1,7 +1,19 @@
 global PnInsertEntryPoint
 global PnCallBiosInternal
 
-;Variadic function are called by simply pushing
+[section .bss]
+
+entry_point:
+    RESW    4
+
+entry_ds:
+    RESW    1
+
+[section .text]
+
+PnInsertEntryPoint:
+
+;Variadic functions are called by simply pushing
 ;the desired number of arguments on the (always) stack
 ;
 ; BIOS plug-and-play BIOS calls use 16-bit far calls
@@ -10,8 +22,6 @@ global PnCallBiosInternal
 ; A separate data segment is required because PnP BIOS
 ; uses 16-bit offsets. (The dseg is passed on the stack
 ; for function that need it)
-
-PnInsertEntryPoint:
 
 ;Uses regparam(1)
 ;(register dword argc, dword func, ...) -> word (exit status)
@@ -39,10 +49,17 @@ PnCallBiosInternal:
     mov     [esi+2],ax
     jmp     .L
 .Done:
+    mov     eax,[esi]
+    mov     [esi+2],ax
+    jmp     .L
+.Done:
     ;Call PnP entry point
+    mov     ds,[entry_ds]
+    call    far word [entry_point]
 
     ;AX=Exit status
 
     cld
-    leave
+    pop     eax
+    pop     esi
     ret

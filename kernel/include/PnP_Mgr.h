@@ -16,8 +16,8 @@
 
 #define OWNER_NAME_SIZE 16
 
-#define PNP_FPU_PRESENT  0x01
-#define PNP_FPU_INTERNAL 0x02
+//#define PNP_FPU_PRESENT  0x01
+//#define PNP_FPU_INTERNAL 0x02
 
 #define RQINT_FAILED -1
 #define RQINT_TAKEN   0

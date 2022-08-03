@@ -1,6 +1,10 @@
-# OS/90
+# What is OS/90
 
-OS/90 is a work-in-progress operating system inspired by Windows 9x and IBM OS/2.
+OS/90 is the technology, or more specifically, the source code behind the release, which has not arrived yet and does not have a name. When the release is created from the source code, it is published under a different name, but with the same copyright and GPL license. Anyone can make a release under any name as long as they follow the rules in the GPL license included with the operating system code. GPLv2 is used to allow proprietary software to be included in the release, as most software of the DOS era was closed-source.
+
+An analogy would be Windows NT, which is the technology made by Microsoft that they build on top of to release binary versions of the Windows operating system.
+
+In all documentation, OS/90 is reffered to as an operating system.
 
 Minimum requirements
 |Spec|Minimum|Recommended|Premium|
@@ -12,8 +16,7 @@ OS  | DOS 3.0  | -         | -
 Bus | ISA      | ISA w/PnP | PCI (any version)
 
 * OS/90 is a Plug-and-play operating system. Enable this option in the BIOS. If the system does not have a PnP BIOS, it will run the same way.
-* DOS should have a decent amount of memory free.
-
+* DOS should have at a decent amount of memory free to prevent out-of-memory issues
 
 # Warnings
 
@@ -26,10 +29,9 @@ This technology is infamously unreliable and I do not have computer with a flopp
 The kernel will call the 16-bit filesystem but traps disk access to perform it in protected mode for performance.
 
 * Do not use disk cache software
-I have not tested this, but SMARTDRV will cache disk contents to memory, sometimes XMS blocks. It will not be able to flush disk contnets when the OS boots.
+I have not tested this, but SMARTDRV will cache disk contents to memory, sometimes XMS blocks. It will not be able to flush disk contents when the OS boots.
 
 * Summary
-
 Run DOS light for compatibility.
 
 # Editions
@@ -40,13 +42,13 @@ There are editions for computers with different hardware. The -march is for the 
 -|-|-
 Type C| i386      | ~
 Type B| i486      | ISAPNP
-Type A| Pentium   | PCI, ISAPNP, UHCI
+Type A| Pentium   | PCI, ISAPNP
 
 # Build from Source
 
 A Unix-like environment
 
-The makefile probably needs to be modified to refference the appropriate toolchain.
+The makefile needs to be modified to refference the appropriate toolchain.
 
 NASM, DOSBox, git, qemu, and make must be installed. Once everything is set up, simply type ./Build.sh (chmod +x Build.sh if it does not work).
 

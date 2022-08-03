@@ -1,14 +1,25 @@
-#if 0
+
+/*
+     This file is part of OS/90.
+
+    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+    Foobar is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>. 
+
+
 V86 handling code
 
 Timeline:
 2022-07-21:
     All IRETs from IRQ or kernel DOS/BIOS calls are now exit codes
-    If from user program, access violation causes temrination.
+    If from user program, access violation causes termination.
     This streamlines the V86 code a little.
+2022-08-01
+    Handling of TSS: Do I have to update it? Yes.
 
-#endif
-
+*/
 
 #include <Platform/IA32.h>
 #include <Platform/8259.h>
@@ -16,6 +27,20 @@ Timeline:
 #include <Linker.h>     /* phys() */
 #include <V86.h>        /* EnterV86, ShootdownV86 */
 #include <Type.h>
+
+// TSS and V86 mode:
+// EnterV86 saves ESP first in TSS.ESP0.
+// This is because the caller of ScVirtual86_Int
+// is supposed to be fully re-entrant. If a GPF
+// takes place, the fault must be handled using
+// the same stack the kernel was already using
+//
+// Because task switching involves changing the
+// value of TSS.ESP0, task switching cannot happen
+// while in V86 mode or a different 32-bit
+// kernel stack will be used and break everything
+//
+// Wait: what about 16-bit tasks running in V86?
 
 static DRVMUT void (*trap_capture[128])(PTrapFrame*);
 static INTVAR bool supervisor_call = 0;
@@ -62,9 +87,8 @@ static void EmulateINT(pword stack, PTrapFrame context, byte v)
     context->cs  =  real_mode_ivt[v] >> 16;
 }
 
-
 //
-// Modifies the return context. This is so that
+// Modifies the return context. Remove this?
 //
 static void EmulateIRETW(pword stack, PTrapFrame context)
 {
@@ -146,3 +170,17 @@ void ScMonitorV86(PTrapFrame context)
 
 } // On return, code continues to execute
 
+// Brief: General purpose BIOS/DOS call interface
+// this function goes through capture and is to be
+// used by drivers and the kernel to access
+// INT calls from protected mode.
+//
+// Stack: A 16-bit stack must be used for
+//
+// Trap frame: The stack registers are
+// set automatically, only the .regs fields
+// need to be set by caller
+//
+void ScVirtual86_Int(byte vector, PTrapFrame context)
+{
+}

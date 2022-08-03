@@ -18,7 +18,7 @@ cd ..
 
 dosbox
 
-qemu-system-i386 -hda msdos.img\
+qemu-system-i386 -hda ../msdos.img\
     -m 4\
     -no-reboot\
     -no-shutdown

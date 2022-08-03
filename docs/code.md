@@ -1,6 +1,6 @@
 # Code Rules
 
-The entire source code of the OS/90 kernel and associated drivers follow these guidelines. I recommend that programs written for the OS e written in this style as well, but there is no requirement and pascal case should be compatilble in practice.
+The entire source code of the OS/90 kernel and associated drivers follow these guidelines. I recommend that programs written for the OS are written in this style as well, but there is no requirement and pascal case should be compatilble in practice.
 
 # C Guidelines
 
@@ -9,24 +9,27 @@ Pascal case:
 * Type definitions
 * Typedef of another type (Handle => dword)
 
-Underscore case:
-* Function local variables
-* Static variables
+Snake case:
+* Variables
 * Struct fields
 
 No caps:
 * Integral typedefs (byte, word, dword, ...)
 
-Global:
+Globals:
 * functions must never be inlined.
 * variables should be avoided unless there is no better way.
 
-All caps:
+All caps and snake case:
 * Macro definitions (no function-like macros)
 
-Avoid using unions. Never use pre-inc/dec.
+Never use pre-inc/dec.
 
-NEVER return structs!
+NEVER return structs! It's bad for performance!
+
+## Comments
+
+Single line comments only except if they do not work (macro comments?)
 
 ## Function Naming
 
@@ -40,8 +43,6 @@ Pn - Resource manager/Plug-and-play
 Ia - IA32 and IBM PC related functions
 Fs - Filesystem
 Di - Interal disk driver
-
-
 
 # Assembly Guidelines
 

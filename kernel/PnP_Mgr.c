@@ -1,5 +1,15 @@
+/*
+     This file is part of OS/90.
+
+    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+    OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+*/
+
 #include <Platform/Resource.h>
-#include <Platform/IA32.h>    /* Long jump */
+#include <Platform/IA32.h>    /* Long jump? */
 #include <Type.h>
 
 #define PNP_ROM_STRING BYTESWAP(0x24506e50) /* "$PnP" */

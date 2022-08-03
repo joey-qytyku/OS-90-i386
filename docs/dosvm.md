@@ -1,69 +1,14 @@
-# 16-bit virtual machines
+# 16-bit tasks versus Kernel Interrupt Calls
 
-# Virtual Machine manager
+The kernel can call interrupt requests and INTx vectors using special functions. The kernel does not do this for 16-bit tasks. A task running in V86 mode does not require any function to enter. Loading the context is sufficient, which includes the EFLAGS register with the VM bit on. This distinction is important.
 
-VMMs are a special type of driver. There can only be one running on a system. This driver is responsible for terminating and creating virtual machines configuring resources etc, interrupts. The kernel provides a simple interface that makes this possible.
+In both cases, the monitor is used for handling GPF exceptions to emulate ring-0 instructions.
 
-TSR programs do not work.
+# TSS
 
-# Restrictions
+The task state segment contains two important fields, ESP0 and ES0. ES0 does not need to change but ESP0 does. The kernel allocates a stack for each program running on the system, both 16-bit and 32-bit. EnterV86 does not re-enter the caller and simply resumes execution in V86 mode. Only an interrupt or exception can stop the execution of any ring-3 code, as well as V86. When GPF is called from V86, the handler is called and ESP0 is loaded from the TSS. Interrupts and exceptions must work in V86 mode or getting out is impossible, but if ESP0 stays the same and the stack is reset upon each supervisor call, the stack of the caller is destroyed and the system will crash. To prevent this, EnterV86 saves ESP to the TSS.
 
-# Interrupt Calls and IRQs
+Task switching never happens when the kernel or drivers are running. Interrupts are enabled and time is updated. This is especially critical for BIOS/DOS calls from protected mode because a task switch will change the kernel stack being used.
 
-An IRQ handler that is 16-bit reclaimable will be executed by the master IRQ handler using the V86 interface.
+# 16-bit tasks
 
-# The kernel
-
-The kernel is 32-bit but needs to drop into DOS to perform file IO and trap out of it to do 32-bit disk IO.
-
-## EnterV86
-
-This function takes a pointer to a trap frame and enters V86 using IRET. This function can do two things: return to caller when an virtual IRET occurs or not return at all to run a program until an IRQ happens.
-
-The former requires MonitorV86 to re-enter the caller code by restoring the context which is saved by EnterV86 into a buffer. The monitor basically destroys its stack frame like any other routine, in this case, by calling ShootdownV86. This function restores the old context from the caller. The stacks can be changed in this process because ESP is restored from the buffer using LSS.
-
-Overview: Kernel calls EnterV86 to start running a real mode ISR. When IRET is trapped by the monitor, ShootdownV86 is called. 
-
-V86 is a USER context. The monitor is technically KERNEL, but it cannot be interrupted so it does not matter.
-
-## Interaction with scheduler
-
-When the kernel runs in V86 mode, interrupts are enabled and are always caught by the IDT. This means that the kernel can preempt programs running in this mode unless interrupts are disabled prior.
-
-# Implementation of V86 Monitor
-
-The TSS is never modified by the monitor or the basic V86 interface. It is modified at a per-process basis by the scheduler.
-
-Each task gets a supervisor stack. When the kernel handles exceptions and interrupts, it can discard the stack. When the next int/except happens, it will use the same stack specified in the TSS, which is modified for each task appropriately.
-
-The V86 monitor is called by the GPF handler. When it returns, the real mode code will continue to run.
-
-See more in scheduler.md
-
-Stacks, TSS?
-
-# Configuration of VM16 tasks
-
-The resource manager determines which interrupts are 16-bit or 32-bit. 16-bit IRQs are serviced in the physical DOS and only apply to the OS when it performs DOS/BIOS calls. The kernel capture table is for software interrupts. It can send a software interrupt back to itself or 
-
-Each 16-bit process has its own local capture table.
-
-The function GlobalMap(dword pid, void *proc_page, void *to, page c, int access) can be used to change the mappings of pages in V86 tasks as well as 32-bit tasks. This can be used to facilitate IPC for VM32 and allow for accessing framebuffers.
-
-GlobalMap(thepid, 0xB8, framebuffer, 16, PG_RW);
-
-# API
-
-Int16()
-SetGlobalCapture(byte vector, byte type)
-
-#define SWI_16 0
-#define SWI_32 1
-
-# XMS Emulation
-
-HIMEM.SYS is never used by the kernel. The kernel emulates the latest XMS specification so that DOS programs go through the 32-bit memory manager. TSR programs may use HMBs, so there is no way to override this.
-
-XMS does not use an interrupt. It uses 
-
-The A20 functions always respond with the A20 gate being on.

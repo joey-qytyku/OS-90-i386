@@ -22,8 +22,8 @@ typedef sdword Handle;
 typedef sdword Status;
 typedef byte bool;
 
-typedef byte*       string
-typedef const byte*	mstring
+typedef const byte *string;
+typedef byte       *mstring;
 
 #define BIT_IS_SET(num,bit) ((num & (1<<bit))>0)
 
@@ -43,8 +43,6 @@ typedef const byte*	mstring
 //
 #define INTVAR volatile /* Used by interrupt handler  */
 #define MCHUNX volatile /* May change unexpectedly :) */
-IDNSTC
-IDNSTC
 
 //
 // Builtin functions use inline x86 string operations

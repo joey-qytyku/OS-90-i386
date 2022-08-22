@@ -10,34 +10,83 @@ Interrupt: A signal from an external device is typically called an interrupt in 
 
 Trap: A software interrupt, generated with the INT imm8 instruction (or INTO/INT3)
 
+RECL_16: An IRQ reserved for a DOS driver, usually for non-PnP devices, detected by GRABIRQ.SYS. RECL_16 can be explicitly taken over by a 32-bit driver, so that a device works in both environments.
+
 # What is a Driver in OS/90
 
 A driver is a PE COFF object file with:
 * 4K aligned sections
-* At least a .text
-* An entry point to the message handler
+* At least a .text, .data, and .bss section
 * The file extention .DRV
 
 Drivers are loaded flat into the kernel space after relocation. Because they are loaded at the very begining of startup.
 
 # The Job of Drivers
 
-A driver usually implements the intended function of a certain device, real or virtual, and allows other parts of the system to access it. OS/90 is a hybrid 32/16-bit system. Because of this, it needs a uniform interface so that it decides which components should be used. This is analogous to Windows VxD drivers.
+A driver usually implements the intended function of a certain device, real or virtual, and allows other parts of the system to access it. OS/90 is a hybrid 32/16-bit system. Because of this, it needs a uniform interface so that it decides which components should be used. This is analogous to Windows 9x VxD drivers.
+
+Drivers run only when the kernel decides they should.
 
 For example, the kernel will access the filesystem through DOS, but a 32-bit FS driver can handle the interrupts itself.
 
-The driver model is what makes OS/90 a true operating system, rather than a protected mode extention to DOS like EMM386.
+The driver model is what makes OS/90 a true operating system, rather than a protected mode extention to DOS.
 
-## Kernel Function Calls
+# Plug-and-Play Support
 
-There is a range of functions provided by the kernel that drivers can use.
+Plug-and-play is a key feature of OS/90.
 
-### Trap Capturing
+PnP is defined as such:
+On system startup, after the kernel has finished initializing,
+* Devices are disabled, in other words
+  * No interrupts, all are masked
+  * Resources cannot be disabled at this point, but that is part of the idea
+* The PnP BIOS enumerates all devices and lists them in the device file space
+
+Bus drivers act on subordinate devices as the kernel acts on all devices globally:
+* Subordinate devices are disabled
+  * Resources are not assigned or reconfigured outside the BIOS defaults
+  * Interrupts are disabled in the per-device configuration
+* If the bus is connected to another one, it may send interrupts after init
+* All devices on the bus are to be enumerated and reported in the devfs
+
+Resources are always owned by a bus and lent to other devices. Subordinate device/bus drivers cannot access resources they are not permitted to use by the parent bus.
+
+The kernel is technically a bus driver that controls all system resources. If an independent device driver (LPT, COM, PS/2 mouse) takes an interrupt, it will call to the "kernel bus". This is to keep consistency.
+
+# Resource Management
+
+The kernel has a flat list for IO ports and memory, IRQ lines, and DMA channels. As stated previously, these are only owned by a bus.
+
+System device nodes from the PnP BIOS report resources with the PnP ISA format.
+
+The owner is identified with a pointer to BUSDRV_INFO. This structure contains the name of the device, as well as a unique identification. It also contains information about the segment it belongs to.
+
+## Bus Segmentation
+
+A bus segment is a range of IO ports, memory, DMA channels, and IRQs that are lent to a subordinate bus.
+
+## Device Abstraction
+
+All PnP devices are reported through the devfs. Non-PnP devices simply have their assumed resources blacklisted so that they are not used.
+
+Some devices are embedded to the system board, while others are attached to a bus (PCI, PCMCIA, ISA PnP). Some buses have their own DMA subsystems, while ISA PnP uses the standard AT DMA controller.
+
+Assuming the presence of devices is avoided, but some hardware is garaunteed to be present, such as the 8259 PIC and DMA. The PnP BIOS is called by the PnP manager to detect system board devices. These devices are never re-configured (although it would be possible). Detected system board devices are placed in the $:\SYSTEM namespace.
+
+# Programming
+
+There is a range of functions provided by the kernel that drivers can use. These are exposed through the kernel symbol tree, a list of absolute addresses with 28-character names and 32-bit addresses, making each entry 32 bytes in size. The symbol table is static and does not change.
+
+The driver model permits dynamic loading and unloading, which could be implemented in the future. A driver should be prepared to handle an unload event.
+
+## Trap Capturing
 
 Summary of defines:
 ```
-CAPT_NOHND = 0 // Driver does not know how to handle thisvector.function
+CAPT_NOHND = 0 // Driver does not know how to handle this_vector.function
 CAPT_HND   = 1 // Driver handled the function successfully.
+CAPT_NUKE  = 2 // Nuke the process that called this interrupt
+// Eg: CAPT_NUKE | CAPT_HND
 ```
 
 Capturing traps involves the creation of a chain of handlers. If one cannot handle the 16-bit trap (e.g. not the function code it wants) it is passed down to a driver that may handle it. A structure in the kernel already exists for all 256 real mode interrupt vectors. This structure is passed to the handler. If the handler cannot handle the requested, it must set the return status to CAPT_NOHND and yield to the kernel. The kernel will then call the next one upon realizing that the handler cannot perform the task.
@@ -49,6 +98,7 @@ The overhead with this feature would be similar to that of a 16-bit DOS function
 To add a new capture, a function returning dword and taking a trap frame with external linkage must be written. A TrapCaptureLink variable should point to that variable, other fields are reserved and need not be set Chaining something that already has a handler cannot be prevented, but it is possible to check if it has been handled before.
 
 The following is a functional, though not very useful example. Replacing DOS functions with 32-bit implementations is a key feature and is simple to do.
+
 ```c
 typedef struct {
     Trap32Hnd handler;
@@ -57,12 +107,12 @@ typedef struct {
 
 TrapCaptureLink link = {Int21_02, NULL};
 
-CAPT_STATUS Int21_02(PTrapFrame t)
+Status Int21_02(PTRAP_FRAME t)
 {
     // DOS putchar: beware, EAX[31:16] could be anything
     if ((byte)(t->regs.eax >> 16) == 2)
     {
-        PUTCHAR((byte)t->reg.eax);
+        PUTCHAR(t->reg.eax & 0xFF);
         return CAPT_HND;     // Tell the kernel that I handled it
     } else
         return CAPT_NOHND;   // This is not my function
@@ -91,70 +141,35 @@ Duplicate devices are possible and must be handled by the bus. It does not techn
 
 The bus driver is supposed to list each device using some kind of internal format. To expose these to userspace, the bus driver can open a mailbox for them.
 
-#### ISA without Plug-and-Play
+# Device Files
 
-Old AT-ISA computer buses do not support IRQ/IO steering and are not programmable. PnP should be disabled in this case and bus drivers should not operate.
+Device files are accessible through DOS and the 32-bit kernel and userspace uisng the dollar sign as a drive letter. It is used to allow userspace to access devices and kernel-mode features.
 
-ISA and PnP-ISA cards can be mixed together in a system, but the resources of the old ISA card must be reserved so the PnP does not use them. The bus device should expect that this is properly configured.
+The device filesystem is stored in the memory and can have folders and files. Device files do not contain data, they simply "contain" a handler function.
 
-# Mailboxes
+## Implementation
 
-The mailbox system is used for driver-driver and kernel-user communication. It is used to implement hotplugging support for buses that allow it. Mailboxes are sort of like the DOS driver interrupt routine.
+The device FS uses one structure for directories and files. If the type of the structure is a directory, the pointer refferences the start of the file list. If the type is a device file, it points to the next device of directory in the filesystem. If the link is NULL, that is the end of the directory chain.
 
-Mbx is a very low-level interface and it is expected that the driver or user-mode code using it implement proper abstractions to make programming easier. Mbx is used to simplify kernel development.
+In order for a directory to point to the next dir/file, separate pointers are used.
 
-The following functions are used for mailboxes:
-* KeSendMsg
-* KeSendRealTimeMsg
-* KeRegisterMbx
-* KeClearMbx
+```
+typedef struct *__PSysDevice{
+    byte            name[11];
+    byte            type;
+    __PSysDevice    next_file,subdir;
+}SysDevice,*PSysDevice;
+```
+## Included devices
 
-The mailbox is self-contained and no aditional structures manage it. The kernel facillitates communication, so it memorizes the name of the box.
+```
+\PNPBIOS
+    \PNPxxxx
+\SHUTDOWN
+\BLOCK
+    \IDEx
+        \PARTx
+    \FDA
+    \FDB
 
-The maximum number of mailboxes is limited to the maximum number of drivers minus one because the kernel needs a Mbx. The kernel Mbx is takes one message at a time. This is because drivers are initialized in order so there is no benefit.
-
-## Implementation Details
-
-KeSendMsg is in the kernel. The kernel then writes the pointed parameter to the destination mailbox and calls the message handler of the reciever if the queue is filled. The message handler is a cdecl function with a pointer argument to the message structure that was sent. It must check the command number and perform a specific operation. When the operation is complete, a message signaling completion is sent to the caller mailbox. At the end of all this, the initial calling routine will be re-entered and the process completed.
-
-Mailboxes and messages must be DRVMUT. Pointer parameters involving mailboxes are also DRVMUT. This is done because the information is changed by the kernel and other programs. DRVMUT must explicitly declared.
-
-The mailbox structure can be static.
-
-Mbx handling is always performed in a critical section.
-
-There is potential for some small overhead in this system. When performance is critical, messages can be avoided by adding functions to the kernel symbol table. Userspace drivers, however, have to use mailboxes.
-
-## Message Queueing
-
-A mailbox can be opened at any size specified by the requester using KeRegisterMbx. When a command is sent while the mailbox is full, the kernel will call the message handler of the driver or user program. The exact number of messages a Mbx can handle is unimportant to the sender.
-
-The advantage of message queueing is that it gives drivers control over when they want to handle interrupts and other service calls, and in what order.
-
-The kernel, upon initialization of the driver, will send the INIT message and the device driver handles it immediately.
-
-## Standard Commands
-
-Each command is in a block of 32 numbers. This makes it easier to check if a certain class of command have been called using bitwise operations.
-
-### BUS: REQUEST_DEVICE
-
-This message will tell the busdrv that the devdrv wants to control interrupts from this device and recieve a message when they occur. This message does not need to be the result of a real interrupt. No other driver can claim the interrupt line.
-
-### BUS: DEV_NOT_FOUND
-
-### NO_DMA_CTL
-
-This bus driver does not have the ability to change DMA requests.
-
-### ERR_NOT_A_BUS_DRIVER
-
-This driver is not a bus driver and should not have been requested any bus services.
-
-### ERR_NOT_BUS_MANAGED
-
-This device driver is not part of a bus and has not requested a device.
-
-## ERR_UNAUTHORIZED
-
-A user program is not allowed to call this function, only for other drivers.
+```

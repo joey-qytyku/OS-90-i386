@@ -25,11 +25,11 @@
 
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
-byte vm86_caused_gpf=0; // ?
-dword current_proc=0;
+BYTE vm86_caused_gpf=0; // ?
+DWORD current_proc=0;
 
-static INTVAR byte  last_mode = KERNEL;
-static INTVAR dword spurious_interrupts = 0;
+static INTVAR BYTE  last_mode = KERNEL;
+static INTVAR DWORD spurious_interrupts = 0;
 
 static unsigned long long uptime = 0; // Fixed point
 
@@ -90,7 +90,7 @@ void GeneralProtect()
     // If not, terminate the current task
 }
 
-static inline void SendEOI(byte vector)
+static inline void SendEOI(BYTE vector)
 {
     pic_outb(0x20, 0x20);
     if (vector > 7)
@@ -101,10 +101,10 @@ static inline void SendEOI(byte vector)
 // runs with CLI?
 // Time slice passed variable
 // How can I make this faster?
-static int HandleIRQ0(PTrapFrame t)
+static int HandleIRQ0(IN PTrapFrame t)
 {
     static bool time_slice_in_progress;
-    static word ms_left;
+    static WORD ms_left;
 
     uptime += 0x10000000; // Trust me bro
     // Update the DOS/BIOS time in BDA?
@@ -112,11 +112,11 @@ static int HandleIRQ0(PTrapFrame t)
 }
 
 // EAX and EDX pass the arguments for simplicity
-__attribute__(( regparam(2) ))
-void InMasterDispatch(PTrapFrame tf, dword irq)
+__attribute__(( regparm(2) ))
+VOID InMasterDispatch(IN PTrapFrame tf, DWORD irq)
 {
     // Simpler way to do this? Use inlines for both ISRs?
-    word inservice16 = InGetInService16();
+    WORD  inservice16 = InGetInService16();
     const PInterrupt intr  = InFastGetIntInfo(irq);
 
     /// 1. The ISR is set to zero for both PICs upon SpINT.
@@ -163,7 +163,6 @@ void InitScheduler()
 
     // Claim the timer IRQ resource
     // The handler is called by dispatcher directly for speed
-    IntrRequestFixed(1, NULL, 1, KERNEL_OWNER);
 
     // Now get IRQ#13 and assign the ISR
     // IntrRequestFixed

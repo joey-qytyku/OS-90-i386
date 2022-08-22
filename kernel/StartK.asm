@@ -14,16 +14,15 @@ section	.init
 
 Begin:
         ; Zero the BSS section
+        ; Is this the issue?
         mov     ecx,LKR_END
         sub     ecx,LKR_STARTBSS
         shr     ecx,2
         mov     edi,LKR_STARTBSS
         rep     stosd
 
-        mov     al,[test]
-
-        lgdt    [gdtr]
         jmp $
+        lgdt    [gdtr]
         lidt    [idtr]
         lldt    [null_ldtr]
 

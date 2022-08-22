@@ -1,9 +1,21 @@
-# Executables
+# Supported Programs
 
-PE/COFF files are used to run programs. They use the flat model and sections are loaded wherever desired by the executable as long as it is below the 3G range.
+* 16-bit DOS Programs
+* DPMI programs (e.g. DOOM, DJGPP, various games)
+* OS/90 programs
 
-mili2020
+DPMI is designed to run on top of DOS and cannot be used to implement the entire system. While multitasking is possible under DPMI, it is hard to use loadable libraries as there is no standard executable format. DPMI is best suited for standalone applications that do everything in a single binary.
 
-# System Call Interface
+OS/90 programs are capable of loading dynamic libraries.
 
-INT 31H is the single system call vector. Returns values are 32-bit and match with the kernel return values: zero for no error, -1 for error, greater than zero for other status or error.
+# Executable Format
+
+Executables are 32-bit PE/COFF files. They may specify the console subsystem in the header as there is no GUI right now.
+
+# DPMI Implementation Details
+
+## LDT
+
+DPMI applications share the same local descriptor table.
+
+## Virtual Interrupts

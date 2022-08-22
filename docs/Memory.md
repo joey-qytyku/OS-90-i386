@@ -1,18 +1,18 @@
 # Memory Management
 
-OS/90 supports virtual memory with paging. The MMGR can access up to 1GB of physical memory (minus non-contiguities and memory holes). Programs can have access to 1G of virtual addressing space.
+OS/90 supports virtual memory with paging. The MMGR can access up to 512M of physical memory (minus non-contiguities and memory holes). Programs can have access to 1G of virtual addressing space.
+
+The memory manager is the most complicated component of OS/90.
 
 ## Detection
 
-INT 15H is used for memory detection.
+* INT 15H is used for memory detection.
+  * AX=E801h is used to detect memory larger that 15MB.
+  * AH=88h is the second function used if the previous is not implemented. This only supports up to 15MB of RAM.
 
-AX=E801h is used to detect memory larger that 15MB.
+* E820 is not supported as it is overkill for the target systems.
 
-AH=88h is the second function used if the previous is not implemented. This only supports up to 15MB of RAM.
-
-E820 is not supported.
-
-The ISA memory hole is always assumed to be present.
+* The ISA memory hole is always assumed to be present.
 
 ## Relation with Plug and Play
 
@@ -28,15 +28,15 @@ The double fault is unrecoverable and will lead to a panic.
 
 ## Page Frame Allocation
 
-The start of the available memory is found by looking above the kernel BSS section.
+### Goals
 
-Linked lists are used to keep track of page allocations. A head points to the start of a linked list.
+The allocation strategy is very barebones but fast. It is deterministic and not slowed by fragmentation because it uses fixed-size blocks.
 
-A list element represents a certain number of pages at a relative location (to the previous element). Calculating physical addresses is expensive. For this reason, a small software cache holds the recently calculated effective addresses matched with their heads (?). It can be configured to be larger, but increasing the size requires the kernel to loop through more elements.
+### Design
 
-Allocation tails can be mapped to page-aligned addresses in the memory for both user processes and the kernel. These addresses can be arbitrary or fixed. These functions are not exposed to drivers
+Fixed blocks are used. The size can be configured but is 8K by default.
 
-MapTail()
+### Mapping Heads
 
 Alignment is checked for all page functions.
 
@@ -45,6 +45,18 @@ Alignment is checked for all page functions.
 A function exist for mapping addresses within a page directory. It allows mappings to cross PDE boundaries.
 
 The page directory entry to be used in a mapping is `address >> (PAGE_SHIFT - 6)`.
+
+## Virtual Memory
+
+Swap files are supported. It is supposed to be present on the root directory of the boot disk and names SWAP.000. This file must be a 4K multiple in size.
+
+The virtual memory system allows programs to use more memory space than is physically present. It also protects from OOM errors.
+
+### Goals
+
+Pages do not need to be constantly swapped unless the main memory is under pressure and more important things need to be prioritized. If the system swaps too much, it will thrash and slow down the system.
+
+
 
 ## Heap Management
 
@@ -82,3 +94,11 @@ PG_AVAIL, PG_W, PG_R, MAP_FAILED, MAP_SUCCESS
 
 This functon modifies the page tables of a process to map somewhere else. Addresses must be page aligned. GlobalMap is useful for mapping framebuffers for DOS applications. It can be used for 32-bit processes to facillitate data sharing.
 
+## Programming Considerations
+(Updated 2022-08-05)
+
+Programs should avoid allocating and freeing memory and rely on the .bss section more. bss is zeroes only if the kernel needs it. Allocations can be called, but they should be relatively large and page-multiples in size.
+
+Software libraries can help with managing .bss heaps if that is necessary.
+
+On i386 computers, the lack of INVLPG will make frequent memory freezes slow the program slightly because the TLB has to be flushed repeadedly every time a page table is modified. Software for this class of hardware should avoid freezing often.

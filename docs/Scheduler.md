@@ -31,7 +31,7 @@ Interrupt handlers are given the saved context. They will probably not need it u
 
 IRQ 0 has a special upper half C handler which runs the scheduler. It modifies the register dump on the stack to the next process to run and loads floating point environments if needed. When switching, the page directory belonging to the process is placed in CR3 and this PD points the the kernel and user pages.
 
-The FPU uses lazy switching, which means that the FP register context stays until anothe program tries to use them. This improves context switching performance greatly. On newer processors, it is known to be a potential security risk. 
+The FPU uses lazy switching, which means that the FP register context stays until anothe program tries to use them. This improves context switching performance. On newer processors, it is known to be a potential security risk. 
 
 The kernel manipulates FPU registers in C because it does not use them for anything but task switching.
 
@@ -39,9 +39,53 @@ The kernel manipulates FPU registers in C because it does not use them for anyth
 
 There are three modes: user, kernel, and interrupt. The last mode (the one which was just switched from) is stored in a variable. This is used so that the kernel knows if it should save the register dump on the stack to a PCB or simply restore them and continue running the last interrupt or kernel code.
 
-Only the last mode actually matters. The current one is always "known"  by the code running and is unimportant.
+Only the last mode actually matters. The current one is always "known" by the code running and is unimportant.
 
 ESP0 is only used during a ring switch. When this happens, a new stack is loaded. When an interrupt happens on top of an interrupt or kernel code, nothing happens.
+
+## Interrupt Ownership
+
+An interrupt can be:
+GENERIC_OWNED:
+Owned by a driver, cannot be taken. Usually legacy resources, like timer, 8042, etc.
+
+BUS_MEMBER_FREE:
+This interrupt is managed by a bus and cannot be taken by any other driver, except one that does through this specific bus. The utility pointer refferences the bus driver header.
+
+BUS_MEMBER_INUSE:
+It is taken by a bus-subordinate driver. 
+
+RECL_16:
+An IRQ which is sent to real mode. These are detected by grabirq.sys, which detects changes to the interrupt vector table. Typically used with DOS drivers for non-PnP hardware. Utility pointer has no meaning.
+
+The utility pointer has a slighly different meaning depending on the interrupt level.
+
+All interrupt ownership requests go through a bus driver, which can be the kernel.
+
+```
+ChOwnLegacyIRQ();
+```
+
+```
+STATUS ScanFreeIRQ(PBUS_DRIVER, PWORD iterator);
+```
+Scanning IRQs is not done in a critical section, so an iterator must be provided. The iterator is the IRQ index. This value must be saved for sequential calls of the function so that it does not report the same IRQ.
+
+The status is OS_OK if the IRQ was found and OS_ERROR_GENERIC if there are no free interrupts.
+
+It is used like this:
+
+```
+WORD interator = 0;
+STATUS is_there_free = ScanFreeIRQ(pkernel_bus, &iterator);
+
+if (is_there_free == OS_OK)
+    // Found an available IRQ on this bus
+if (is_there_free == OS_ERROR_GENERIC)
+    // Could not find one, restart loop
+```
+
+
 
 ## Interrupt interruption
 
@@ -60,7 +104,7 @@ In both cases, the monitor is used for handling GPF exceptions to emulate ring-0
 
 ## TSS
 
-The task state segment contains two important fields, ESP0 and ES0. ES0 does not need to change but ESP0 does. The kernel allocates a stack for each program running on the system, both 16-bit and 32-bit. EnterV86 does not re-enter the caller and simply resumes execution in V86 mode. Only an interrupt or exception can stop the execution of any ring-3 code, as well as V86. When GPF is called from V86, the handler is called and ESP0 is loaded from the TSS. Interrupts and exceptions must work in V86 mode or getting out is impossible, but if ESP0 stays the same and the stack is reset upon each supervisor call, the stack of the caller is destroyed and the system will crash. To prevent this, EnterV86 saves ESP to the TSS.
+The task state segment contains two important fields, ESP0 and SS0. SS0 does not need to change but ESP0 does. The kernel allocates a stack for each program running on the system, both 16-bit and 32-bit. EnterV86 does not re-enter the caller and simply resumes execution in V86 mode. Only an interrupt or exception can stop the execution of any ring-3 code, as well as V86. When GPF is called from V86, the handler is called and ESP0 is loaded from the TSS. Interrupts and exceptions must work in V86 mode or getting out is impossible, but if ESP0 stays the same and the stack is reset upon each supervisor call, the stack of the caller is destroyed and the system will crash. To prevent this, EnterV86 saves ESP to the TSS.
 
 Task switching never happens when the kernel or drivers are running. Interrupts are enabled and time is updated. This is critical for BIOS/DOS calls from protected mode because a task switch will change the kernel stack being used.
 
@@ -68,9 +112,9 @@ Task switching never happens when the kernel or drivers are running. Interrupts 
 
 16-bit tasks operate just like 32-bit tasks, except the GPF handler will monitor instructions and emulate them if needed.
 
-# Scheduling algorithm
+# Scheduling algorithm <<<<DEPRECTATED>>>>
 
-I came up with my own virtual memory algorithm called IOFRQ. It is tied to the virtual memory manager.
+I came up with my own algorithm called IOFRQ. It is tied to the virtual memory manager.
 
 The concept is that programs that do a lot of filesystem access are also doing a lot with the data and need boost. Programs that do a lot of algorithmic work without the FS are likely to run slower. There is a workaround for this.
 
@@ -83,7 +127,7 @@ Time slices are no larger than 1024 miliseconds, or one second. The minimum is 1
 iofrq = tIO / TS
 
 Programs that have not done any IO since the last time slice are rewarded with one milisecond. This means that a program that does no IO for increasingly long time slices (impressive) will run very long.
-
+greatly
 Becuse iofrq is determined per slice, a program goes in "cool down" once it is done with IO or has slowed down.
 
 As time slices get longer, it is harder for a process to get even more time because the iofrq will begin to stagnate as a result of the division. IO should not be increasing exponentially to match.

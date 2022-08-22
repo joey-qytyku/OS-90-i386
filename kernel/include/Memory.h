@@ -13,9 +13,9 @@
 #define PG_RDWR  1<<1
 #define PG_PRES  1<<0
 
-typedef dword Page;
+#define PAGE dword;
 
-static inline void i486_invlpg(Page addr)
+static inline void i486_invlpg(PAGE addr)
 {
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }

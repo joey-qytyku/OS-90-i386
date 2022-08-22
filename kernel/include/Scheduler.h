@@ -11,21 +11,21 @@ typedef enum {
     KERNEL = 0,
     INTERRUPT, /* If an INT gets INTed */
     USER
-}Mode;
+};
 
 typedef struct __ALIGN(4)
 {
     // Switches between processes will always change rings
-    TrapFrame context;
-    dword   kernel_stack; // ?
-    byte    thread32;  /* Thread is 32-bit native code */
-    bool    run;       /* Is structure valid        */
-    bool    use87;     /* Does thread use x86 FPU   */
-	pvoid   x87env;    /* NULL if use87 false       */
- 	word    ts;        /* Miliseconds left counter  */
-    bool    ioperm;    /* IO permission bitmap      */
-    pvoid   next;      /* Front link to next thread */
-}Thread,*PThread;
+    TRAP_FRAME context;
+    DWORD   kernel_stack; // ?
+    BYTE    thread32;  /* Thread is 32-bit native code */
+    BOOL    run;       /* Is structure valid        */
+    BOOL    use87;     /* Does thread use x86 FPU   */
+	PVOID   x87env;    /* NULL if use87 false       */
+ 	WORD    ts;        /* Miliseconds left counter  */
+    BOOL    ioperm;    /* IO permission bitmap      */
+    PVOID   next;      /* Front link to next thread */
+}THREAD,*PTHREAD;
 
 #ifndef __PROGRAM_IS__DRIVER
 

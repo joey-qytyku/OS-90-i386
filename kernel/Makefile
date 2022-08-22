@@ -5,8 +5,7 @@ GCCVER := 10.1.0
 TCHAIN := /usr/bin
 
 #INCLUDE=~/gcc-$(GCCVER)-nolibc/i386-linux/lib/gcc/i386-linux/$(GCCVER)/include
-CFLAGS := -I ./include/ -O2 -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -march=i386 -nostdlib -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wall #-I $(INCLUDE)
-
+CFLAGS := -I ./include/ -O2 -mno-mmx -mno-sse -mno-sse2 -mno-3dnow -mpreferred-stack-boundary=2 -march=i386 -nostdlib -nostartfiles -nodefaultlibs -ffreestanding -std=gnu99 -Wextra
 
 CC=$(TCHAIN)/i586-pc-linux-gnu-gcc
 LINK=$(TCHAIN)/i586-pc-linux-gnu-ld

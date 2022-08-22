@@ -4,5 +4,5 @@
 
 void KernelMain(void)
 {
-//    InitIA32();
+    InitIA32();
 }

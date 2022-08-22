@@ -13,44 +13,27 @@
 #include <Linker.h>
 #include <Memory.h>
 
-#define NUM_TAILS 1024
+#define CHECK_ALIGN(address, if_unaligned)\
+if ((dword)address & 0xFFF != 0)\
+    {goto if_unaligned}      /* No misleading IF warning */
 
-typedef struct SelfAllocNode {
-    Page size;
-    struct SelfAllocNode *frontln, *backln;
-}AllocNode,*PAllocNode;
+// The ISA memory hole is a 1M space that is sometimes
+// reserved for some ISA cards. It is at F00000-FFFFFF
+// PCs that do not need it may have it anyway or
+// an option to enable. The target
+// platform (PCs from 1990-1999) certainly have an ISA
+// memory hole, so it is assumed to be present.
 
-typedef struct SelfHead {
-    bool user;
-    PAllocNode head;
-}Head,*PHead;
+static DWORD memory_after_15M; // Extended memory after the hole
+static DWORD memory_after_1M;  // Extended memory between hole and 1M
 
-typedef struct {
-    pvoid addr;
-}Map;
+//  CONV  RES   EXT  ISA  EXT
+// [640K][384K][15M][1M][xM...]
 
-static dword AddrAlign(pvoid addr, dword bound)
+static dword AddrAlign(PVOID addr, DWORD bound)
 {
     return ((dword)addr + bound - 1) & ~(bound-1);
 }
 
-__DRVFUNC Handle MeGlobalMap(pvoid start, pvoid to, dword size)
-{
-}
-__DRVFUNC void MeGlobalDelMap(Handle m);
-
-/* High level function for heap management w/buckets */
-
-__DRVFUNC Handle MeGlobalAlloc(dword size, bool user);
-__DRVFUNC void   MeFreezeBlock(Handle h, dword flags);
-
-// What about mapping physical memory to kernel space?
-// to an arbitrary location?
-
-void PageFault()
-{}
-
-void InitMem(dword mem1k_after_1m,
-dword mem_after_memhole)
-{
-}
+// Allocate nodes from a node array to the new head being initialized.
+//

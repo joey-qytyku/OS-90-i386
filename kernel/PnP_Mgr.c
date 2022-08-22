@@ -1,7 +1,7 @@
 /*
      This file is part of OS/90.
 
-    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.
 
     OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
@@ -15,7 +15,7 @@
 #define PNP_ROM_STRING BYTESWAP(0x24506e50) /* "$PnP" */
 #define NUM_INT 16 /* For consistency */
 
-cstring KERNEL_OWNER = "KERNL386.EXE";
+IMUSTR KERNEL_OWNER = "KERNL386.EXE";
 
 //
 // A flat list of a memory and IO space usage.
@@ -23,18 +23,18 @@ cstring KERNEL_OWNER = "KERNL386.EXE";
 // nearly all configurations.
 //
 
-static MCHUNX dword cur_iorsc = 0;
+static MCHUNX DWORD cur_iorsc = 0;
 
 // This is empty because if there is no PnP support
 // resource management is determined by the
 // configuration of the PC, otherwise, PnP BIOS reports all
 // motherboard devices
-static MCHUNX IO_Resource resources[MAX_IO_RSC];
+static MCHUNX IO_RESOURCE resources[MAX_IO_RSC];
 
 // Non-standard IRQs are FREE but if they are found
 // to have been modified by a DOS program they
 // are set to RECL_16
-static MCHUNX Interrupt interrupts[NUM_INT] =
+static MCHUNX INTERRUPT interrupts[NUM_INT] =
 { // TODO: ADD OWNERS
     [0] =   {STANDARD_32},  // Timer
     [1] =   {STANDARD_32},  // Keyboard
@@ -63,7 +63,7 @@ static DRVMUT word ints_masked;
 // dword to avoid unnecessary sign extention
 // Return: A pointer to the interrupt, 4-bit normalized
 //
-PInterrupt FastGetIntInfo(dword v)
+PINTERRUPT FastGetIntInfo(DWORD v)
 {
     return &interrupts[v & 0xF];
 }
@@ -82,22 +82,24 @@ PInterrupt FastGetIntInfo(dword v)
 // name         String to identify, any langth, must be in memory
 // Return Status
 //
-__DRVFUNC
-Status InRequestFixed(word bmp_intlines, PHandler handler,
-bool fast, char* name)
-{
-    int irq;
+STATUS APICALL InRequestFixed(
+    WORD     bmp_intlines,
+    PHANDLER handler,
+    BOOL     fast,
+    PIMUSTR  name
+){
+    DWORD irq;
     for (irq=0; irq < NUM_INT; irq++)
     {
         if (BIT_IS_SET(bmp_intlines, irq)) // Make this faster?
         {
-            PInterrupt theint = &interrupts[irq];
+            PINTERRUPT theint = &interrupts[irq];
 
             IntsOff();
             switch (theint->intlevel)
             {
             case TAKEN_32:
-                return RQINT_FAILED;
+                return OS_ERROR_GENERIC;
             break;
 
             case STANDARD_32:
@@ -106,15 +108,19 @@ bool fast, char* name)
                 theint->fast = fast;
                 theint->handler = handler;
                 theint->intlevel= TAKEN_32;
-                return RQINT_TAKEN;
+                return OS_OK;
             break;
             default:
                 // Error with hardware detection probably
-                return RQINT_FAILED;
+                return OS_ERROR_GENERIC;
             }
         }
     }
-    return 0;
+    return OS_OK;
+}
+
+void APICALL PnBiosCall()
+{
 }
 
 // Brief:
@@ -122,12 +128,10 @@ bool fast, char* name)
 //  found without having to read the IMR
 // bmp_intlines: A bitmap of the interrupt lines to activate
 //
-__DRVFUNC void IntrEnable(word bmp_intlines)
+void APICALL IntrEnable(word bmp_intlines)
 {
     ints_masked |= bmp_intlines;
 }
-
-static FarPointer32 pnp16_pmode_fptr;
 
 //*The i486DX and better all have integrated floating point
 //*units, but they also have the FERR# pin, which is used
@@ -140,20 +144,35 @@ static FarPointer32 pnp16_pmode_fptr;
 //*package and takes control of the system instead for i486SX PCs
 
 // Scan the ROM space for "$PnP" at a 2K boundary
-void SetupPnP(void)
+STATUS SetupPnP(void)
 {
-    const volatile // ROM space should not be prefetched or modified
-    pdword rom = (pdword)0xF0000;
-    int i;
+    // ROM space should not be prefetched or written
+    const volatile PPNP_INSTALL_CHECK checkstruct = (pdword)0xF0000;
+    dword i;
+    byte compute_checksum;
 
     for (i=0; i<65536/0x800;i++)
-        if (*rom == PNP_ROM_STRING)
-            goto hasPnP;
-    hasPnP:
-    // Validate the checksum
-    // Get the protected mode entry point
+    {
+        if (checkstruct->signature == PNP_ROM_STRING)
+        {
+            for (i=0; i<21; i++)
+                compute_checksum += *(pbyte)rom + i;
+
+            if (compute_checksum == 0)
+                goto HasPnP;
+            else
+                return OS_FEATURE_NOT_SUPPORTED;
+        }
+    }
+    HasPnP:
+
+    // The GDT must be updated so that the PnP code segment
+    // is pointed to by the entry
+
     // PnP requires a 16-bit data and code segment
-    // but the firmware is required to support 32-bit stacks
+    // but the BIOS is required to support 32-bit stacks
+
+    return OS_OK;
 }
 
 void PnFindConflict(void)
@@ -163,7 +182,7 @@ void PnFindConflict(void)
 }
 
 // Add a new port/memory mapped resource entry
-__DRVFUNC Status PnAddIOMemRsc(PIO_Resource new_rsc)
+APICALL STATUS PnAddIOMemRsc(PIO_Resource new_rsc)
 {
     if (cur_iorsc >= MAX_IO_RSC)
         return -1;
@@ -178,7 +197,7 @@ __DRVFUNC Status PnAddIOMemRsc(PIO_Resource new_rsc)
 // so there is no issue of fragmentation, just finds a space that fits
 // @param size Bytes to allocate
 //
-__DRVFUNC Status Bus_AllocateIO(word size, byte align)
+APICALL STATUS Bus_AllocateIO(word size, byte align)
 {
     dword size_of_portspace;
     dword current_address;
@@ -192,21 +211,29 @@ __DRVFUNC Status Bus_AllocateIO(word size, byte align)
 }
 
 // Brief:
-//  Detect which interrupt are unused by ISA devices
+//  Detect which interrupts are unused by non-PnP devices
 // Explaination:
-//  Windows 9x has a special IO.SYS that detects modifications
-//  to interrupt vectors so that it can call 16-bit drivers.
 //  A program called GRABIRQ.SYS saves the default assignments
 //  and compares them after DOS is initialized.
 //
 static void DetectFreeInt(void)
 {
-    pdword default_vect = phys(655360-1024-64);
-    pdword current_vect = phys(0);
+    pdword saved_master_v = phys(655360-1024-64);
+           saved_slave_v  = phys(655360-1024-64+8)
+    pdword master_v = phys(32), slave_v = phys(0x70*4);
     byte i;
-    for (i=0; i<NUM_INT; i++)
-        if (current_vect[i] != default_vect[i])
+
+    // I should optimize these loops
+    for (i=0; i<8; i++)
+    {
+        if (saved_master_v[i] != master_v[i])
             interrupts[i].intlevel = RECL_16;
+    }
+    for (i=0; i<8; i++)
+    {
+        if (slave_v[i+8] != saved_slave_v[i])
+            interrupts[i+8].intlevel = RECL_16;;
+    }
 }
 
 // Brief:
@@ -251,4 +278,3 @@ static void DetectCOM(void)
 void InitPnP(byte fpu_status)
 {
 }
-

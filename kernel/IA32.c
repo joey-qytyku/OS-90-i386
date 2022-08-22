@@ -3,31 +3,33 @@
 #include <Platform/X87.h>
 #include <Intr_Trap.h>
 #include <Atomic.h>
+#include <Type.h>
 
 // Note that DPMI is called with INT 3Ch
 #define IDT_SIZE 256
 
-// Includes two IO bitmaps
-CompleteTSS main_tss;
-
-static qword gdt[GDT_ENTRIES] = {
-    [GDT_KCODE] = GDTDEF_R0_CSEG,
-    [GDT_KDATA] = GDTDEF_R0_DSEG,
-    [GDT_UCODE] = GDTDEF_R3_CSEG,
-    [GDT_UDATA] = GDTDEF_R3_DSEG,
-    [GDT_TSSD]  = GDTDEF_R0_TSS
-};
-
-static Intd idt[IDT_SIZE];
+IA32_STRUCT _ia32_struct =
+{
+    .gdt =
+    {
+    [GDT_KCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0xCF},
+    [GDT_KDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0xCF},
+    [GDT_UCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_CODE), 0xCF},
+    [GDT_UDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_DATA), 0xCF},
+    [GDT_TSSD ]=    {sizeof(.idt)-1,0,0,ACCESS_RIGHTS(1,3,TYPE_TSS),0},
+    [GDT_PNPCS]=    {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE, 0)}
+    [GDT_PNP_BIOS_DS]=  {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA, 0)}
+    [GDT_PNP_OS_DS] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA, 0)}
+    }
+}
 
 // Ignore not used warnings, used in StartK.asm
-xDtr gdtr = {.limit=sizeof(gdt) -1, .address=(dword)&gdt};
-xDtr idtr = {.limit=(IDT_SIZE*8)-1, .address=(dword)&idt};
-
-char test = '!';
+DESCRIPTOR_REGISTER
+    gdtr = {.limit=sizeof ia32_struct.gdt-1, .address=(DWORD)&ia32_struct.gdt},
+    idtr = {.limit=(IDT_SIZE*8)-1,           .address=(DWORD)&ia32_struct.idt};
 
 // Table of exception vectors
-static void (*except[EXCEPT_IMPLEMENTED])() =
+static VOID (*except[EXCEPT_IMPLEMENTED])() =
 {
     LowDivide0,
     LowDebug,
@@ -46,31 +48,34 @@ static void (*except[EXCEPT_IMPLEMENTED])() =
     LowPageFault
 };
 
-static inline void FillIDT(void)
+static inline VOID FillIDT(void)
 {
-    // 15 exceptions, 16 IRQs? Think about it.
-    int i,j;
+    int i;
     for (i=0;i<EXCEPT_IMPLEMENTED;i++)
-        MkTrapGate(idt,i,0,except[i]);
+        MkTrapGate(idt, i, 0, except[i]);
     for (i=0;i<16;i++)
-        MkIntrGate(idt, EXCEPT_IMPLEMENTED + i, &Low0 + i*4);
+        MkIntrGate(
+            idt,
+            EXCEPT_IMPLEMENTED + i, // Add them after the exceptions
+            &Low0 + i*4
+            );
 }
 
 // Compiler is really bad at optimizing this so I did it manually
 // This function does not modify the rest of the GDT entry
 // and only touches the address fields
 //
-static inline void AppendAddress(pvoid gdt_entry, dword address)
+void AppendAddress(PVOID gdt_entry, DWORD address)
 {
     __asm__ volatile (
-    "mov    $8,     %%cl"  ASNL
-    "mov    %0,     %%eax" ASNL
-    "mov    %1,     %%ebx" ASNL
-    "mov    %%ax,   2(%%ebx)" ASNL
-    "shr    %%cl,   %%eax"    ASNL
-    "mov    %%al,   3(%%ebx)" ASNL
-    "shr    %%cl,   %%eax"    ASNL
-    "mov    %%ah,   7(%%ebx)" ASNL
+    "mov $8,   %%cl"  ASNL
+    "mov %0,   %%eax" ASNL
+    "mov %1,   %%ebx" ASNL
+    "mov %%ax, 2(%%ebx)" ASNL
+    "shr %%cl, %%eax"    ASNL
+    "mov %%al, 3(%%ebx)" ASNL
+    "shr %%cl, %%eax"    ASNL
+    "mov %%ah, 7(%%ebx)" ASNL
     :
     :"r"(address),"r"(gdt_entry)
     :"ebx","eax","flags","memory"
@@ -109,13 +114,13 @@ static void PIC_Remap(void)
 /// @return
 /// @retval 0 No FPU present
 ///
-static Status SetupX87(void)
+static STATUS SetupX87(VOID)
 {
     // The Native Exceptions bit, when set, the FPU
     // exception is sent to the dedicated vector
     // otherwise, an IRQ is sent. IRQ#13 is hardwired
 
-    dword cr0;
+    DWORD cr0;
     __asm__ volatile ("mov %%cr0, %0":"=r"(cr0)::"memory");
 
     //
@@ -124,34 +129,25 @@ static Status SetupX87(void)
     //
     if (BIT_IS_SET(cr0, CR0_EM))
         return 0;
-
-    // If present the
 }
 
 void InitIA32(void)
 {
-    //
-    // SET UP TASK STATE SEGMENT
-    //
-    AppendAddress(&gdt[GDT_TSSD], (dword)&main_tss);
+    AppendAddress(&gdt[GDT_TSSD], (DWORD)&__main_tss);
     __asm__ volatile ("ltr %%ax" : : "ax"(GDT_TSSD<<3) : "memory");
 
-    C_memset(&main_tss.iopb_deny_all, '\xFF', 0x2000);
+    C_memset(&ia32_struct.tss.iopb_deny_all, '\xFF', 0x2000);
 
-    //
     // CONFIGURE PIC
-    //
     PIC_Remap();
 
     pic_outb(0x20,0xB);  // Tell the PICs to send the ISR through CMD port reads
-    pic_outb(0xA0,0xB);  // The kernel does need the IRR so this improves performance
+    pic_outb(0xA0,0xB);  // The kernel does need the IRR
 
     // Mask all interrupts, writes to data port is OCW3/IMR
     pic_outb(0xA1,0xFF);
     pic_outb(0x21,0xFF);
 
-    //
     // POPULATE THE INTERRUPT DESCRIPTOR TABLE
-    //
     FillIDT();
 }

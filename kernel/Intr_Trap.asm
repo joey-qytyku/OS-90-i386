@@ -50,7 +50,9 @@ EXTERN InMasterDispatch
 ;In case of a spurious interrupt, the ISR will be zero in the PIC
 ;chip that caused it, so the computer cannot differentiate between
 ;interrupts unless different ISRs are used
-
+;
+;IRQ 2 and 9 are the same thing
+;
 %assign i 0
 %rep 16
 GLOBAL Low %+ i

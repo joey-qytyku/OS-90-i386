@@ -6,15 +6,15 @@
 // It is the output driver's responsibility to handle ascii sequences
 // Logf sends the character when it is not a format escape
 //
-typedef void (*OutputDrver)(char);
+typedef VOID (*OUTPUT_DRIVER)(BYTE);
 
-static byte printfmt_buffer[MAX_STR_LENGTH_OF_UINT32 + 1];
+static BYTE printfmt_buffer[MAX_STR_LENGTH_OF_UINT32 + 1];
 
 // GCC builtin always refers to the glibc function for some reason
 // so I have to implement it manually, inspired by the BSD implementation
-dword StrLen(string s1)
+DWORD StrLen(PBYTE s1)
 {
-    string s2;
+    PBYTE s2;
     for (s2 = s1; *s2; s2++);
     return s2-s1;
 }
@@ -25,15 +25,15 @@ dword StrLen(string s1)
 // https://www.quora.com/What-are-the-most-obscure-useless-x86-assembly-instructions?
 //
 
-void Hex32ToString(dword value, mstring obuffer)
+VOID APICALL Hex32ToString(DWORD value,  PBYTE obuffer)
 {
 }
 
-void Uint32ToString(dword value, mstring obuffer)
+VOID APICALL Uint32ToString(DWORD value, PBYTE obuffer)
 {
-    dword digit, digit_divisor;
-    dword buff_off = MAX_STR_LENGTH_OF_UINT32 - 2;
-    dword i;
+    DWORD digit, digit_divisor;
+    DWORD buff_off = MAX_STR_LENGTH_OF_UINT32 - 2;
+    DWORD i;
 
     // Clear buffer by setting all chars to ascii NUL
     // so that they are not printed
@@ -54,7 +54,7 @@ void Uint32ToString(dword value, mstring obuffer)
         digit = (value / digit_divisor) % 10;
         obuffer[buff_off] = '0' + digit;
 
-        // ========
+        // ENDING STATEMENTS
         digit_divisor *= 10;
         buff_off--;
     }
@@ -67,41 +67,41 @@ void Uint32ToString(dword value, mstring obuffer)
 // Example:
 //  KeLogf(LptDebug, "Value = @d\n\t", value)
 //
-void KeLogf(OutputDrver od, const char * restrict f, ...)
+VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
 {
     va_list ap;
-    word i;
-    byte ch;
-    byte format_ch;
-    bool is_signed;
+    WORD i;
+    BYTE ch;
+    BOOL is_signed;
 
     va_start(ap,i);
 
-    for (i=0, ch=f[i]; ch != 0; i++)
+    for (i=0, ch=fmt[i]; ch != 0; i++)
     {
         if (ch == '@') {is_signed = 0;}
         else if  ('#') {is_signed = 1;}
         else           {od(ch); continue;}
 
         // The following runs if this is a format character
-        i+=2;
-        format_ch = [i-1];
-
-        switch (format_ch)
+        i+=2; // Skip the format characters
+    
+        switch (fmt[i-1])
         {
 
         // Print hexadecimal, sign is ignored
         case 'x':
-            va_arg(ap, dword);
+            va_arg(ap, DWORD);
         break;
 
         // Print integer, signed or unsigned format
         case 'i':
         break;
 
-        // 700 IQ moment
+        case 's':
+        break;
+
         case '#':
-        case '@': od(format_ch);
+        case '@': od(fmt[i-1]);
         break;
 
         default:

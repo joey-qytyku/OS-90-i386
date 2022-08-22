@@ -2,9 +2,9 @@
 
 OS/90 is the technology, or more specifically, the source code behind the release, which has not arrived yet and does not have a name. When the release is created from the source code, it is published under a different name, but with the same copyright and GPL license. Anyone can make a release under any name as long as they follow the rules in the GPL license included with the operating system code. GPLv2 is used to allow proprietary software to be included in the release, as most software of the DOS era was closed-source.
 
-An analogy would be Windows NT, which is the technology made by Microsoft that they build on top of to release binary versions of the Windows operating system.
-
 In all documentation, OS/90 is reffered to as an operating system.
+
+With that aside, OS/90 can be reffered to as an OS. It is designed specifically for 32-bit IBM-PC compatibles, primarily from the 1990s.
 
 Minimum requirements
 |Spec|Minimum|Recommended|Premium|
@@ -13,7 +13,7 @@ RAM | 2MB      | 4MB       | 16MB
 CPU | i386SX   | i486DX    | Pentium CPU
 PC  | PC/AT    | PC/AT     | PS/2 compatible
 OS  | DOS 3.0  | -         | -
-Bus | ISA      | ISA w/PnP | PCI (any version)
+Bus | ISA      | ISA w/PnP | PCI
 
 * OS/90 is a Plug-and-play operating system. Enable this option in the BIOS. If the system does not have a PnP BIOS, it will run the same way.
 * DOS should have at a decent amount of memory free to prevent out-of-memory issues

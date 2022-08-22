@@ -12,7 +12,7 @@
  * Identification for cache flushing
 **/
 
-#include <Platform/Resource.h>
+#include <PnP_Mgr.h>
 #include <Platform/ATA.h>
 #include <Platform/IA32.h>
 #include <Platform/IO.h>

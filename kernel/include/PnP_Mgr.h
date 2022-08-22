@@ -14,17 +14,13 @@
 #define INUSE 4
 #define MEM_CACHABLE 8
 
-#define OWNER_NAME_SIZE 16
-
 //#define PNP_FPU_PRESENT  0x01
 //#define PNP_FPU_INTERNAL 0x02
 
-#define RQINT_FAILED -1
-#define RQINT_TAKEN   0
+typedef int (*PHANDLER)(void*);
+typedef WORD PNP_RET;
 
-typedef int (*PHandler)(void*);
-
-extern const char *KERNEL_OWNER;
+extern PIMUSTR KERNEL_OWNER;
 
 enum InterruptLVL
 {
@@ -34,36 +30,53 @@ enum InterruptLVL
     TAKEN_32,    // A driver is already using
     STANDARD_32, // Standard PC interrupt, cannot be used by a bus
 };
-/*
- * Standard interrupts can be modified but already taken one cannot be
-*/
 
-typedef struct {
-    byte intlevel;
-    PHandler handler;
-    bool fast;
-    byte pnp_vendor;
-    word pnp_id;
-    char* owner;
-}Interrupt,*PInterrupt;
+typedef tstruct __PACKED {
+    BYTE     intlevel:4;
+    BYTE     fast:4;
+    PHANDLER handler;
+    DWORD    compressed_pnpid;
+    PIMUSTR  owner;
+}INTERRUPT,*PINTERRUPT;
 
 typedef struct
-{   dword start;
-    dword limit;
-    dword info;
-    char *owner;
-}IO_Resource,*PIO_Resource; // IO ports or memory mapped IO
+{   DWORD start;
+    DWORD limit;
+    DWORD info;
+    PIMUSTR owner;
+}IO_RESOURCE,*PIO_RESOURCE;  // IO ports or memory mapped IO
 
-__DRVFUNC
-Status InRequestFixed(word, PHandler, bool, char*);
+typedef struct {
+    DWORD   signature;
+    BYTE    version;
+    BYTE    length;
+    WORD    control_field;
+    BYTE    checksum;
+    PVOID   event_notification;
+    WORD    __real_mode_code_off;
+    WORD    __real_mode_code_seg;
+    WORD    protected_off;
+    DWORD   protected_base;
+    DWORD   oem_device_id;
+    WORD    __real_mode_data_seg;
+    WORD    protected_data_base;
+}*PPNP_INSTALL_CHECK;
 
-__DRVFUNC
-Status PnAddIOMemRsc(PIO_Resource);
+typedef struct {
+    DWORD       unique_id;
+    PIMUSTR     bus_name;
+    PEVENTF     event_handler;
+}BUSDRV_INFO;
+
+STATUS APICALL InRequestFixed(WORD, PHANDLER, BOOL, PIMUSTR);
+STATUS APICALL PnAddIOMemRsc(PIO_Resource);
 
 #ifndef __PROGRAM_IS_DRIVER
 
-PInterrupt InFastGetIntInfo(dword);
-void InitPnP(byte)
+PINTERRUPT InFastGetIntInfo(DWORD);
+VOID InitPnP(BYTE)
+__attribute__(( regparm(1) )) PNP_RET PnCallBiosInternal(DWORD argc, ...);
+
 
 #endif /* __PROGRAM_IS_DRIVER */
 

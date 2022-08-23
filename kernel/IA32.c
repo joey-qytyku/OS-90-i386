@@ -1,3 +1,17 @@
+/*
+     This file is part of OS/90.
+
+    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.
+
+    OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+*//*
+
+2022-07-08 - Refactoring
+
+*/
+
 #include <Platform/IA32.h>
 #include <Platform/8259.h>
 #include <Platform/X87.h>
@@ -12,21 +26,24 @@ IA32_STRUCT _ia32_struct =
 {
     .gdt =
     {
-    [GDT_KCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0xCF},
-    [GDT_KDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0xCF},
-    [GDT_UCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_CODE), 0xCF},
-    [GDT_UDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_DATA), 0xCF},
-    [GDT_TSSD ]=    {sizeof(.idt)-1,0,0,ACCESS_RIGHTS(1,3,TYPE_TSS),0},
-    [GDT_PNPCS]=    {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE, 0)}
-    [GDT_PNP_BIOS_DS]=  {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA, 0)}
-    [GDT_PNP_OS_DS] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA, 0)}
+    [GDT_KCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0xCF, 0x00},
+    [GDT_KDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0xCF, 0x00},
+    [GDT_UCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_CODE), 0xCF, 0x00},
+    [GDT_UDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_DATA), 0xCF, 0x00},
+    [GDT_TSSD ]={
+             sizeof(.tss)-1, 0, 0, ACCESS_RIGHTS(1,3,TYPE_TSS),  0x00, 0x00},
+    [GDT_PNPCS] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0x00, 0x00},
+    [GDT_PNP_BIOS_DS]=
+                    {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0x00, 0x00},
+    [GDT_PNP_OS_DS] =
+                    {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0x00, 0x00}
     }
-}
+};
 
 // Ignore not used warnings, used in StartK.asm
 DESCRIPTOR_REGISTER
-    gdtr = {.limit=sizeof ia32_struct.gdt-1, .address=(DWORD)&ia32_struct.gdt},
-    idtr = {.limit=(IDT_SIZE*8)-1,           .address=(DWORD)&ia32_struct.idt};
+    gdtr = {(WORD)sizeof(_ia32_struct.gdt)-1, (DWORD)&_ia32_struct.gdt},
+    idtr = {256*8-1,    (DWORD)&_ia32_struct.idt};
 
 // Table of exception vectors
 static VOID (*except[EXCEPT_IMPLEMENTED])() =
@@ -51,21 +68,21 @@ static VOID (*except[EXCEPT_IMPLEMENTED])() =
 static inline VOID FillIDT(void)
 {
     int i;
-    for (i=0;i<EXCEPT_IMPLEMENTED;i++)
-        MkTrapGate(idt, i, 0, except[i]);
-    for (i=0;i<16;i++)
+    for (i=0; i < EXCEPT_IMPLEMENTED; i++)
+        MkTrapGate(i, 0, except[i]);
+
+    for (i=0; i < 16; i++)
         MkIntrGate(
-            idt,
-            EXCEPT_IMPLEMENTED + i, // Add them after the exceptions
-            &Low0 + i*4
-            );
+            EXCEPT_IMPLEMENTED + i,
+            &Low0 + i * BOTTOM_ISR_TABLE_LEN
+        );
 }
 
 // Compiler is really bad at optimizing this so I did it manually
 // This function does not modify the rest of the GDT entry
 // and only touches the address fields
 //
-void AppendAddress(PVOID gdt_entry, DWORD address)
+VOID AppendAddress(PVOID gdt_entry, DWORD address)
 {
     __asm__ volatile (
     "mov $8,   %%cl"  ASNL
@@ -91,7 +108,7 @@ void AppendAddress(PVOID gdt_entry, DWORD address)
 //
 static void PIC_Remap(void)
 {
-    byte icw1 = ICW1 | ICW1_ICW4;
+    BYTE icw1 = ICW1 | ICW1_ICW4;
 
     // ICW1 to both PIC's
     pic_outb(0x20, icw1);
@@ -133,10 +150,11 @@ static STATUS SetupX87(VOID)
 
 void InitIA32(void)
 {
-    AppendAddress(&gdt[GDT_TSSD], (DWORD)&__main_tss);
+    AppendAddress(&_ia32_struct.gdt[GDT_TSSD], (DWORD)&_ia32_struct.tss);
     __asm__ volatile ("ltr %%ax" : : "ax"(GDT_TSSD<<3) : "memory");
 
-    C_memset(&ia32_struct.tss.iopb_deny_all, '\xFF', 0x2000);
+    C_memset(&_ia32_struct.tss.iopb_deny_all, '\xFF', 0x2000);
+    C_memset(&_ia32_struct.ldt, '\xFF', LDT_SIZE * 8);
 
     // CONFIGURE PIC
     PIC_Remap();

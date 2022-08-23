@@ -74,7 +74,7 @@ VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
     BYTE ch;
     BOOL is_signed;
 
-    va_start(ap,i);
+    va_start(ap, fmt);
 
     for (i=0, ch=fmt[i]; ch != 0; i++)
     {
@@ -87,7 +87,6 @@ VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
     
         switch (fmt[i-1])
         {
-
         // Print hexadecimal, sign is ignored
         case 'x':
             va_arg(ap, DWORD);

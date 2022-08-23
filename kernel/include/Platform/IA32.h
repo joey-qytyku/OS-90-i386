@@ -1,7 +1,23 @@
+/*
+     This file is part of OS/90.
+
+    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.
+
+    OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+*//*
+
+2022-07-08 - Refactoring, changed inlines to #defines, fixed gdt struct
+
+*/
+
 #ifndef IA32_H
 #define IA32_H
 
 #include <Type.h>
+
+typedef DWORD PAGE;
 
 /**
  * The only difference between trap and interrupt gates
@@ -23,11 +39,41 @@
 // a 32-bit stack
 #define TYPE_TSS  0x19
 #define TYPE_DATA 0x12
-#define TYPE_CODE 0x1B /* Readable for PnP */
-#define ACCESS_RIGHTS(present, ring, type)\
-(present<<7 | ring<<6 | type)
+/* Readable for PnP */
+#define TYPE_CODE 0x1B
+#define ACCESS_RIGHTS(present, ring, type) (present<<7 | ring<<6 | type)
 
 #define LDT_SIZE 16
+
+///////////////////////////
+//   Segments and IDT    //
+///////////////////////////
+
+#define SetIntVector(vector, attr, address)
+    _ia32_struct.idt[vector].attr = attr;\
+    _ia32_struct.idt[vector].offset_15_0  = (DWORD)address &  0xFFFF;\
+    _ia32_struct.idt[vector].offset_16_31 = (DWORD)address >> 16;\
+    _ia32_struct.idt[vector].zero = 0;\
+
+#define MkTrapGate(vector, dpl, address)\
+    SetIntVector(vector, 0x80 | dpl<<4 | IDT_INT386, address);
+
+#define MkIntrGate(vector, address)\
+    SetIntVector(vector, 0x80 | IDT_INT386, address);
+
+#define PnSetBiosDsegBase(base)\
+    AppendAddress(&_ia32_struct.gdt[GDT_PNP_BIOS_DS], base);
+
+// Plug and play related
+
+#define PnSetOsDsegBase(base)\
+    AppendAddress(&_ia32_struct.gdt[GDT_PNP_OS_DS], (DWORD)base);
+
+#define PnSetBiosCsegBase(base)\
+    AppendAddress(&_ia32_struct.gdt[GDT_PNPCS], (DWORD)base);
+
+#define IaIOPB_Allow() _ia32_struct.tss.iobp_off = TSS_ALLOW_OFFSET;
+#define IaIOPB_Deny()  _ia32_struct.tss.iobp_off = TSS_ALLOW_OFFSET;
 
 enum {
 GDT_KCODE,
@@ -41,7 +87,6 @@ GDT_PNP_BIOS_DS,
 GDT_ENTRIES
 };
 
-typedef DWORD PAGE;
 ///////////////////////////
 //    Data structures    //
 ///////////////////////////
@@ -60,7 +105,7 @@ typedef struct __PACKED
 
 typedef struct __PACKED
 {
-    WORD    limit
+    WORD    limit;
     WORD    base0;
     BYTE    base1;
     BYTE    access;
@@ -70,7 +115,8 @@ typedef struct __PACKED
 *PSEGMENT_DESCRIPTOR;
 
 // The standard register dump, ESP is nonsense
-typedef struct __PACKED {
+typedef struct __PACKED
+{
     DWORD   eax, ebx, ecx, edx, esi, edi, ebp, __esp;
 }REGS_IA32,*PREGS_IA32;
 
@@ -78,7 +124,8 @@ typedef struct __PACKED {
 // pushes these values on the ESP0 stack
 // ESP+48 is the start of the trap frame
 //
-typedef struct __PACKED {
+typedef struct __PACKED
+{
     DWORD       eip,cs,eflags,ss,esp;
     REGS_IA32   regs; // The lower-half handler saves these
 }TRAP_FRAME,*PTRAP_FRAME;
@@ -89,7 +136,8 @@ typedef struct __PACKED
     DWORD   address;
 }DESCRIPTOR_REGISTER;
 
-typedef struct __PACKED {
+typedef struct __PACKED
+{
     DWORD   link; // Zero extended
     DWORD
         esp0, ss0,
@@ -103,7 +151,7 @@ typedef struct __PACKED {
     // I don't have to memset the IOPB now
 }COMPLETE_TSS;
 
-typdef struct {
+typedef struct {
     COMPLETE_TSS            tss;
     SEGMENT_DESCRIPTOR      gdt[GDT_ENTRIES];
     SEGMENT_DESCRIPTOR      ldt[LDT_SIZE];
@@ -113,36 +161,9 @@ typdef struct {
 /////////////////////////////////
 //           Externs           //
 /////////////////////////////////
-extern VOID InitIA32     (VOID);
-extern VOID AppendAddress(PVOID,DWORD);
 
+extern VOID   InitIA32     (VOID);
+extern VOID   AppendAddress(PVOID,DWORD);
 extern IA32_STRUCT _ia32_struct;
-
-#define IaIOPB_Allow() { _ia32_struct.tss.iobp_off = TSS_ALLOW_OFFSET; }
-#define IaIOPB_Deny()  { _ia32_struct.tss.iobp_off = TSS_ALLOW_OFFSET; }
-
-// Cannot use AppendAddress for IDT because offset
-// is two separate words
-#define SetIntVector(ia32, vector, attr, address)
-    ia32.idt[vector].attr = attr;\
-    ia32.idt[vector].offset_15_0  = (DWORD)address &  0xFFFF;\
-    ia32.idt[vector].offset_16_31 = (DWORD)address >> 16;\
-    ia32.idt[vector].zero = 0;
-
-#define MkTrapGate(idt, vector, dpl, address) \
-    SetIntVector(idt, vector, 0x80 | dpl<<4 | IDT_INT386, address);
-
-#define MkIntrGate(idt, vector, address)\
-    SetIntVector(idt, vector, 0x80 | IDT_INT386, address);
-
-// A.k.a BIOS selector
-#define PnSetBiosDsegBase(base)\
-    AppendAddress(&_ia32_struct.gdt[GDT_PNP_BIOS_DS], base);
-
-#define PnSetOsDsegBase(base)\
-    AppendAddress(&_ia32_struct.gdt[GDT_PNP_OS_DS], (DWORD)base);
-
-#define PnSetBiosCsegBase(base)\
-    AppendAddress(&_ia32_struct.gdt[GDT_PNPCS], (DWORD)base);
 
 #endif /* IA32_H */

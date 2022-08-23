@@ -1,7 +1,7 @@
 #ifndef MUTEX_H
 #include <Type.h>
 
-typedef volatile dword Mutex;
+typedef volatile DWORD Mutex;
 
 // On single-processor systems, anything that
 // happens in one instruction or multiple with

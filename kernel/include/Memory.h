@@ -15,10 +15,9 @@
 
 #define PAGE dword;
 
-static inline void i486_invlpg(PAGE addr)
+static inline VOID i486_invlpg(PAGE addr)
 {
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 
 #endif /* MEMORY_H */
-

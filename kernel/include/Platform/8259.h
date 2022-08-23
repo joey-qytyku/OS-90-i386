@@ -26,13 +26,13 @@
  * It is probably not required when interleaving IO, aka outputting to
  * different ports (faster than using the same ports).
  */
-static inline void pic_outb(word port, byte val)
+static inline VOID pic_outb(WORD port, BYTE val)
 {
     outb(port, val);
     outb(0x80, 0); // Output to unused for
 }
 
-static inline byte pic_inb(word port)
+static inline BYTE pic_inb(WORD port)
 {
     outb(0x80, 0);
     return inb(port);
@@ -48,9 +48,9 @@ static inline void IntsOn (void) { __asm__ volatile ("sti":::"memory"); }
 static inline void IntsOff(void) { __asm__ volatile ("cli":::"memory"); }
 
 // The in-service register is a bit mask with one turned on
-static inline word InGetInService16(void)
+static inline WORD InGetInService16(void)
 {
-    word in_service;
+    WORD in_service;
 
     in_service  = pic_inb(0x20);
     in_service |= pic_inb(0xA0) << 8;

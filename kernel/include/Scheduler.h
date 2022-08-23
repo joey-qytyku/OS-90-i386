@@ -29,7 +29,7 @@ typedef struct __ALIGN(4)
 
 #ifndef __PROGRAM_IS__DRIVER
 
-extern void InitScheduler(void);
+extern VOID InitScheduler(VOID);
 
 #endif /* !__PROGRAM_IS__DRIVER */
 

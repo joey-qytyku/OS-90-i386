@@ -23,23 +23,23 @@ enum {
 };
 
 // For filling the IDT in IA32.c
-extern void LowDivide0();
-extern void LowDebug();
-extern void LowNMI();
-extern void LowBreakpoint();
-extern void LowOverflow();
-extern void LowBoundRangeExceeded();
-extern void LowInvalidOp();
-extern void LowDevNotAvail();
-extern void LowDoubleFault();
-extern void LowSegOverrun();
-extern void LowInvalidTSS();
-extern void LowSegNotPresent();
-extern void LowStackSegFault();
-extern void LowGeneralProtect();
-extern void LowPageFault();
+extern VOID LowDivide0();
+extern VOID LowDebug();
+extern VOID LowNMI();
+extern VOID LowBreakpoint();
+extern VOID LowOverflow();
+extern VOID LowBoundRangeExceeded();
+extern VOID LowInvalidOp();
+extern VOID LowDevNotAvail();
+extern VOID LowDoubleFault();
+extern VOID LowSegOverrun();
+extern VOID LowInvalidTSS();
+extern VOID LowSegNotPresent();
+extern VOID LowStackSegFault();
+extern VOID LowGeneralProtect();
+extern VOID LowPageFault();
 
-extern void Low0();
+extern VOID Low0();
 
 // In the assembly file, there are instructions for
 // each bottom third ISR that save the IRQ number.
@@ -48,6 +48,6 @@ extern void Low0();
 #define BOTTOM_ISR_TABLE_LEN 4
 
 // Defined in Intr_Trap.asm
-extern dword GetErrCode(void);
+extern DWORD GetErrCode(VOID);
 
 #endif /* INTR_TRAP_H */

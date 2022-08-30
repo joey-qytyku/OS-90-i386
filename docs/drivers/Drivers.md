@@ -1,16 +1,16 @@
 # Introduction
 
-The most powerful feature of OS/90 is the driver model. It is designed to be used for programming devices, buses, and anything requiring ring zero access to the system.
+The most powerful feature of OS/90 is the driver model. It is designed to be used for programming devices, buses (PCI, ISA, VLB, etc.), and anything requiring ring zero access to the system.
 
-The driver architceture allows bus driver to manage interrupts and other resosurces through the kernel. Device drivers can then communicate with the bus driver to control individual devices and recieve interrupts.
+The driver architceture allows bus driver to manage interrupts and other resosurces through the kernel. Device drivers can then communicate with the bus driver to control individual devices and recieve interrupts and events.
+
+DM90 is intended to be somewhat portable to other operating systems.
 
 # Definitions
 
-Interrupt: A signal from an external device is typically called an interrupt in this document and elsewhere
+Interrupt: A signal from an external device is typically called an interrupt in this document and elsewhere unless specified otherwise.
 
 Trap: A software interrupt, generated with the INT imm8 instruction (or INTO/INT3)
-
-RECL_16: An IRQ reserved for a DOS driver, usually for non-PnP devices, detected by GRABIRQ.SYS. RECL_16 can be explicitly taken over by a 32-bit driver, so that a device works in both environments.
 
 # What is a Driver in OS/90
 
@@ -19,7 +19,7 @@ A driver is a PE COFF object file with:
 * At least a .text, .data, and .bss section
 * The file extention .DRV
 
-Drivers are loaded flat into the kernel space after relocation. Because they are loaded at the very begining of startup.
+Drivers are loaded flat into the kernel space after relocation. Drivers can be inserted and removed at any time, or at least they will be in the future.
 
 # The Job of Drivers
 
@@ -31,6 +31,10 @@ For example, the kernel will access the filesystem through DOS, but a 32-bit FS 
 
 The driver model is what makes OS/90 a true operating system, rather than a protected mode extention to DOS.
 
+# General Notes
+
+* Never assume the position of elements in structures
+
 # Plug-and-Play Support
 
 Plug-and-play is a key feature of OS/90.
@@ -40,7 +44,7 @@ On system startup, after the kernel has finished initializing,
 * Devices are disabled, in other words
   * No interrupts, all are masked
   * Resources cannot be disabled at this point, but that is part of the idea
-* The PnP BIOS enumerates all devices and lists them in the device file space
+* The PnP BIOS enumerates the mainboard and lists devices in the devfs
 
 Bus drivers act on subordinate devices as the kernel acts on all devices globally:
 * Subordinate devices are disabled
@@ -55,15 +59,100 @@ The kernel is technically a bus driver that controls all system resources. If an
 
 # Resource Management
 
-The kernel has a flat list for IO ports and memory, IRQ lines, and DMA channels. As stated previously, these are only owned by a bus.
+A resource is a DMA chanel, IO port range, IRQ line, or memory mapped IO location. The kernel has a flat list for all resources, IRQ lines, and DMA channels.
 
 System device nodes from the PnP BIOS report resources with the PnP ISA format.
 
 The owner is identified with a pointer to BUSDRV_INFO. This structure contains the name of the device, as well as a unique identification. It also contains information about the segment it belongs to.
 
-## Bus Segmentation
+## PnP BIOS and Motherboard Resources
 
-A bus segment is a range of IO ports, memory, DMA channels, and IRQs that are lent to a subordinate bus.
+The PnP resource information is reported as a tag-based structure also used for ISA cards. The IRQ and DMA resource items indicate which lines and channels can be used by the device. If a device has an interrupt mask of FFFF, it can be configured to use any IRQ. Same applies with DMA.
+
+This means that resource usage is indicated only if one of the IRQ or DMA bits is turned on, informing the OS that the device can only use that interrupt if it is to be operational.
+
+Some devices like the PIC or DMA controller are reported through PnP, but they cannot be configured.
+
+System board devices are not automatically configured as there is little reason to do this. A user can manually reconfigure them if desired.
+
+The PnP BIOS does not report everything. It will not report PCI devices. PCI VGA cards are hardcoded to use A0000h-BFFFFh and use bars for SVGA VRAM.
+
+## Abstract Devices
+
+It is up to the bus driver to decide how the devices are accessed using the API and how they are stored internally, but devices must be reported in a standard format within the DevFS.
+
+Devices should have a variable in their structures (or maybe a bitmap) that indicates that it has been requested so that duplicate devices can work.
+
+### DevFS Device Format
+
+The goal is to expose devices to userspace so that plug-and-play driver loading and configuration utilities can be devloped. DevFS does not need to be used but should be.
+
+The file stores the following information:
+* Resource information in ISA PnP format
+
+## Interrupts
+
+### Concept
+
+The 8259 PIC is abstracted by the interrupt subsystem. Instead, a 32-bit virtual interrupt request, or VINT, are assigned to interrupt vectors, and VINT is local to a specific bus. As previously mentioned, the kernel is the low-level bus driver that controls are resources on startup.
+
+The VINT is physical to the kernel bus, so VINT 15 is the same is the actual IRQ 15. The kernel can be modified to support IOAPIC.
+
+### Types
+
+An interrupt can be:
+
+BUS_FREE:
+This interrupt is managed by a bus and cannot be taken by any other driver, except one that does through this specific bus. The utility pointer refferences the bus driver header.
+
+BUS_INUSE:
+It is taken by a bus-subordinate driver. IRQ sharing is possible, but only under the terms of the bus driver. The kernel bus does not permit this.
+
+For the kernel, this IRQ was detected by the PnP BIOS and is statically assigned to a plug-and-play system board device. It cannot be taken for use by any driver.
+
+RECL_16:
+A reclaimable IRQ which is sent to real mode. These are detected by grabirq.sys, which detects changes to the interrupt vector table. Typically used with DOS drivers for non-PnP hardware. Utility pointer has no meaning.
+
+The utility pointer has a slighly different meaning depending on the interrupt level.
+
+All interrupt ownership requests go through a bus driver, which can be the kernel.
+
+### Interrupt Callbacks
+
+The kernel calls the owner of the IRQ and the owner has to handle it. It decides how it will notify the driver that an interrupt has occured.
+
+### Legacy Support
+
+Static interrupts for legacy ISA cards cannot be detected and are to be specified by the user. If a DOS driver is installed, it will have modified the interrupt vector table to hook/insert an IRQ handler.
+
+RECL_16 is detected by grabirq or specified by the user, and the interrupt is reflected to DOS.
+
+A 32-bit driver for an non-PnP ISA card uses InAcquireLegacyIRQ to change it from BUS_FREE or RECL_16 to BUS_INUSE, with the owner being the kernel.
+
+### API
+
+```
+InAcquireLegacyIRQ();
+VINT InRequestBusIRQ(VINT);
+
+```
+STATUS ScanFreeIRQ(PBUS_DRIVER, IN OUT PWORD iterator);
+
+Scanning IRQs is not done in a critical section, so an iterator must be provided. The iterator is the IRQ index. This value must be saved for sequential calls of the function so that it does not report the same IRQ.
+
+The status is OS_OK if the IRQ was found and OS_ERROR_GENERIC if there are no free interrupts.
+
+It is used like this:
+
+```
+WORD interator = 0;
+STATUS is_there_free = ScanFreeIRQ(pkernel_bus, &iterator);
+
+if (is_there_free == OS_OK)
+    // Found an available IRQ on this bus
+if (is_there_free == OS_ERROR_GENERIC)
+    // Could not find one, restart loop
+```
 
 ## Device Abstraction
 
@@ -91,9 +180,13 @@ CAPT_NUKE  = 2 // Nuke the process that called this interrupt
 
 Capturing traps involves the creation of a chain of handlers. If one cannot handle the 16-bit trap (e.g. not the function code it wants) it is passed down to a driver that may handle it. A structure in the kernel already exists for all 256 real mode interrupt vectors. This structure is passed to the handler. If the handler cannot handle the requested, it must set the return status to CAPT_NOHND and yield to the kernel. The kernel will then call the next one upon realizing that the handler cannot perform the task.
 
+Interrupt requests cannot be captured, but the vector can be "multiplexed", so a software interrupt can have a different meaning than a hardware interrupt.
+
 If the kernel reaches the end of the chain with no handler returning successfully, it will call the real mode version.
 
-The overhead with this feature would be similar to that of a 16-bit DOS function dispatcher, but with the added weight of the CALL instructions and entering through V86 mode to service the interrupt. Basically, this will a bit slower that real mode DOS, but it depends on the number of links.
+Some software interrupts are hooked by DOS software before running the program. This is okay.
+
+The overhead with this feature would be similar to that of a 16-bit DOS function dispatcher, but with the added weight of the CALL instructions and entering through V86 mode to service the interrupt. Basically, this will a bit slower that real mode DOS, but it depends on the number of links. Range checking is the correct way to implement function dispatching.
 
 To add a new capture, a function returning dword and taking a trap frame with external linkage must be written. A TrapCaptureLink variable should point to that variable, other fields are reserved and need not be set Chaining something that already has a handler cannot be prevented, but it is possible to check if it has been handled before.
 
@@ -102,12 +195,12 @@ The following is a functional, though not very useful example. Replacing DOS fun
 ```c
 typedef struct {
     Trap32Hnd handler;
-    pvoid     next;
-}TrapCaptureLink,*PTrapCaptureLink;
+    PVOID     next;
+}TRAP_CAPTURE_LINK,*PTRAP_CAPTURE_LINK;
 
 TrapCaptureLink link = {Int21_02, NULL};
 
-Status Int21_02(PTRAP_FRAME t)
+STATUS Int21_02(PTRAP_FRAME t)
 {
     // DOS putchar: beware, EAX[31:16] could be anything
     if ((byte)(t->regs.eax >> 16) == 2)

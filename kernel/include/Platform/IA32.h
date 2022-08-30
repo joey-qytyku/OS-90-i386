@@ -49,11 +49,11 @@ typedef DWORD PAGE;
 //   Segments and IDT    //
 ///////////////////////////
 
-#define SetIntVector(vector, attr, address)
-    _ia32_struct.idt[vector].attr = attr;\
+#define SetIntVector(vector, _attr, address)\
+    _ia32_struct.idt[vector].attr = _attr;\
     _ia32_struct.idt[vector].offset_15_0  = (DWORD)address &  0xFFFF;\
     _ia32_struct.idt[vector].offset_16_31 = (DWORD)address >> 16;\
-    _ia32_struct.idt[vector].zero = 0;\
+    _ia32_struct.idt[vector].zero = 0;
 
 #define MkTrapGate(vector, dpl, address)\
     SetIntVector(vector, 0x80 | dpl<<4 | IDT_INT386, address);
@@ -117,7 +117,7 @@ typedef struct __PACKED
 // The standard register dump, ESP is nonsense
 typedef struct __PACKED
 {
-    DWORD   eax, ebx, ecx, edx, esi, edi, ebp, __esp;
+    DWORD   eax, ebx, ecx, edx, esi, edi, ebp, _esp;
 }REGS_IA32,*PREGS_IA32;
 
 // When a task switch takes place, the CPU
@@ -167,3 +167,4 @@ extern VOID   AppendAddress(PVOID,DWORD);
 extern IA32_STRUCT _ia32_struct;
 
 #endif /* IA32_H */
+

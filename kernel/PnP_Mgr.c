@@ -5,158 +5,108 @@
 
     OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <ttps://www.gnu.org/licenses/>.
 */
 
-#include <Platform/Resource.h>
-#include <Platform/IA32.h>    /* Long jump? */
+
+#include <PnP_Mgr.h>
+#include <Linker.h>
+#include <Atomic.h>
 #include <Type.h>
 
 #define PNP_ROM_STRING BYTESWAP(0x24506e50) /* "$PnP" */
 #define NUM_INT 16 /* For consistency */
 
-IMUSTR KERNEL_OWNER = "KERNL386.EXE";
+static IMUSTR driver_name = "Kernl386.exe";
+static IMUSTR description = "Kernel plug-and-play support"
+
+STATUS KernelEventHandler(PDRIVER_EVENT_PACKET);
+
+DRIVER_HEADER kernel_bus_hdr =
+{
+    .driver_name = &driver_name,
+    .description = &description,
+    .cmdline     = NULL,
+    .driver_flags = DF_BUS,
+    .event_handler = NULL,
+    .next_driver = NULL
+}
 
 //
-// A flat list of a memory and IO space usage.
-// Entries included are supposed to work on
-// nearly all configurations.
-//
-
-static MCHUNX DWORD cur_iorsc = 0;
-
-// This is empty because if there is no PnP support
-// resource management is determined by the
-// configuration of the PC, otherwise, PnP BIOS reports all
-// motherboard devices
-static MCHUNX IO_RESOURCE resources[MAX_IO_RSC];
-
 // Non-standard IRQs are FREE but if they are found
 // to have been modified by a DOS program they
 // are set to RECL_16
-static MCHUNX INTERRUPT interrupts[NUM_INT] =
-{ // TODO: ADD OWNERS
-    [0] =   {STANDARD_32},  // Timer
-    [1] =   {STANDARD_32},  // Keyboard
-    [2] =   {STANDARD_32},  // Cascade
-    [3] =   {RECL_16},      // COM, certainly exists
-    [4] =   {UNKNOWN},      // Also COM
-    [5] =   {UNKNOWN},      // LPT2 if present
-    [6] =   {STANDARD_32},  // Floppy disk controller
-    [7] =   {UNKNOWN},      // LPT1
-    [8] =   {STANDARD_32},  // CMOS/RTC
-    [9] =   {FREE},
-    [10]=   {FREE},
-    [11]=   {FREE},
-    [12]=   {FREE},         // PS/2 mouse, may not exist (Compaq Deskpro?)
-    [13]=   {STANDARD_32},  // Math coprocessor, HARDWIRED*
-    [14]=   {STANDARD_32},  // ATA primary
-    [15]=   {STANDARD_32}   // ATA secondary (may not be present?)
-};
+//
 
-static DRVMUT word ints_masked;
+static MCHUNX DWORD       cur_iorsc = 0;
+static MCHUNX IO_RESOURCE resources[MAX_IO_RSC];
+static MCHUNX INTERRUPT   interrupts[NUM_INT] = {0 /* All are free */ };
+static MCHUNX WORD        mask_bitmap = 0xFFFF;
+//
+// Kernel does not handle events
+//
+STATUS KernelEventHandler(PDRIVER_EVENT_PACKET dep)
+{
+    return OS_FEATURE_NOT_SUPPORTED;
+}
+
 
 // Brief:
 //  Get the Int Info object, not for drivers
 // v:
 //  IRQ number
-// dword to avoid unnecessary sign extention
+// DWORD to avoid unnecessary sign extention
 // Return: A pointer to the interrupt, 4-bit normalized
 //
-PINTERRUPT FastGetIntInfo(DWORD v)
+PINTERRUPT InFastGetInfo(VINT i)
 {
-    return &interrupts[v & 0xF];
+    return &interrupts[i];
 }
 
-// Brief:
-// Assign a handler to an interrupt.
-// This function assigns a single high-level ISR to
-// one or more IRQs. It modifies interrupt structures
-// to point to the ISR and mark it as fast if selected.
-// 
-// Standard interrupts can be modified but only if they are
-// not found to be active.
-// bmp_intlines Bitmap of IRQs to take control of
-// handler      Pointer to the handler
-// fast         If 1, IF is turned off on entry 
-// name         String to identify, any langth, must be in memory
-// Return Status
-//
-STATUS APICALL InRequestFixed(
-    WORD     bmp_intlines,
-    PHANDLER handler,
-    BOOL     fast,
-    PIMUSTR  name
+static VOID SetInterruptEntry(
+    VINT            irq,
+    INTERRUPT_LEVEL lvl,
+    PIRQ_HANDLR     handler,
+    PDRIVER_HEADER  owner
 ){
-    DWORD irq;
-    for (irq=0; irq < NUM_INT; irq++)
-    {
-        if (BIT_IS_SET(bmp_intlines, irq)) // Make this faster?
-        {
-            PINTERRUPT theint = &interrupts[irq];
+    PINTERRUPT i = &interrupts[irq];
 
-            IntsOff();
-            switch (theint->intlevel)
-            {
-            case TAKEN_32:
-                return OS_ERROR_GENERIC;
-            break;
+    EnterCriticalSecttion();
 
-            case STANDARD_32:
-            case RECL_16:
-                theint->owner = name;
-                theint->fast = fast;
-                theint->handler = handler;
-                theint->intlevel= TAKEN_32;
-                return OS_OK;
-            break;
-            default:
-                // Error with hardware detection probably
-                return OS_ERROR_GENERIC;
-            }
-        }
-    }
-    return OS_OK;
+    i->owner     = owner;
+    i->handler   = handler;
+    i->lvl  = lvl;
+
+    ExitCriticalSection();
 }
 
-void APICALL PnBiosCall()
+VOID APICALL PnBiosCall()
 {
 }
 
-// Brief:
-//  Unmask the interrupts specified, the state of IRQ can be
-//  found without having to read the IMR
-// bmp_intlines: A bitmap of the interrupt lines to activate
 //
-void APICALL IntrEnable(word bmp_intlines)
+//
+//
+STATUS KernelEventHandler(PDRIVER_EVENT_PACKET)
 {
-    ints_masked |= bmp_intlines;
+    return OS_FEATURE_NOT_SUPPORTED;
 }
 
-//*The i486DX and better all have integrated floating point
-//*units, but they also have the FERR# pin, which is used
-//*to report floating point errors from IRQ#13 for compatibility
-//*with 80387 code that used this. The IRQ is unavailable for
-//*any other purposes
-//============================================================
-//*The coprocessor slot on i486 boards is simply another socket
-//*for an i487, which is a CPU that disables the FPU-less
-//*package and takes control of the system instead for i486SX PCs
 
 // Scan the ROM space for "$PnP" at a 2K boundary
-STATUS SetupPnP(void)
+STATUS SetupPnP(VOID)
 {
     // ROM space should not be prefetched or written
-    const volatile PPNP_INSTALL_CHECK checkstruct = (pdword)0xF0000;
-    dword i;
-    byte compute_checksum;
+    const volatile PPNP_INSTALL_CHECK checkstruct = (PPNP_INSTALL_CHECK)0xF0000;
+    DWORD i;
+    BYTE compute_checksum;
 
     for (i=0; i<65536/0x800;i++)
     {
         if (checkstruct->signature == PNP_ROM_STRING)
         {
             for (i=0; i<21; i++)
-                compute_checksum += *(pbyte)rom + i;
+                compute_checksum += *(PBYTE)rom + i;
 
             if (compute_checksum == 0)
                 goto HasPnP;
@@ -175,39 +125,44 @@ STATUS SetupPnP(void)
     return OS_OK;
 }
 
-void PnFindConflict(void)
+// Brief:
+//  Legacy IRQ means it the exact IRQ is known by the
+//  user and the driver. This function will add a handler
+//  and set the interrupt to BUS_INUSE
+//
+STATUS InAcquireLegacyIRQ(VINT fixed_irq, PIRQ_HANDLR handler)
 {
-    // Make sure that memory holes do not touch the kernel.
-    // Allocator is an object/struct with base address?
+    SetInterruptEntry(
+        fixed_irq,
+        BUS_INUSE,
+        handler,
+        &kernel_bus_hdr
+    );
+}
+
+VOID PnSendDriverEvent()
+{
+    // Should this require sender != to reciever?
+}
+
+//
+//
+STATUS APICALL InRequestBusIRQ(PDRIVER_HEADER driver, VINT vi)
+{
 }
 
 // Add a new port/memory mapped resource entry
-APICALL STATUS PnAddIOMemRsc(PIO_Resource new_rsc)
+STATUS APICALL PnAddIOMemRsc(PIO_RESOURCE new_rsc)
 {
     if (cur_iorsc >= MAX_IO_RSC)
         return -1;
-    C_memcpy(&resources[cur_iorsc], new_rsc, sizeof(IO_Resource));
+    resources[cur_iorsc] = *new_rsc;
     cur_iorsc++;
     return 0;
 }
 
-// UNFINISHED!!!!!!!!!!!!!!!!
-// @brief Acquires a range of unused port-mapped IO
-// and gives to a bus driver. Resources are not deallocated
-// so there is no issue of fragmentation, just finds a space that fits
-// @param size Bytes to allocate
-//
-APICALL STATUS Bus_AllocateIO(word size, byte align)
+STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 {
-    dword size_of_portspace;
-    dword current_address;
-    int i;
-
-    for (int i = 0; i<cur_iorsc-1; i++)
-    {   // Plus 1?
-        size_of_portspace = resources[i].limit - resources[cur_iorsc].start + 1;
-    }
-    return 0;
 }
 
 // Brief:
@@ -215,24 +170,46 @@ APICALL STATUS Bus_AllocateIO(word size, byte align)
 // Explaination:
 //  A program called GRABIRQ.SYS saves the default assignments
 //  and compares them after DOS is initialized.
+// Note: <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//  If IRQ#2 is modified for some reason, an IRQ will go to IRQ#9,
+//  so IRQ#9 cannot be used
 //
-static void DetectFreeInt(void)
+// By default, the BIOS sends IRQ#9 back to IRQ#2 handler so that a
+// program designed for the single PIC think a real IRQ#2 happened
+//
+static VOID DetectFreeInt(VOID)
 {
-    pdword saved_master_v = phys(655360-1024-64);
-           saved_slave_v  = phys(655360-1024-64+8)
-    pdword master_v = phys(32), slave_v = phys(0x70*4);
-    byte i;
+    PDWORD saved_master_v = phys(655360-1024-64);
+           saved_slave_v  = phys(655360-1024-64+8);
+    PDWORD master_v = phys(32), slave_v = phys(0x70*4);
+    BYTE i;
 
     // I should optimize these loops
     for (i=0; i<8; i++)
     {
         if (saved_master_v[i] != master_v[i])
-            interrupts[i].intlevel = RECL_16;
+        {
+            SetInterruptEntry(
+                i,
+                RECL_16,
+                NULL,
+                &kernel_bus_hdr
+            );
+        }
     }
     for (i=0; i<8; i++)
     {
         if (slave_v[i+8] != saved_slave_v[i])
-            interrupts[i+8].intlevel = RECL_16;;
+            SetInterruptEntry(
+                i+8,
+                RECL_16,
+                NULL,
+                &kernel_bus_hdr
+            );
+    }
+    if (interrupts[2].lvl == RECL_16)
+    { 
+        // IRQ#2 was hooked by DOS. What now?
     }
 }
 
@@ -247,10 +224,10 @@ static void DetectFreeInt(void)
 //  COM2 and COM4 => IRQ#3
 //  COM1 and COM3 => IRQ#4
 //
-static void DetectCOM(void)
+static VOID DetectCOM(VOID)
 {
-    byte i, com_ports;
-    const pword bda = (pword)phys(0x400+0);
+    BYTE i, com_ports;
+    const PWORD bda = (PWORD)phys(0x400+0);
 
     // Check BIOS data area for number of serial ports
     // The beginning words are the COM port IO addresses
@@ -259,22 +236,14 @@ static void DetectCOM(void)
     for (i = 0; i < 4; i++) // Up to four COM ports on PC
     {
         if (bda[i] != 0) // then COM[i] exists
-        {
-            IO_Resource new = {
-                .start = bda[i],
-                .limit = bda[i]+7,
-                .info  = INUSE | STD | PORT
-            };
-            PnAddIOMemRsc(&new);
             com_ports++;
-        }
     }
     // RECL_16 is used because a 32-bit driver for COM is not loaded yet
-    interrupts[4].intlevel = RECL_16;
+    interrupts[4].lvl = RECL_16;
     if (com_ports > 1)
-        interrupts[3].intlevel = RECL_16;
+        interrupts[3].lvl = RECL_16;
 }
 
-void InitPnP(byte fpu_status)
+VOID InitPnP()
 {
 }

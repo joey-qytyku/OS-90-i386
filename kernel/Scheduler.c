@@ -117,7 +117,7 @@ VOID InMasterDispatch(IN PTrapFrame tf, DWORD irq)
 {
     // Simpler way to do this? Use inlines for both ISRs?
     WORD  inservice16 = InGetInService16();
-    const PInterrupt intr  = InFastGetIntInfo(irq);
+    const PINTERRUPT intr  = InFastGetInfo(irq);
 
     /// 1. The ISR is set to zero for both PICs upon SpINT.
     /// 2. If an spurious IRQ comes from master, no EOI is sent
@@ -143,12 +143,8 @@ VOID InMasterDispatch(IN PTrapFrame tf, DWORD irq)
 
     if (intr->intlevel == STANDARD_32 || intr->intlevel == TAKEN_32)
     {
-        if (!intr->fast)
-            IntsOn();
-
+        IntsOn();
         intr->handler(tf); // Return value?
-
-        IntsOff();
         SendEOI(irq);
     }
     else if (RECL_16)

@@ -43,50 +43,6 @@ Only the last mode actually matters. The current one is always "known" by the co
 
 ESP0 is only used during a ring switch. When this happens, a new stack is loaded. When an interrupt happens on top of an interrupt or kernel code, nothing happens.
 
-## Interrupt Ownership
-
-An interrupt can be:
-GENERIC_OWNED:
-Owned by a driver, cannot be taken. Usually legacy resources, like timer, 8042, etc.
-
-BUS_MEMBER_FREE:
-This interrupt is managed by a bus and cannot be taken by any other driver, except one that does through this specific bus. The utility pointer refferences the bus driver header.
-
-BUS_MEMBER_INUSE:
-It is taken by a bus-subordinate driver. 
-
-RECL_16:
-An IRQ which is sent to real mode. These are detected by grabirq.sys, which detects changes to the interrupt vector table. Typically used with DOS drivers for non-PnP hardware. Utility pointer has no meaning.
-
-The utility pointer has a slighly different meaning depending on the interrupt level.
-
-All interrupt ownership requests go through a bus driver, which can be the kernel.
-
-```
-ChOwnLegacyIRQ();
-```
-
-```
-STATUS ScanFreeIRQ(PBUS_DRIVER, PWORD iterator);
-```
-Scanning IRQs is not done in a critical section, so an iterator must be provided. The iterator is the IRQ index. This value must be saved for sequential calls of the function so that it does not report the same IRQ.
-
-The status is OS_OK if the IRQ was found and OS_ERROR_GENERIC if there are no free interrupts.
-
-It is used like this:
-
-```
-WORD interator = 0;
-STATUS is_there_free = ScanFreeIRQ(pkernel_bus, &iterator);
-
-if (is_there_free == OS_OK)
-    // Found an available IRQ on this bus
-if (is_there_free == OS_ERROR_GENERIC)
-    // Could not find one, restart loop
-```
-
-
-
 ## Interrupt interruption
 
 Interrupt handlers (not bottom half) can be interrupted but NOT pre-empted. Other interrupts are completely enabled, but the scheduler is notified to not do any task switching. A critical section must be used to disable them or the handler should be configured to disable them on entry.

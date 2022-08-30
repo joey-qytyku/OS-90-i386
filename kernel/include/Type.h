@@ -65,7 +65,7 @@ OS_FEATURE_NOT_SUPPORTED
 #define OUT  /* output */
 
 #define BIT_IS_SET(num,bit) ((num & (1<<bit))>0)
-#define NULL ((PVOID)0L))
+#define NULL ((PVOID)0L)
 
 #define ASNL "\n\t"
 

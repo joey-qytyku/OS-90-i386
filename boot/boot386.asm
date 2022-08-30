@@ -2,8 +2,8 @@
 
 BOOT386, the OS/90 bootloader written by Joey Qytyku
 
-There is no license, feel free to
-use and modify and use it to load other kernels.
+This program is released to the public domain, feel free to
+use and modify it to load other kernels.
 
 - HISTORY -
 

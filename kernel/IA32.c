@@ -31,7 +31,7 @@ IA32_STRUCT _ia32_struct =
     [GDT_UCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_CODE), 0xCF, 0x00},
     [GDT_UDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_DATA), 0xCF, 0x00},
     [GDT_TSSD ]={
-             sizeof(.tss)-1, 0, 0, ACCESS_RIGHTS(1,3,TYPE_TSS),  0x00, 0x00},
+     sizeof(COMPLETE_TSS)-1, 0, 0, ACCESS_RIGHTS(1,3,TYPE_TSS),  0x00, 0x00},
     [GDT_PNPCS] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0x00, 0x00},
     [GDT_PNP_BIOS_DS]=
                     {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0x00, 0x00},

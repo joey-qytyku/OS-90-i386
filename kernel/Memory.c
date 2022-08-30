@@ -14,7 +14,7 @@
 #include <Memory.h>
 
 #define CHECK_ALIGN(address, if_unaligned)\
-if ((dword)address & 0xFFF != 0)\
+if ((DWORD)address & 0xFFF != 0)\
     {goto if_unaligned}      /* No misleading IF warning */
 
 // The ISA memory hole is a 1M space that is sometimes
@@ -30,9 +30,9 @@ static DWORD memory_after_1M;  // Extended memory between hole and 1M
 //  CONV  RES   EXT  ISA  EXT
 // [640K][384K][15M][1M][xM...]
 
-static dword AddrAlign(PVOID addr, DWORD bound)
+static DWORD AddrAlign(PVOID addr, DWORD bound)
 {
-    return ((dword)addr + bound - 1) & ~(bound-1);
+    return ((DWORD)addr + bound - 1) & ~(bound-1);
 }
 
 // Allocate nodes from a node array to the new head being initialized.

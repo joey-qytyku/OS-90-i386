@@ -1,3 +1,7 @@
+# Current State
+
+NOT COMPLETE. Most of the readme and documentation is dedicated to the release, and specifies the full programming interface that WILL exist.
+
 # What is OS/90
 
 OS/90 is the technology, or more specifically, the source code behind the release, which has not arrived yet and does not have a name. When the release is created from the source code, it is published under a different name, but with the same copyright and GPL license. Anyone can make a release under any name as long as they follow the rules in the GPL license included with the operating system code. GPLv2 is used to allow proprietary software to be included in the release, as most software of the DOS era was closed-source.
@@ -6,7 +10,13 @@ In all documentation, OS/90 is reffered to as an operating system.
 
 With that aside, OS/90 can be reffered to as an OS. It is designed specifically for 32-bit IBM-PC compatibles, primarily from the 1990s.
 
-Minimum requirements
+# Why OS/90
+
+Operating System/90 is not intended to be a replacement for Windows, MacOS, or Linux. Those operating systems do their jobs well enough that nobody complains about them, which is the primary goal of all software. OS/90 intends break the norm of software development today: keep it simple rather than be feature-complete out of the box, and optimize software for specific hardware and low-level interfaces to achieve simplicity, performance, and "hackability".
+
+OS/90 targets an entire decade of computing (and beyond), and runs well on all computers in this era. By comparison, Windows runs poorly on systems older than the release, with each update increasing the number of bugs and resource usage. Average users are mislead into thinking that buying a new computer every few years is normal, when things could be better, and e-waste piles up in landfills.
+
+# Minimum requirements
 |Spec|Minimum|Recommended|Premium|
 -|-|-|-
 RAM | 2MB      | 4MB       | 16MB

@@ -25,10 +25,10 @@
 #define INUSE 4
 #define MEM_CACHABLE 8
 
-#define DECODE_10 0
-#define DECODE_16 1
-#define DECODE_24 2
-#define DECODE_32 3
+#define IOP_DECODE_10 0
+#define IOP_DECODE_16 1
+#define MEM_DECODE_24 2
+#define MEM_DECODE_32 3
 
 #define ACCESS_8  0
 #define ACCESS_16 1
@@ -55,7 +55,7 @@ typedef enum {
     MJ_PNP_UNLOAD,
     MJ_PNP_LOAD,
     MJ_PNP_DISABLE,
-    MJ_PNP_ENABLE,
+    MJ_PNP_ENABLE
 }PNP_EVENT_CODE;
 
 typedef struct
@@ -79,18 +79,39 @@ typedef struct {
     INTERRUPT_LEVEL lvl;
     PIRQ_HANDLR     handler;
     PDRIVER_HEADER  owner;
-}INTERRUPT,*PINTERRUPT;
+}INTERRUPT,
+*PINTERRUPT;
+
+// Replace with this
+typedef struct {
+    DWORD           intlevels_bmp;
+    PIRQ_HANDLR     handlers[16];
+    PDRIVER_HEADER  owners[16];
+}INTERRUPTS,
+*PINTERRUPTS;
+
+/*
+The ISA bus supports 24-bit addresses and up to 16-bit IO ports
+Many devices use 10-bit decode.
+
+This is really bad because any address with the bottom bits
+reffering to the legacy device will access it, even if the top
+bits are something
+*/
 
 typedef struct
 {
     DWORD           start;
-    DWORD           length;
-    DWORD           info;
+    DWORD           length; // end range
+    DWORD           info;   // Need to bit compress
     DWORD           alignment;
     PDRIVER_HEADER  owner;
-}IO_RESOURCE,MCHUNX *PIO_RESOURCE;  // IO ports or memory mapped IO
+}IO_RESOURCE,*PIO_RESOURCE;  // IO ports or memory mapped IO
+
 //
 // PIO_RESOURCE is MCHUNX because variable interrupts is MCHUNX
+//
+
 //
 // An INTERRUPT type is not MCHUNX unless specified, but a pointer to one must
 // be because it will certainly point to a MCHUNX INTERRUPT object
@@ -116,7 +137,7 @@ STATUS APICALL PnAddIOMemRsc(PIO_RESOURCE);
 
 #ifndef __PROGRAM_IS_DRIVER
 
-MCHUNX PINTERRUPT InFastGetInfo(VINT i);
+PINTERRUPT InFastGetInfo(VINT i);
 VOID InitPnP(BYTE)
 
 __attribute__(( regparm(1) ))

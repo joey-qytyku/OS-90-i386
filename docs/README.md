@@ -4,13 +4,12 @@ NOT COMPLETE. Most of the readme and documentation is dedicated to the release, 
 
 # What is OS/90
 
-OS/90 is the technology, or more specifically, the source code behind the release, which has not arrived yet and does not have a name. When the release is created from the source code, it is published under a different name, but with the same copyright notice and GPL license. Anyone can make a release under any name as long as they follow the rules in the GPL license included with the operating system code. GPLv2 is used to allow proprietary software to be included in the release, as most software of the DOS era was closed-source.
+OS/90 is a work-in-progress operating system which includes a bootloader, kernel, and some userspace utilities.
 
-In all documentation, OS/90 is reffered to as an operating system.
-
-With that aside, OS/90 can be reffered to as an OS. It is designed specifically for 32-bit IBM-PC compatibles, primarily from the 1990s, but can run on newer hardware. The kernel is non-portable, but APIs built on top it, including the driver model, are somewhat portable.
+It is designed specifically for 32-bit IBM-PC compatibles, primarily from the 1990s, but can run on newer hardware. The kernel is non-portable, but APIs built on top it, including the driver model, are somewhat portable.
 
 # Minimum requirements
+
 |Spec|Minimum|Recommended|Premium|
 -|-|-|-
 RAM | 2MB      | 4MB       | 16MB
@@ -50,11 +49,17 @@ Type A| Pentium   | PCI, ISAPNP
 
 # Build from Source
 
-A Unix-like environment
+A Unix-like environment is required.
 
 The makefile needs to be modified to refference the appropriate toolchain.
 
-NASM, DOSBox, git, qemu, and make must be installed. Once everything is set up, simply type ./Build.sh (chmod +x Build.sh if it does not work).
+The following dependencies are required:
+
+* NASM
+* DOSBox
+* git
+* qemu
+* make
 
 # Installation
 
@@ -64,7 +69,11 @@ The install files are provided in the release ZIP file. Unzip and copy to a CDRO
 
 Uninstalling is easy :)
 
-OS/90 is self-contained and does not modify the DOS system at all. Delete the files in OS90. CONFIG.SYS must be updates to remove the GRABIRQ.SYS driver.
+OS/90 is self-contained and does not modify the DOS system at all. Delete the files in OS90. CONFIG.SYS must be updated to remove the GRABIRQ.SYS driver.
+
+* CD \
+* DELTREE OS90
+* (Remove grabirq)
 
 # Update
 

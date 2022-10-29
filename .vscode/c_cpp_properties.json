@@ -8,7 +8,7 @@
                 "${workspaceFolder}/kernel/include"
             ],
             "defines": [],
-            "compilerPath": "/home/joey/gcc-10.1.0-nolibc/i386-linux/bin/i386-linux-gcc",
+            "compilerPath": "/usr/bin/i586-pc-linux-gnu-gcc",
             "cStandard": "gnu99",
             "cppStandard": "gnu++17",
             "intelliSenseMode": "linux-gcc-x86",

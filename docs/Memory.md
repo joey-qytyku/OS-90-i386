@@ -28,23 +28,44 @@ The double fault is unrecoverable and will lead to a panic.
 
 ## Page Frame Allocation
 
-### Goals
+A two-layer linked list is used. Heads are pointers to the allocation chain.
 
-The allocation strategy is very barebones but fast. It is deterministic and not slowed by fragmentation because it uses fixed-size blocks.
+The kernel resizes a single chain for the purpose of bootstrapping head and chain allocation.
 
-### Design
+Bootstrap Memory MMS : Post-bootstrap MMS
 
-Fixed blocks are used. The size can be configured but is 8K by default.
+Memory Managment Structures : Usable memory
 
-### Mapping Heads
+Because the kernel has to allocate memory to allocate memory, MMS causes some internal fragmentation and waste, but MMS are very small structures.
 
-Alignment is checked for all page functions.
+Tails are linked lists. Because fixed blocks are used, they simply need to indicate that they exist and the next chain. Tails are always stored at DWORD aligned addresses relative to a page aligned address and are tagged pointers.
 
-## Page Table Generation
+The fist two bits:
+00=Not present
+01=Present
+10=End of sequence, not present
+11=End of sequence, present
 
-A function exist for mapping addresses within a page directory. It allows mappings to cross PDE boundaries.
+## Example
 
-The page directory entry to be used in a mapping is `address >> (PAGE_SHIFT - 6)`.
+Allocating 64 KiB with 16K blocks would require five DWORDS. Worst case for fragmentation is that another 16K have to be allocated for the new DWORDS, leading to 80 KiB being allocated.
+
+As explained above, the memory manager is not deterministic in fragmentation and can change from being efficient to wasteful at arbitrary intervals.
+
+The larger the block size, the higher the internal fragmentation, and less frequent the waste intervals for the head and chain space.
+
+Speed is more deterministic and higher because of fixed blocks.
+
+## Programming Advice
+
+The memory manager should normally be transparent to userspace programmers. For kernel mode software, memory can only be controlled using direct memory calls. The block size can by dynamically recieved by drivers.
+
+### Functions Supported
+
+Allocating
+
+Deleting
+Resizing (+/-)
 
 ## Virtual Memory
 
@@ -56,34 +77,21 @@ The virtual memory system allows programs to use more memory space than is physi
 
 Pages do not need to be constantly swapped unless the main memory is under pressure and more important things need to be prioritized. If the system swaps too much, it will thrash and slow down the system.
 
+## Address Spaces
 
+The memory manager will keep track of which parts of physical memory are in use and by what. It will also be able to map allocation chains to arbitrary locations. The issue now is allocating address spaces for kernel software so that a simple malloc-like call would be possible.
 
-## Heap Management
+Userspace processes cannot invoke memory allocation and should "know" exactly how much they need or extend their total memory. The .bss section should be used for a static "heap".
 
-Memory allocation functions return handles. Blocks must be frozen to get the address. Freezing maps the block to an arbitrary location in memory. GlobalAlloc blocks that are frozen map to the kernel address space or user address space depending on parameters. Allocated memory may be relocated to save allocation entries.
+ Memory sharing is possible, however. In theory, one program can be a memory broker for other processes (IDK about this). When a process is loaded into memory, it is mapped flat into the virtual address space starting at 1M (anything lower makes the executable invalid).
 
-If GlobalAlloc returns -1, the function failed. Otherwise, it returns the address of the block.
-
-The first argument of the FreezeBlock function is the thread ID. If it's -1, there is no process. This allows for sharing memory.
-
-Kernel example:
-```c
-void AllocEG()
-{
-    Handle h     = GlobalAlloc(0x1000, 0);
-    pbyte  block = FreezeBlock(-1, h, FRZ_R | FRZ_W);
-}
-```
+The kernel needs the ability to map memory to arbitrary locations.
 
 ## Virtual Memory
 
-Previously, it was considered to determine page swapping at the process level, but this has been changed. Even high priority programs may not need certain pages to be constantly in memory.
+Virtual memory is implemented in the kernel.
 
-Each program gets a page directory. The kernel/driver pages are shared with the rest of the processes. Drivers are loaded at startup so that each page directory does not need to be modified. The kernel uses its own page directory only for starting up. Multitasking will cause the kernel to share pages with the rest of the programs.
-
-At startup, the memory manager generates the page tables for the kernel.
-
-New page mappings can be loaded from C using inline assembly because the kernel never moves. Writing to CR3 will always refresh the TLB. If CR3 does not need to be changed, it is not written.
+Blocks can be
 
 # Kernel API
 
@@ -97,7 +105,7 @@ This functon modifies the page tables of a process to map somewhere else. Addres
 ## Programming Considerations
 (Updated 2022-08-05)
 
-Programs should avoid allocating and freeing memory and rely on the .bss section more. bss is zeroes only if the kernel needs it. Allocations can be called, but they should be relatively large and page-multiples in size.
+Programs should avoid allocating and freeing memory and rely on the .bss section more. Allocations can be called, but they should be relatively large and page-multiples in size.
 
 Software libraries can help with managing .bss heaps if that is necessary.
 

@@ -51,14 +51,31 @@ MCHUNX v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
 // Wait: what about 16-bit tasks running in V86?
 
 //
-// Should the monitor emulate
+// Determines if the supervisor is emulating a user program
+// or a 16-bit interrupt/kernel call
 static INTVAR bool supervisor_call = 0;
 
 const PDWORD real_mode_ivt = (PVOID)phys(0);
 
+static BYTE bPeek86(WORD seg, WORD off) {return *(PBYTE)MK_LP(seg,off);}
+static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
+
 static inline PVOID MK_LP(WORD seg, WORD off)
 {
     return (PVOID)((seg<<4) + off);
+}
+
+//
+//
+//
+ScAppendTrapLink()
+
+// Brief: Upon a critical error, it is necessary to
+// remove all V86 links so that a bluescreen can be generated
+// Modifies: v86_capture_chain
+VOID ScOnErrorDetatchLinks(VOID)
+{
+    C_memset(&v86_capture_chain, '\0', sizeof(v86_capture_chain));
 }
 
 // Brief: General purpose BIOS/DOS call interface
@@ -69,7 +86,7 @@ static inline PVOID MK_LP(WORD seg, WORD off)
 // context: The register params
 // context stack: Automatically set
 // for supervisor calls
-void ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
+VOID ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
 {
     PV86_Chain_Struct current_link;
 
@@ -95,13 +112,6 @@ void ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
 
 /* DOS will change the stack of an IRQ */
 
-static byte bPeek86(WORD seg, WORD off) {return *(PBYTE)MK_LP(seg,off);}
-static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
-
-// TODO:
-//    Make IRET the stop code for all supervisor calls (INT and IRQ)
-//    There is no reason why a user program would use IRET
-//
 // The V86 monitor for 16-bit tasks, ISRs, and PM BIOS/DOS calls
 // Called by GP# handler
 void ScMonitorV86(IN PTrapFrame context)

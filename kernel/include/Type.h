@@ -19,6 +19,10 @@ typedef BYTE*     PBYTE;
 typedef DWORD*    PDWORD;
 typedef QWORD*	  PQWORD;
 
+typedef BYTE   BOOL;
+typedef DWORD  STATUS;
+typedef SDWORD HANDLE;
+
 // IMUSTR is a constant pointer to a constant string. The compiler
 // will generate only the string when optimizing and no pointer.
 //
@@ -31,16 +35,12 @@ typedef QWORD*	  PQWORD;
 //
 // Examples:
 // IMUSTR str = "Hello, world!\n";
-// PIMUSTR pstr = &str;
+// IMUSTR pstr = &str;
 
 // printf("%s", *pstr);
 
 typedef const char*const IMUSTR;
-typedef IMUSTR *PIMUSTR;
-
-#define HANDLE SDWORD
-#define STATUS DWORD
-#define BOOL   BYTE
+typedef const IMUSTR *const PIMUSTR;
 
 enum {
 OS_OK,

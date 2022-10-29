@@ -4,7 +4,7 @@ The most powerful feature of OS/90 is the driver model. It is designed to be use
 
 The driver architceture allows bus driver to manage interrupts and other resosurces through the kernel. Device drivers can then communicate with the bus driver to control individual devices and recieve interrupts and events.
 
-DM90 is intended to be somewhat portable to other operating systems.
+DM90 is intended to be somewhat portable to other operating systems. It is also intended to support the limitations of 90's hardware.
 
 # Definitions
 
@@ -59,7 +59,7 @@ The kernel is technically a bus driver that controls all system resources. If an
 
 # Resource Management
 
-A resource is a DMA chanel, IO port range, IRQ line, or memory mapped IO location. The kernel has a flat list for all resources, IRQ lines, and DMA channels.
+A resource is a DMA chanel, IO port range, IRQ line, or memory mapped IO location. The kernel has a list for all resources, IRQ lines, and DMA channels.
 
 System device nodes from the PnP BIOS report resources with the PnP ISA format.
 
@@ -75,11 +75,27 @@ Some devices like the PIC or DMA controller are reported through PnP, but they c
 
 System board devices are not automatically configured as there is little reason to do this. A user can manually reconfigure them if desired.
 
-The PnP BIOS does not report everything. It will not report PCI devices. PCI VGA cards are hardcoded to use A0000h-BFFFFh and use bars for SVGA VRAM.
+The PnP BIOS does not report everything. It will not report PCI devices. PCI VGA cards are hardcoded to use A0000h-BFFFFh and use BARs for SVGA VRAM.
+
+## Problems
+
+### Limited Configurability
+
+The ISA bus is 16-bit so it does not support 32-bit memory access or addressing. The ISA PnP specification seems to support this anyway. ISA also can use 10-bit port decode or 16-bit decode. The ISA PnP static resource data reports this.
+
+In the ISA bus, each card is sent the pin signals and, hopefully, only one responds by transmitting data. The difference in address decode bits is problematic because a card with 10-bit IO decode will only get 10 bits, and the upper ones mean nothing. E.g. if the base is 2F8h, the address 12F8h would access the exact same address. This can become a source of conflict.
+
+PCI, by comparison, is 32-bit capable and BARs can go anywhere.
+
+The ISA PnP bus has more specifics that require specific design choices in the PnP manager. Devices can have certain memory addresses and ports which they can optionally be configured to use by software. For example, a parallel port card can be configured to the three standard ports and nothing else for compatibility.
+
+### User Configuration
+
+The user may need to change certain settings. Configurations must be maintained by the userspace.
 
 ## Abstract Devices
 
-It is up to the bus driver to decide how the devices are accessed using the API and how they are stored internally, but devices must be reported in a standard format within the DevFS.
+It is up to the bus driver to decide how the devices are accessed using the API and how they are stored internally, but devices should be reported in a standard format within the DevFS.
 
 Devices should have a variable in their structures (or maybe a bitmap) that indicates that it has been requested so that duplicate devices can work.
 
@@ -94,9 +110,15 @@ The file stores the following information:
 
 ### Concept
 
-The 8259 PIC is abstracted by the interrupt subsystem. Instead, a 32-bit virtual interrupt request, or VINT, are assigned to interrupt vectors, and VINT is local to a specific bus. As previously mentioned, the kernel is the low-level bus driver that controls are resources on startup.
+The 8259 PIC is abstracted by the interrupt subsystem. Instead, a 32-bit virtual interrupt request, or VINT, are assigned to interrupt vectors, and VINT is local to a specific bus. As previously mentioned, the kernel is the low-level bus driver that controls all resources on startup.
 
 The VINT is physical to the kernel bus, so VINT 15 is the same is the actual IRQ 15. The kernel can be modified to support IOAPIC.
+
+### Rules
+
+Interrupt-related routines cannot be within an ISR. This is undefined behavior. 
+
+The kernel modifies interrupt entries within a critical section.
 
 ### Types
 
@@ -158,7 +180,7 @@ if (is_there_free == OS_ERROR_GENERIC)
 
 All PnP devices are reported through the devfs. Non-PnP devices simply have their assumed resources blacklisted so that they are not used.
 
-Some devices are embedded to the system board, while others are attached to a bus (PCI, PCMCIA, ISA PnP). Some buses have their own DMA subsystems, while ISA PnP uses the standard AT DMA controller.
+Some devices are embedded to the system board, while others are attached to a bus (PCI, PCMCIA, ISA PnP). Most buses have their own DMA subsystems, while ISA PnP uses the standard AT DMA controller.
 
 Assuming the presence of devices is avoided, but some hardware is garaunteed to be present, such as the 8259 PIC and DMA. The PnP BIOS is called by the PnP manager to detect system board devices. These devices are never re-configured (although it would be possible). Detected system board devices are placed in the $:\SYSTEM namespace.
 

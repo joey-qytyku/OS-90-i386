@@ -10,6 +10,7 @@
 
 #include <stdarg.h>
 #include <Type.h>
+#include <V86.h> /* For calling BIOS functions */
 
 #define MAX_STR_LENGTH_OF_UINT32 10
 
@@ -121,4 +122,35 @@ VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
     FailSilent:
     // This function must end with va_end
     va_end(ap);
+}
+
+static VOID FatalErrorPutchar(BYTE ch)
+{
+    TRAP_FRAME regparm = { .regs.eax = (0xE << 8) | ch};
+    ScVirtual86_Int(&regparm, 0x10);
+}
+
+VOID FatalError(DWORD error_code)
+{
+    TRAP_FRAME regparm = { 0 };
+    volatile PBYTE text_attrib = (PBYTE)0xB8000;
+
+    ScOnErrorDetatchLinks();
+
+    // Switch to text mode 3
+    regparm.regs.eax = 3;
+    ScVirtual86_Int(&regparm, 0x10);
+
+    // Print the message
+    KeLogf(FatalErrorPutchar,
+    "The OS/90 kernel has encounterd a fatal error.\n\t"
+    "Please restart your computer.\n\t"
+    "Error code: @x", error_code
+    );
+
+    // Make the screen blue
+    for (WORD i = 0; i<4000;i+=2)
+    {
+        text_attrib[i] = 0x17;
+    }
 }

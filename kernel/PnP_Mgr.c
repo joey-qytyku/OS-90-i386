@@ -20,8 +20,16 @@
 static IMUSTR driver_name = "Kernl386.exe";
 static IMUSTR description = "Kernel plug-and-play support"
 
-STATUS KernelEventHandler(PDRIVER_EVENT_PACKET);
+STATUS KernelEventHandler(PDRIVER_EVENT_PACKET dep)
+{
+    return OS_FEATURE_NOT_SUPPORTED;
+}
 
+////////////////////////////////////////////////////////////////////////////////
+// The kernel is a bus and has access to all resources on the system
+// It handles regular PnP functionality with system board devices
+// (obviously not remove/insert events)
+//
 DRIVER_HEADER kernel_bus_hdr =
 {
     .driver_name = &driver_name,
@@ -38,19 +46,29 @@ DRIVER_HEADER kernel_bus_hdr =
 // are set to RECL_16
 //
 
+//
+// DO INTERRUPTS HAVE TO BE VOLATILE?
+//
+
+////////////////////////////////////////////////////////////////////////////////
+// PnP manager functions that modify the interpretation
+// of interrupts may not run inside an ISR.
+//
+// Despite the fact that other driver can modify resource
+// information indirectly with function calls, there is no
+// need for volatile because that would not be unexpected and
+// kernel code cannot be interrupted by a process or driver
+////////////////////////////////////////////////////////////////////////////////
+
 static MCHUNX DWORD       cur_iorsc = 0;
-static MCHUNX IO_RESOURCE resources[MAX_IO_RSC];
-static MCHUNX INTERRUPT   interrupts[NUM_INT] = {0 /* All are free */ };
-static MCHUNX WORD        mask_bitmap = 0xFFFF;
+static IO_RESOURCE resources[MAX_IO_RSC];
+static INTERRUPT   interrupts[NUM_INT] = {0 /* All are free */ };
+static WORD        mask_bitmap = 0xFFFF;
 //
 // Kernel does not handle events
 //
-STATUS KernelEventHandler(PDRIVER_EVENT_PACKET dep)
-{
-    return OS_FEATURE_NOT_SUPPORTED;
-}
 
-
+////////////////////////////////////////////////////////////////////////////////
 // Brief:
 //  Get the Int Info object, not for drivers
 // v:
@@ -115,12 +133,8 @@ STATUS SetupPnP(VOID)
         }
     }
     HasPnP:
-
-    // The GDT must be updated so that the PnP code segment
-    // is pointed to by the entry
-
-    // PnP requires a 16-bit data and code segment
-    // but the BIOS is required to support 32-bit stacks
+    PnSetBiosDsegBase(checkstruct->protected_data_base);
+    PnSetBiosCsegBase(checkstruct->protected_base);
 
     return OS_OK;
 }

@@ -20,6 +20,15 @@
 #define MEM 0
 #define AVAIL 0
 
+// Resource flags byte:
+//|AA|DD|C|U|S|P|
+// P=PORT
+// S=STD
+// U=INUSE
+// C=MEM_CACHEABLE
+// DD=
+// Uses bit fields instead of byte
+
 #define PORT 1
 #define STD 2
 #define INUSE 4
@@ -41,6 +50,7 @@
 
 typedef STATUS (*PEVENT_HANDLER)(PVOID);
 typedef VOID   (*PIRQ_HANDLR)   (PREGS_IA32);
+typedef BYTE RESOURCE_INF;
 
 typedef DWORD VINT;
 
@@ -83,12 +93,14 @@ typedef struct {
 *PINTERRUPT;
 
 // Replace with this
-typedef struct {
-    DWORD           intlevels_bmp;
-    PIRQ_HANDLR     handlers[16];
-    PDRIVER_HEADER  owners[16];
-}INTERRUPTS,
-*PINTERRUPTS;
+
+typedef struct __attribute__((packed)){
+    char    lvl:2;
+    long   handlers;
+    long   owners;
+}INTERRUPT,
+*PINTERRUPT;
+
 
 /*
 The ISA bus supports 24-bit addresses and up to 16-bit IO ports
@@ -96,17 +108,28 @@ Many devices use 10-bit decode.
 
 This is really bad because any address with the bottom bits
 reffering to the legacy device will access it, even if the top
-bits are something
+bits are something else
 */
 
-typedef struct
+//
+// owner_krel is a 24-bit offset to C0000000. For bit packing.
+// This does not matter to any of the drivers.
+//
+typedef struct __attribute__((packed))
 {
-    DWORD           start;
-    DWORD           length; // end range
-    DWORD           info;   // Need to bit compress
-    DWORD           alignment;
-    PDRIVER_HEADER  owner;
+    DWORD          start;
+    DWORD          size:24;
+    DWORD          alignment:24;
+    PVOID          owner_krel;
+    BYTE
+        is_port:1,
+        is_std:1,
+        inuse:1,
+        mem_cachable:1,
+        io_decode:2,
+        io_access:2;
 }IO_RESOURCE,*PIO_RESOURCE;  // IO ports or memory mapped IO
+
 
 //
 // PIO_RESOURCE is MCHUNX because variable interrupts is MCHUNX

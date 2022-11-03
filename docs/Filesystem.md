@@ -9,3 +9,9 @@ Disk access is also 16-bit and uses the BIOS. As with FS, a driver can replace t
 Floppy drives are registered as FDA and FDB. IDE/ATA drives are DSKA-DSKD. Disk drives are in the BLOCK directory.
 
 Sectors are garaunteed to be 512 bytes in both cases.
+
+# Removable Devices
+
+Some devices can be removed and inserted. Floppy drives are always A and B. USB flash drives may be any driver letter.
+
+Driver letters can be changed.

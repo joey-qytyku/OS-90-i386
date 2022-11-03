@@ -83,7 +83,7 @@ The PnP BIOS does not report everything. It will not report PCI devices. PCI VGA
 
 The ISA bus is 16-bit so it does not support 32-bit memory access or addressing. The ISA PnP specification seems to support this anyway. ISA also can use 10-bit port decode or 16-bit decode. The ISA PnP static resource data reports this.
 
-In the ISA bus, each card is sent the pin signals and, hopefully, only one responds by transmitting data. The difference in address decode bits is problematic because a card with 10-bit IO decode will only get 10 bits, and the upper ones mean nothing. E.g. if the base is 2F8h, the address 12F8h would access the exact same address. This can become a source of conflict.
+In the ISA bus, each card is sent the pin signals and, hopefully, only one responds by transmitting data. The difference in address decode bits is problematic because a card with 10-bit IO decode will only get 10 bits, and the upper ones mean nothing. E.g. if the base is 2F8, the address AF8 would access the exact same address. This can become a source of conflict.
 
 PCI, by comparison, is 32-bit capable and BARs can go anywhere.
 

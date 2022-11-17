@@ -18,12 +18,7 @@
 #define NUM_INT 16 /* For consistency */
 
 static IMUSTR driver_name = "Kernl386.exe";
-static IMUSTR description = "Kernel plug-and-play support"
-
-STATUS KernelEventHandler(PDRIVER_EVENT_PACKET dep)
-{
-    return OS_FEATURE_NOT_SUPPORTED;
-}
+static IMUSTR description = "Kernel plug-and-play support";
 
 ////////////////////////////////////////////////////////////////////////////////
 // The kernel is a bus and has access to all resources on the system
@@ -32,22 +27,18 @@ STATUS KernelEventHandler(PDRIVER_EVENT_PACKET dep)
 //
 DRIVER_HEADER kernel_bus_hdr =
 {
-    .driver_name = &driver_name,
-    .description = &description,
-    .cmdline     = NULL,
-    .driver_flags = DF_BUS,
+    .driver_name   = &driver_name,
+    .description   = &description,
+    .cmdline       = NULL,
+    .driver_flags  = DF_BUS,
     .event_handler = NULL,
-    .next_driver = NULL
-}
+    .next_driver   = NULL
+};
 
 //
 // Non-standard IRQs are FREE but if they are found
 // to have been modified by a DOS program they
 // are set to RECL_16
-//
-
-//
-// DO INTERRUPTS HAVE TO BE VOLATILE?
 //
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,12 +52,24 @@ DRIVER_HEADER kernel_bus_hdr =
 ////////////////////////////////////////////////////////////////////////////////
 
 static MCHUNX DWORD       cur_iorsc = 0;
-static IO_RESOURCE resources[MAX_IO_RSC];
-static INTERRUPT   interrupts[NUM_INT] = {0 /* All are free */ };
-static WORD        mask_bitmap = 0xFFFF;
-//
-// Kernel does not handle events
-//
+static MCHUNX IO_RESOURCE resources[MAX_IO_RSC];
+static MCHUNX WORD        mask_bitmap = 0xFFFF;
+static MCHUNX INTERRUPTS  interrupts = { 0 };
+
+/*
+Supported operations with interrupts:
+
+Set operantions:
+* Request from bus
+* Request from kernel bus (legacy)
+* Surrender to DOS (change to RECL_16)
+* Reclaim from DOS (change to INUSE)
+
+Get operations:
+* Get 32-bit handler address
+*
+
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 // Brief:
@@ -76,38 +79,67 @@ static WORD        mask_bitmap = 0xFFFF;
 // DWORD to avoid unnecessary sign extention
 // Return: A pointer to the interrupt, 4-bit normalized
 //
-PINTERRUPT InFastGetInfo(VINT i)
-{
-    return &interrupts[i];
-}
-
 static VOID SetInterruptEntry(
     VINT            irq,
     INTERRUPT_LEVEL lvl,
-    PIRQ_HANDLR     handler,
+    FP_IRQ_HANDLR   handler,
     PDRIVER_HEADER  owner
 ){
-    PINTERRUPT i = &interrupts[irq];
 
     EnterCriticalSecttion();
 
-    i->owner     = owner;
-    i->handler   = handler;
-    i->lvl  = lvl;
+    interrupts.handlers[irq] = handler;
+    interrupts.owners[irq] = owner;
+    interrupts.lvl_bmp |= lvl << (irq * 2);
 
     ExitCriticalSection();
 }
 
-VOID APICALL PnBiosCall()
+//
+// A driver or the kernel can voluntarily give an interrupt back to DOS
+// for whatever reason.
+//
+VOID InSurrenderInterrupt()
+{}
+
+VOID InRegainInterrupt()
+{}
+
+INTERRUPT_LEVEL InGetInterruptLevel(VINT irq)
+{
+    return interrupts.lvl_bmp >>= irq * 2;
+}
+
+FP_IRQ_HANDLR InGetInterruptHandler(VINT irq)
+{
+    return interrupts.handlers[irq];
+}
+
+// Brief:
+//  Legacy IRQ means it the exact IRQ is known by the
+//  user and the driver. This function will add a handler
+//  and set the interrupt to BUS_INUSE
+//
+STATUS InAcquireLegacyIRQ(VINT fixed_irq, FP_IRQ_HANDLR handler)
+{
+    SetInterruptEntry(
+        fixed_irq,
+        BUS_INUSE,
+        handler,
+        &kernel_bus_hdr
+    );
+}
+
+STATUS APICALL InRequestBusIRQ(PDRIVER_HEADER driver, VINT vi)
 {
 }
 
-//
-//
-//
-STATUS KernelEventHandler(PDRIVER_EVENT_PACKET)
+////////////////////////////////////////////////////////////////////////////////
+// Plug and Play Bios communication support, refferences code in PnP_Mgr.asm
+////////////////////////////////////////////////////////////////////////////////
+
+VOID APICALL PnBiosCall()
 {
-    return OS_FEATURE_NOT_SUPPORTED;
 }
 
 
@@ -115,7 +147,9 @@ STATUS KernelEventHandler(PDRIVER_EVENT_PACKET)
 STATUS SetupPnP(VOID)
 {
     // ROM space should not be prefetched or written
-    const volatile PPNP_INSTALL_CHECK checkstruct = (PPNP_INSTALL_CHECK)0xF0000;
+    const volatile PPNP_INSTALL_CHECK
+    checkstruct = (PPNP_INSTALL_CHECK)0xF0000;
+
     DWORD i;
     BYTE compute_checksum;
 
@@ -124,7 +158,7 @@ STATUS SetupPnP(VOID)
         if (checkstruct->signature == PNP_ROM_STRING)
         {
             for (i=0; i<21; i++)
-                compute_checksum += *(PBYTE)rom + i;
+                compute_checksum += *(PBYTE)checkstruct + i;
 
             if (compute_checksum == 0)
                 goto HasPnP;
@@ -138,32 +172,23 @@ STATUS SetupPnP(VOID)
 
     return OS_OK;
 }
-
-// Brief:
-//  Legacy IRQ means it the exact IRQ is known by the
-//  user and the driver. This function will add a handler
-//  and set the interrupt to BUS_INUSE
-//
-STATUS InAcquireLegacyIRQ(VINT fixed_irq, PIRQ_HANDLR handler)
-{
-    SetInterruptEntry(
-        fixed_irq,
-        BUS_INUSE,
-        handler,
-        &kernel_bus_hdr
-    );
-}
-
+////////////////////////////////////////////////////////////////////////////////
+// Plug and Play kernel event handling and sending
+////////////////////////////////////////////////////////////////////////////////
 VOID PnSendDriverEvent()
 {
     // Should this require sender != to reciever?
 }
-
+//Kernel does not handle events !!!!!!!!!!!!!!! Where to put this?
 //
-//
-STATUS APICALL InRequestBusIRQ(PDRIVER_HEADER driver, VINT vi)
+STATUS KernelEventHandler(PDRIVER_EVENT_PACKET)
 {
+    return OS_FEATURE_NOT_SUPPORTED;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// IO and Memory Resource Managment Reoutines
+////////////////////////////////////////////////////////////////////////////////
 
 // Add a new port/memory mapped resource entry
 STATUS APICALL PnAddIOMemRsc(PIO_RESOURCE new_rsc)
@@ -193,12 +218,12 @@ STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 //
 static VOID DetectFreeInt(VOID)
 {
-    PDWORD saved_master_v = phys(655360-1024-64);
+    PDWORD saved_master_v = phys(655360-1024-64),
            saved_slave_v  = phys(655360-1024-64+8);
     PDWORD master_v = phys(32), slave_v = phys(0x70*4);
     BYTE i;
 
-    // I should optimize these loops
+    // I should optimize these loops, this is kind of bad
     for (i=0; i<8; i++)
     {
         if (saved_master_v[i] != master_v[i])
@@ -221,7 +246,7 @@ static VOID DetectFreeInt(VOID)
                 &kernel_bus_hdr
             );
     }
-    if (interrupts[2].lvl == RECL_16)
+    if (GetInterruptLevel(2) == RECL_16)
     { 
         // IRQ#2 was hooked by DOS. What now?
     }
@@ -247,15 +272,17 @@ static VOID DetectCOM(VOID)
     // The beginning words are the COM port IO addresses
     // Zero indictates not present
     //
-    for (i = 0; i < 4; i++) // Up to four COM ports on PC
+    for (i = 0; i < 4; i++) // Up to four COM ports on an IBM PC
     {
         if (bda[i] != 0) // then COM[i] exists
             com_ports++;
     }
     // RECL_16 is used because a 32-bit driver for COM is not loaded yet
-    interrupts[4].lvl = RECL_16;
-    if (com_ports > 1)
-        interrupts[3].lvl = RECL_16;
+//    interrupts[4].lvl = RECL_16;
+
+
+    if (com_ports > 1);
+//        interrupts[3].lvl = RECL_16;
 }
 
 VOID InitPnP()

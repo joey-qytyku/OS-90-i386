@@ -22,6 +22,7 @@
 // Note that DPMI is called with INT 3Ch
 #define IDT_SIZE 256
 
+// Make this... volatile?
 IA32_STRUCT _ia32_struct =
 {
     .gdt =

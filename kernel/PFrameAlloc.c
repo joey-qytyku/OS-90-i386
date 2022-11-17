@@ -12,6 +12,7 @@
 #include <Type.h>
 #include <Linker.h>
 #include <Memory.h>
+#include <V86.h>
 
 #define CHECK_ALIGN(address, if_unaligned)\
 if ((DWORD)address & 0xFFF != 0)\
@@ -35,5 +36,22 @@ static DWORD AddrAlign(PVOID addr, DWORD bound)
     return ((DWORD)addr + bound - 1) & ~(bound-1);
 }
 
-// Allocate nodes from a node array to the new head being initialized.
 //
+// Depends on V86 being present and scheduler intialized
+//
+
+void InitPFrameAlloc()
+{
+    TRAP_FRAME tf = { 0 };
+
+    // Detect extended memory above 1M
+
+    tf.regs.eax = 0x8A00; // Endianness?
+
+    ScVirtual86_Int(&tf, 15);
+    memory_after_1M =
+          (tf.regs.eax & 0xFFFF) << 16
+        | (tf.regs.edx & 0xFFFF);
+
+    ScVirtual86_Int(&tf, 15);
+}

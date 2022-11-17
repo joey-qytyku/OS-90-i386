@@ -11,13 +11,14 @@
 #include <stdarg.h>
 #include <Type.h>
 #include <V86.h> /* For calling BIOS functions */
+#include <Debug.h>
 
 #define MAX_STR_LENGTH_OF_UINT32 10
 
+//
 // It is the output driver's responsibility to handle ascii sequences
 // Logf sends the character when it is not a format escape
 //
-typedef VOID (*OUTPUT_DRIVER)(BYTE);
 
 static BYTE printfmt_buffer[MAX_STR_LENGTH_OF_UINT32 + 1];
 
@@ -31,7 +32,7 @@ DWORD StrLen(PBYTE s1)
 }
 
 //
-// The following function are probably slow, but there does not
+// The following functions are probably slow, but there does not
 // seem to be a perfect way of doing it, besides this one I found?
 // https://www.quora.com/What-are-the-most-obscure-useless-x86-assembly-instructions?
 //
@@ -54,11 +55,10 @@ VOID APICALL Uint32ToString(DWORD value, PBYTE obuffer)
     // an then copies them to the buffer in reverse order
     // the integer digit is then converted to a character
 
-
     // It looks complicated, but dividing by 1, 10, 100, etc.
     // is like bitwise shifting but for decimal digits, not binary.
     // Modulus is like an AND operation, getting the remainder
-    // or "offset" in CS terms. Together, it is a sort of shift/and loop
+    // or "offset" in ComSci terms. Together, it is a sort of shift/and loop
 
     for (i=0, digit_divisor=1; i<MAX_STR_LENGTH_OF_UINT32; i++)
     {
@@ -148,9 +148,7 @@ VOID FatalError(DWORD error_code)
     "Error code: @x", error_code
     );
 
-    // Make the screen blue
+    // Make the screen blue :)
     for (WORD i = 0; i<4000;i+=2)
-    {
         text_attrib[i] = 0x17;
-    }
 }

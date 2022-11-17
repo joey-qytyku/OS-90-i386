@@ -25,8 +25,6 @@ Drivers are loaded flat into the kernel space after relocation. Drivers can be i
 
 A driver usually implements the intended function of a certain device, real or virtual, and allows other parts of the system to access it. OS/90 is a hybrid 32/16-bit system. Because of this, it needs a uniform interface so that it decides which components should be used. This is analogous to Windows 9x VxD drivers.
 
-Drivers run only when the kernel decides they should.
-
 For example, the kernel will access the filesystem through DOS, but a 32-bit FS driver can handle the interrupts itself.
 
 The driver model is what makes OS/90 a true operating system, rather than a protected mode extention to DOS.
@@ -183,6 +181,44 @@ All PnP devices are reported through the devfs. Non-PnP devices simply have thei
 Some devices are embedded to the system board, while others are attached to a bus (PCI, PCMCIA, ISA PnP). Most buses have their own DMA subsystems, while ISA PnP uses the standard AT DMA controller.
 
 Assuming the presence of devices is avoided, but some hardware is garaunteed to be present, such as the 8259 PIC and DMA. The PnP BIOS is called by the PnP manager to detect system board devices. These devices are never re-configured (although it would be possible). Detected system board devices are placed in the $:\SYSTEM namespace.
+
+# Display Driver Model
+
+Display drivers are required for graphical displays. They can implement 2D acceleration or pixel plotting at the minimum. VDDRVs must control the INT 10H interface.
+
+## INT 10H
+
+In order for DOS to be emulated in a graphical environment (such as a GUI or other multitasker program), DOS and BIOS calls are intercepted.
+
+## Communication Protocol
+
+VDDRVs can switch video modes when prompted to by userspace. Commands are sent as asynchronous events.
+
+### Commands
+
+#### Compose Framebuffers with Overlay
+
+#### Compose Framebuffers with Alpha Blend
+
+PARAM: PVOID fb1, PVOID fb2, PVOID fbresult
+
+Uses 24-bit color plus 8-bit alpha component.
+
+#### Create New Framebuffer
+
+Create a framebuffer with selected color depth and dimensions.
+
+#### Discard Framebuffer
+
+#### Probe Video Mode: PVMODE
+
+### Responses and Messages from Driver
+
+#### Request Resend: REQRSND
+
+If the video driver is reset or video modes are changed, the contents of the screen must be redrawn. The userspace software managing the display can monitor this event.
+
+#### Event from Video Acknowledged
 
 # Programming
 

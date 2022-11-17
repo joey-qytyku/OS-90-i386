@@ -2,7 +2,7 @@
 
 OS/90 supports virtual memory with paging. The MMGR can access up to 512M of physical memory (minus non-contiguities and memory holes). Programs can have access to 1G of virtual addressing space.
 
-The memory manager is the most complicated component of OS/90.
+The linked list memory management structures are used to determine which page frames are in use and free. These structures can be converted to page directories and tables with page table compositing routines.
 
 ## Detection
 
@@ -62,14 +62,14 @@ The memory manager should normally be transparent to userspace programmers. For 
 
 ### Functions Supported
 
-Allocating
-
-Deleting
-Resizing (+/-)
+* Allocating
+* Getting the address
+* Deleting
+* Resizing (+/-)
 
 ## Virtual Memory
 
-Swap files are supported. It is supposed to be present on the root directory of the boot disk and names SWAP.000. This file must be a 4K multiple in size.
+Swap files are supported. It is supposed to be present on the root directory of the boot disk and named SWAP.000. This file must be a 4K multiple in size.
 
 The virtual memory system allows programs to use more memory space than is physically present. It also protects from OOM errors.
 
@@ -81,21 +81,21 @@ Pages do not need to be constantly swapped unless the main memory is under press
 
 The memory manager will keep track of which parts of physical memory are in use and by what. It will also be able to map allocation chains to arbitrary locations. The issue now is allocating address spaces for kernel software so that a simple malloc-like call would be possible.
 
-Userspace processes cannot invoke memory allocation and should "know" exactly how much they need or extend their total memory. The .bss section should be used for a static "heap".
+Memory sharing is possible, however. In theory, one program can be a memory broker for other processes (IDK about this). When a process is loaded into memory, it is mapped flat into the virtual address space starting at 1M (anything lower makes the executable invalid).
 
- Memory sharing is possible, however. In theory, one program can be a memory broker for other processes (IDK about this). When a process is loaded into memory, it is mapped flat into the virtual address space starting at 1M (anything lower makes the executable invalid).
+ ## Relation with Threads
 
-The kernel needs the ability to map memory to arbitrary locations.
+Each process gets a page directory.
+
+Each thread gets an allocation head. If the process needs more memory, it can resize the head to get it.
 
 ## Virtual Memory
 
 Virtual memory is implemented in the kernel.
 
-Blocks can be
-
 # Kernel API
 
-int GlobalMap(dword pid, pvoid proc_page, pvoid to, Page c, sdword access)
+int GlobalMap(DWORD pid, PVOID proc_page, PVOID to, PAGE c, DWORD access)
 
 Definitions:
 PG_AVAIL, PG_W, PG_R, MAP_FAILED, MAP_SUCCESS

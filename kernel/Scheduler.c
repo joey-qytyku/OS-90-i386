@@ -16,10 +16,10 @@
 // another process tries to use them
 // Scheduler priority for FPU switch? No.
 
-#include <Platform/Resource.h>
 #include <Platform/8259.h>
 #include <Platform/IA32.h>
 #include <Scheduler.h>
+#include <PnP_Mgr.h>
 #include <Type.h>
 #include <V86.h>
 
@@ -31,7 +31,7 @@ DWORD current_proc=0;
 static INTVAR BYTE  last_mode = KERNEL;
 static INTVAR DWORD spurious_interrupts = 0;
 
-static unsigned long long uptime = 0; // Fixed point
+static QWORD uptime = 0; // Fixed point
 
 void Divide0()
 {}
@@ -101,9 +101,9 @@ static inline void SendEOI(BYTE vector)
 // runs with CLI?
 // Time slice passed variable
 // How can I make this faster?
-static int HandleIRQ0(IN PTrapFrame t)
+static VOID HandleIRQ0(IN PTRAP_FRAME t)
 {
-    static bool time_slice_in_progress;
+    static BYTE time_slice_in_progress;
     static WORD ms_left;
 
     uptime += 0x10000000; // Trust me bro
@@ -112,14 +112,13 @@ static int HandleIRQ0(IN PTrapFrame t)
 }
 
 // EAX and EDX pass the arguments for simplicity
-__attribute__(( regparm(2) ))
-VOID InMasterDispatch(IN PTrapFrame tf, DWORD irq)
+__attribute__(( regparm(2), optimize("align-functions=64") ))
+VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
 {
     // Simpler way to do this? Use inlines for both ISRs?
     WORD  inservice16 = InGetInService16();
-    const PINTERRUPT intr  = InFastGetInfo(irq);
 
-    /// 1. The ISR is set to zero for both PICs upon SpINT.
+    /// 1. The ISR is set to zero for both PICs upon SpurInt.
     /// 2. If an spurious IRQ comes from master, no EOI is sent
     /// because there is no IRQ. if it is from the slave PIC
     /// EOI is sent to the master only
@@ -141,20 +140,24 @@ VOID InMasterDispatch(IN PTrapFrame tf, DWORD irq)
             return;
     }
 
-    if (intr->intlevel == STANDARD_32 || intr->intlevel == TAKEN_32)
+    if (InGetInterruptLevel(irq) == BUS_INUSE)
     {
+        // Interrupts can fire during an ISR if there is nothing atomic going on
         IntsOn();
-        intr->handler(tf); // Return value?
+        InGetInterruptHandler(irq)(tf); // lol
         SendEOI(irq);
     }
     else if (RECL_16)
     {
         // Disable interrupts
         // EOI will be sent by the ISR
+        // But what will this actually do?
+    } else {
+        // Critical error
     }
 }
 
-void InitScheduler()
+VOID InitScheduler()
 {
 
     // Claim the timer IRQ resource

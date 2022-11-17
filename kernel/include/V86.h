@@ -14,22 +14,24 @@
 #include <Platform/IA32.h>
 #include <Type.h>
 
-
-#define CAPT_HND   0 /* Handled captured trap*/
+#define CAPT_HND   0 /* Handled captured trap */
 #define CAPT_NOHND 1 /* Did not handle */
-#define CAPT_NUKE  2 /* Or'ed with other option */
+#define CAPT_NUKE  2 /* Ored with other, kill requesting process */
 
-extern VOID ScOnErrorDetatchLinks(VOID)
-extern VOID ScVirtual86_Int(PTRAP_FRAME, BYTE)
+extern VOID ScOnErrorDetatchLinks(VOID);
+extern VOID ScVirtual86_Int(PTRAP_FRAME, BYTE);
 
 extern void ScMonitorV86(PTRAP_FRAME);
 extern void ScEnterV86(PTRAP_FRAME);
 extern void ScShootdownV86(VOID);     // Defined in vm86.asm
 
-typedef struct self_V86_Chain_Struct
+typedef struct
 {
-    self_V86_Chain_Struct handler;  // Set the handler
+    PVOID handler;  // Set the handler
     PVOID next;     // Initialize to zero
-}V86_Chain_Struct,*PV86_CHAIN_LINK;
+}V86_CHAIN_LINK,*PV86_CHAIN_LINK;
+
+// Return value of a V86 chain handler is zero if handled, 1 if refuse to handle
+typedef STATUS (*FP_V86_HANDLER)(PTRAP_FRAME);
 
 #endif /* V86_H */

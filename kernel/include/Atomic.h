@@ -14,7 +14,7 @@
 #include <Platform/8259.h>
 #include <Type.h>
 
-typedef volatile DWORD Mutex;
+typedef volatile DWORD MUTEX;
 
 // On single-processor systems, anything that
 // happens in one instruction or multiple with

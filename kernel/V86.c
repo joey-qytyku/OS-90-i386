@@ -32,8 +32,6 @@ Timeline:
 
 #define CAPTURE_DOS_FUNCTIONS 256
 
-typedef STATUS (V86_Chain_Handler*)(PTrapFrame);
-
 MCHUNX v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
 
 // TSS and V86 mode:
@@ -53,22 +51,24 @@ MCHUNX v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
 //
 // Determines if the supervisor is emulating a user program
 // or a 16-bit interrupt/kernel call
-static INTVAR bool supervisor_call = 0;
+static INTVAR BOOL supervisor_call = 0;
 
 const PDWORD real_mode_ivt = (PVOID)phys(0);
 
-static BYTE bPeek86(WORD seg, WORD off) {return *(PBYTE)MK_LP(seg,off);}
-static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
-
 static inline PVOID MK_LP(WORD seg, WORD off)
 {
-    return (PVOID)((seg<<4) + off);
+    DWORD address = seg*16 + off;
+    return (PVOID) address;
 }
+
+static BYTE bPeek86(WORD seg, WORD off) {return *(PBYTE)MK_LP(seg,off);}
+static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
 
 //
 //
 //
 ScAppendTrapLink()
+{}
 
 // Brief: Upon a critical error, it is necessary to
 // remove all V86 links so that a bluescreen can be generated
@@ -83,38 +83,48 @@ VOID ScOnErrorDetatchLinks(VOID)
 // used by drivers and the kernel to access
 // INT calls from protected mode.
 //
-// context: The register params
+// context:
+//      The register params or the state of the 16-bit program
+//
 // context stack: Automatically set
 // for supervisor calls
 VOID ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
 {
-    PV86_Chain_Struct current_link;
+    PV86_CHAIN_LINK current_link;
 
-    // Set IOPB to allow all
+    // Set IOPB to allow all?
 
     if (v86_capture_chain[vector].handler != NULL)
     {
         current_link = &v86_capture_chain[vector];
         while (current_link->next != NULL)
         {
+            // Call the handler, check return value
             if (current_link->handler(context) == CAPT_NOHND)
                 current_link = current_link->next;
-            else
+            else // The handler succeeded, we are done
                 goto HandledIn32;
         }
         // If an appropriate handler cannot be found
     } else {
+        // Fall back to real mode
+        // Changing the context is not enough, I actually need to
+        // go to real mode using ScEnterV86
         context->cs  = real_mode_ivt[vector] >> 16;
         context->eip = (WORD)real_mode_ivt[vector];
     }
-    // On return: go back to 32-bit caller
+
+
+
+    HandledIn32:
+    // It was handled as expected
 }
 
 /* DOS will change the stack of an IRQ */
 
 // The V86 monitor for 16-bit tasks, ISRs, and PM BIOS/DOS calls
 // Called by GP# handler
-void ScMonitorV86(IN PTrapFrame context)
+void ScMonitorV86(IN PTRAP_FRAME context)
 {
     // After GPF, saved EIP points to the instruction, NOT AFTER
     PBYTE ins   = MK_LP(context->cs, context->eip);
@@ -156,7 +166,7 @@ void ScMonitorV86(IN PTrapFrame context)
         case 0xFA: /* CLI */
             IntsOff();
             context->eip++;
-        break;supervisor_call
+        break;
         case 0xFB: /* STI */
             IntsOn();
             context->eip++;

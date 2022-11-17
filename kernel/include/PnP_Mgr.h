@@ -48,17 +48,18 @@
 //#define PNP_FPU_PRESENT  0x01
 //#define PNP_FPU_INTERNAL 0x02
 
-typedef STATUS (*PEVENT_HANDLER)(PVOID);
-typedef VOID   (*PIRQ_HANDLR)   (PREGS_IA32);
+// RETURN VALUE FOR ISR?
+typedef VOID (*FP_EVENT_HANDLER) (PVOID);
+typedef VOID (*FP_IRQ_HANDLR)    (PTRAP_FRAME);
 typedef BYTE RESOURCE_INF;
 
 typedef DWORD VINT;
 
 typedef enum {
     UNDEFINED = 0,
-    BUS_FREE  = 1,
-    BUS_INUSE = 2,
-    RECL_16   = 3
+    BUS_FREE  = 1,  // Available interrupt
+    BUS_INUSE = 2,  // 32-bit interrupt controlled by a BUS
+    RECL_16   = 3   // Legacy DOS driver interrupt, can be reclaimed
 }INTERRUPT_LEVEL;
 
 typedef enum {
@@ -82,25 +83,16 @@ typedef struct {
     PIMUSTR     cmdline;
     DWORD       driver_flags;
     PVOID       next_driver;
-    PEVENT_HANDLER event_handler;
+    FP_EVENT_HANDLER event_handler;
 }DRIVER_HEADER,*PDRIVER_HEADER;
 
-typedef struct {
-    INTERRUPT_LEVEL lvl;
-    PIRQ_HANDLR     handler;
-    PDRIVER_HEADER  owner;
-}INTERRUPT,
-*PINTERRUPT;
-
-// Replace with this
-
-typedef struct __attribute__((packed)){
-    char    lvl:2;
-    long   handlers;
-    long   owners;
-}INTERRUPT,
-*PINTERRUPT;
-
+typedef struct __attribute__((packed))
+{
+    DWORD           lvl_bmp;        // The level requires two bits
+    FP_IRQ_HANDLR   handlers[16];
+    PDRIVER_HEADER  owners[16];
+}INTERRUPTS,
+*PINTERRUPTS;
 
 /*
 The ISA bus supports 24-bit addresses and up to 16-bit IO ports
@@ -134,8 +126,6 @@ typedef struct __attribute__((packed))
 //
 // PIO_RESOURCE is MCHUNX because variable interrupts is MCHUNX
 //
-
-//
 // An INTERRUPT type is not MCHUNX unless specified, but a pointer to one must
 // be because it will certainly point to a MCHUNX INTERRUPT object
 //
@@ -157,16 +147,14 @@ typedef struct {
 }*PPNP_INSTALL_CHECK;
 
 STATUS APICALL PnAddIOMemRsc(PIO_RESOURCE);
+VOID InSurrenderInterrupt();
+VOID InRegainInterrupt();
+INTERRUPT_LEVEL InGetInterruptLevel(VINT);
+FP_IRQ_HANDLR InGetInterruptHandler(VINT);
 
-#ifndef __PROGRAM_IS_DRIVER
-
-PINTERRUPT InFastGetInfo(VINT i);
-VOID InitPnP(BYTE)
+VOID InitPnP();
 
 __attribute__(( regparm(1) ))
 WORD PnCallBiosInternal(DWORD argc, ...);
-
-
-#endif /* __PROGRAM_IS_DRIVER */
 
 #endif /* PNP_MGR_H */

@@ -37,10 +37,7 @@ typedef struct __ALIGN(4)
     PVOID   next;      // Front link to next thread
 }THREAD,*PTHREAD;
 
-#ifndef __PROGRAM_IS__DRIVER
 
 extern VOID InitScheduler(VOID);
-
-#endif /* !__PROGRAM_IS__DRIVER */
 
 #endif /* SCHEDULER_H */

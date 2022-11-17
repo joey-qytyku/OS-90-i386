@@ -151,11 +151,12 @@ typedef struct __PACKED
     // I don't have to memset the IOPB now
 }COMPLETE_TSS;
 
-typedef struct {
-    COMPLETE_TSS            tss;
+typedef struct __attribute__(( aligned(64) ))
+{
     SEGMENT_DESCRIPTOR      gdt[GDT_ENTRIES];
     SEGMENT_DESCRIPTOR      ldt[LDT_SIZE];
     INTERRUPT_DESCRIPTOR    idt[256];
+    COMPLETE_TSS            tss;
 }IA32_STRUCT,*PIA32_STRUCT;
 
 /////////////////////////////////

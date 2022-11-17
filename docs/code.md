@@ -25,7 +25,7 @@ if/function/whatever {
 
 if/function/whatever
 {
-    // Based
+    // Correct
 }
 ```
 
@@ -115,6 +115,19 @@ As previously mentioned, the IN and OUT macros should be used to indicate what p
 General purpose strings are of the type IMUSTR and pointers to them are PIMUSTR. Semantically, IMUSTR is a `const char * const` and the size is the width of a pointer.
 
 Typedefs should never be made for arrays.
+
+# Optimization Guidelines
+
+Some are general concepts, while other tips here are specific to OS/90.
+
+* Optimize the code that runs repeadedly and is the slowest, aka speed critical
+* Do not optimize code that runs only once or takes the lest execution time
+* Always be efficient AND elegant
+* Avoid premature optimization
+* Slow code is always bad code
+* Use a structure of arrays when possible
+* Pack structures and use bit fields to save memory
+* Align structures for performance
 
 # Assembly Guidelines
 

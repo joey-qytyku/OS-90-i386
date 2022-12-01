@@ -76,10 +76,6 @@ PnCallBiosInternal:
     mov     [esi+2],ax
     jmp     .L
 .Done:
-    mov     eax,[esi]
-    mov     [esi+2],ax
-    jmp     .L
-.Done:
     call    far word [wfpEntryPoint]
 
     ;PnP returns exit status in AX

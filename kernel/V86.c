@@ -85,42 +85,54 @@ VOID ScOnErrorDetatchLinks(VOID)
 //
 // context:
 //      The register params or the state of the 16-bit program
-//
+//      Memory mapping must be set up separately
 // context stack: Automatically set
 // for supervisor calls
+//
 VOID ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
 {
     PV86_CHAIN_LINK current_link;
 
-    // Set IOPB to allow all?
+    // A null handler is an invalid entry
+    // Iterate through links, call the handler, if response is
+    // CAPT_NOHND, call next handler.
 
-    if (v86_capture_chain[vector].handler != NULL)
+    current_link = v86_capture_chain[vector];
+
+    // As long as there is another link
+    while (current_link->next != NULL)
     {
-        current_link = &v86_capture_chain[vector];
-        while (current_link->next != NULL)
-        {
-            // Call the handler, check return value
-            if (current_link->handler(context) == CAPT_NOHND)
-                current_link = current_link->next;
-            else // The handler succeeded, we are done
-                goto HandledIn32;
+        STATUS hndstat = current_link->handler(context);
+        if (hndstat == CAPT_HND)
+            return;
+        else {
+            current_link = current_link->next;
+            continue;
         }
-        // If an appropriate handler cannot be found
-    } else {
-        // Fall back to real mode
-        // Changing the context is not enough, I actually need to
-        // go to real mode using ScEnterV86
-        context->cs  = real_mode_ivt[vector] >> 16;
-        context->eip = (WORD)real_mode_ivt[vector];
     }
 
+    // Fall back to real mode, in this case, the trap is of no
+    // interest to any 32-bit drivers, and must go to the real mode
+    // IVT. During this process, the INT instruction
 
+    // Changing the context is not enough, I actually need to
+    // go to real mode using ScEnterV86, and I have to duplicate
+    // the passed context because I should not be changing CS and EIP
+    TRAP_FRAME new_context = *context;
 
-    HandledIn32:
-    // It was handled as expected
+    new_context.cs  = real_mode_ivt[vector] >> 16;
+    new_context.eip = (WORD)real_mode_ivt[vector];
+
+    IaIOPB_Allow();
+
+    // ScEnterV86 is thread-safe because it uses the stack to store
+    // register states instead of global variables.
+    // -> When this function is called, ScVirtual_Int will only continue
+    // when ShootdownV86 is called.
+    ScEnterV86(&new_context);
+
+    IaIOPB_Deny();
 }
-
-/* DOS will change the stack of an IRQ */
 
 // The V86 monitor for 16-bit tasks, ISRs, and PM BIOS/DOS calls
 // Called by GP# handler
@@ -132,12 +144,17 @@ void ScMonitorV86(IN PTRAP_FRAME context)
 
     // Software interrupts may be called by anything and must be emulated
     // if that interrupt has not been captured by a driver
+    // Interrupt service routines may also call interrupts. Such nesting is
+    // possible because ScVirtual86_Int and EnterV86 are thread safe
+    // If the INT instruction is found in an ISR, all that has to happen is a
+    // change in program flow, with IRET instead representing a return to the
+    // 16-bit caller ISR.
+
     if (*ins == 0xCD)
     {
         ScVirtual86_Int(context, ins[1]);
         return; // Nothing else to do now
     }
-    // What if DOS program calls IRET?
 
     //
     // The following is for emulating privileged instructions
@@ -153,14 +170,20 @@ void ScMonitorV86(IN PTRAP_FRAME context)
             // interrupt by the V86 monitor. This is because IRET has no purpose
             // besides that and in the case of IRQs, there is not another
             // point to terminate the ISR and return to the kernel.
+            //
+            // Sometimes, interrupt service routines use the INT instruction
+            // (DOS uses the BIOS for most things), which requires different
+            // treatment of the INT and IRET instructions.
             // Summary:
             //      DOS program -> error, not supposed to use IRET
             //      IRQ         -> return to caller
             //      INTx        -> return to caller
             // Some programs may want to set an ISR, but the IRET
-            // will never be reached by normal code.
+            // will never be reached by normal code
 
-            ScShootdownV86(); // Re-enter caller of EnterV86
+
+
+            ScShootdownV86(); // Re-enter caller of ScEnterV86
         break;
 
         case 0xFA: /* CLI */

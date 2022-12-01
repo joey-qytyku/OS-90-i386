@@ -27,7 +27,7 @@ extern void ScShootdownV86(VOID);     // Defined in vm86.asm
 
 typedef struct
 {
-    PVOID handler;  // Set the handler
+    STATUS (*handler)(PTRAP_FRAME);  // Set the handler
     PVOID next;     // Initialize to zero
 }V86_CHAIN_LINK,*PV86_CHAIN_LINK;
 

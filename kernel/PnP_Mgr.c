@@ -147,26 +147,17 @@ VOID APICALL PnBiosCall()
 STATUS SetupPnP(VOID)
 {
     // ROM space should not be prefetched or written
-    const volatile PPNP_INSTALL_CHECK
-    checkstruct = (PPNP_INSTALL_CHECK)0xF0000;
+    volatile PPNP_INSTALL_CHECK checkstruct = (PPNP_INSTALL_CHECK)0xF0000;
 
-    DWORD i;
     BYTE compute_checksum;
-
-    for (i=0; i<65536/0x800;i++)
+    // Find the checkstruct
+    for (DWORD i = 0; i<0x800; i++)
     {
-        if (checkstruct->signature == PNP_ROM_STRING)
-        {
-            for (i=0; i<21; i++)
-                compute_checksum += *(PBYTE)checkstruct + i;
-
-            if (compute_checksum == 0)
-                goto HasPnP;
-            else
-                return OS_FEATURE_NOT_SUPPORTED;
-        }
+        if (*(PPNP_INSTALL_CHECK)checkstruct->signature == PNP_ROM_STRING)
+            break;
+        checkstruct += 0x800; //????
     }
-    HasPnP:
+
     PnSetBiosDsegBase(checkstruct->protected_data_base);
     PnSetBiosCsegBase(checkstruct->protected_base);
 

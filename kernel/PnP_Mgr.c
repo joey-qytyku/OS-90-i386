@@ -59,7 +59,7 @@ static MCHUNX INTERRUPTS  interrupts = { 0 };
 /*
 Supported operations with interrupts:
 
-Set operantions:
+Set operations:
 * Request from bus
 * Request from kernel bus (legacy)
 * Surrender to DOS (change to RECL_16)
@@ -97,12 +97,9 @@ static VOID SetInterruptEntry(
 
 //
 // A driver or the kernel can voluntarily give an interrupt back to DOS
-// for whatever reason.
+// Potentially to unload.
 //
 VOID InSurrenderInterrupt()
-{}
-
-VOID InRegainInterrupt()
 {}
 
 INTERRUPT_LEVEL InGetInterruptLevel(VINT irq)
@@ -110,6 +107,9 @@ INTERRUPT_LEVEL InGetInterruptLevel(VINT irq)
     return interrupts.lvl_bmp >>= irq * 2;
 }
 
+//
+// Get the address of the handler
+//
 FP_IRQ_HANDLR InGetInterruptHandler(VINT irq)
 {
     return interrupts.handlers[irq];
@@ -120,7 +120,8 @@ FP_IRQ_HANDLR InGetInterruptHandler(VINT irq)
 //  user and the driver. This function will add a handler
 //  and set the interrupt to BUS_INUSE
 //
-STATUS InAcquireLegacyIRQ(VINT fixed_irq, FP_IRQ_HANDLR handler)
+STATUS InAcquireLegacyIRQ(VINT fixed_irq,
+                          FP_IRQ_HANDLR handler)
 {
     SetInterruptEntry(
         fixed_irq,
@@ -130,9 +131,21 @@ STATUS InAcquireLegacyIRQ(VINT fixed_irq, FP_IRQ_HANDLR handler)
     );
 }
 
-STATUS APICALL InRequestBusIRQ(PDRIVER_HEADER driver, VINT vi)
+//
+// This API call will reqest the bus driver to give this IRQ to the client.
+// Requests to own a bus interrupt are always routed to the particular driver
+// for it to handle it how it wants to.
+//
+STATUS APICALL InRequestBusIRQ(PDRIVER_HEADER bus,
+                               PDRIVER_HEADER client,
+                               VINT vi,
+                               FP_IRQ_HANDLR handler)
 {
 }
+
+//
+// Note to self: How will I implement requesting the IRQ based on device ID?
+//
 
 ////////////////////////////////////////////////////////////////////////////////
 // Plug and Play Bios communication support, refferences code in PnP_Mgr.asm
@@ -148,15 +161,21 @@ STATUS SetupPnP(VOID)
 {
     // ROM space should not be prefetched or written
     volatile PPNP_INSTALL_CHECK checkstruct = (PPNP_INSTALL_CHECK)0xF0000;
-
+    BOOL supports_pnp;
     BYTE compute_checksum;
+
     // Find the checkstruct
-    for (DWORD i = 0; i<0x800; i++)
+    for (DWORD i = 0; i<0x800*32; i++)
     {
         if (*(PPNP_INSTALL_CHECK)checkstruct->signature == PNP_ROM_STRING)
+        {
+            has_pnp=1;
             break;
+        }
         checkstruct += 0x800; //????
     }
+    if (!has_pnp)
+        return OS_FEATURE_NOT_SUPPORTED;
 
     PnSetBiosDsegBase(checkstruct->protected_data_base);
     PnSetBiosCsegBase(checkstruct->protected_base);

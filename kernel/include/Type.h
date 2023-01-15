@@ -35,7 +35,7 @@ typedef SDWORD HANDLE;
 //
 // Examples:
 // IMUSTR str = "Hello, world!\n";
-// IMUSTR pstr = &str;
+// PIMUSTR pstr = &str;
 
 // printf("%s", *pstr);
 

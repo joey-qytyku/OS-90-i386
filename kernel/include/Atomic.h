@@ -28,7 +28,8 @@ typedef volatile DWORD MUTEX;
 
 #define ReleaseLock(address_lock) *address_lock = 0;
 
-// Compiler memory fence
+// Compiler memory fence. This OS is for single processor systems, so a compiler memory fence
+// on a non-preemptible kernel is a true fence.
 #define MemFence() __asm__ __volatile__ ("":::"memory")
 
 #define EnterCriticalSecttion() IntsOff()

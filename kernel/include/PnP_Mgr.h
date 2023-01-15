@@ -66,7 +66,8 @@ typedef enum {
     MJ_PNP_UNLOAD,
     MJ_PNP_LOAD,
     MJ_PNP_DISABLE,
-    MJ_PNP_ENABLE
+    MJ_PNP_ENABLE,
+    MJ_REQUEST_INTERRUPT
 }PNP_EVENT_CODE;
 
 typedef struct

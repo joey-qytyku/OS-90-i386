@@ -89,7 +89,10 @@ typedef struct {
 
 typedef struct __attribute__((packed))
 {
-    DWORD           lvl_bmp;        // The level requires two bits
+     // Each level is two bits, which means that all interrupt levels fit in
+     // a single 32-bit DWORD
+
+    DWORD           lvl_bmp;
     FP_IRQ_HANDLR   handlers[16];
     PDRIVER_HEADER  owners[16];
 }INTERRUPTS,

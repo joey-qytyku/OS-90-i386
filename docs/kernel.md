@@ -28,3 +28,37 @@ Upon startup, filesystem and disk access is immediately possible through the V86
 # Exiting to DOS
 
 Exiting to DOS is impossible is OS/90. I could not figure it out, and do not see a huge advantage.
+
+# Rationale For DOS Emulation
+
+There are different ways that a DOS-compatible and DOS-initiated OS can be designed.
+
+## Replace Kernel Entirely
+
+Instead of starting the regular DOS kernel, a replacement kernel sets up the entire system on startup.
+
+### Analysis
+
+This design makes legacy compatibility difficult because of the isolation between DOS VMs. THe entire DOS kernel would have to be emulated, including the filesystem and the BIOS. The advantage would be more consistent design with less bugs.
+
+One question wuld be how devices can be accessed by DOS. Emulation could be possible, but in cases where the real device needs to use a DOS driver, the kernel would have to differentiate between supervisory virtual machines and regular machines, with an organized method of passing interrupts. It could also have to "lie" to DOS-based drivers about direct hardware access. This would be quite complicated.
+
+The design would be cleaner and would allow for the complete removal of DOS if desired, but that was never my exact goal. I don't want to create a glorified DOSBox.
+
+## Device Driver Bootstrap
+
+A device driver can be installed that loads the 32-bit kernel and enters it. The kernel can access DOS services right away witout any emulation. AUTOEXEC runs automatically in a special process.
+
+### Analysis
+
+The issue with this design is that the TSRs and other programs executed in the AUTOEXEC process must be givent special rights, somehow. Should programs forked by this initial DOS VM be split into separate processes? Probably.
+
+## The OS/90 Design
+
+DOS is accessible to the kernel and all DOS VMs. Programs have a userspace API and interrupt call interface to access the 32-bit kernel services similar to unistd.h. Drivers can capture DOS interrupts and form an interrupt chain for sharing multiple sub-functions.
+
+There are two types of drivers, bus and device. Bus drivers can request IO, DMA, IRQs, and MMIO from the kernel (a bus itself) and allow a device driver to control it.
+
+### Analysis
+
+I chose this design because it offered compatibility and ease of programing at the cost of overall design cleanliness.

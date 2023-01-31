@@ -15,6 +15,9 @@
 // The FPU registers only need to be saved when
 // another process tries to use them
 // Scheduler priority for FPU switch? No.
+//
+
+// Perhaps add interrupt priority based on masking?
 
 #include <Platform/8259.h>
 #include <Platform/IA32.h>
@@ -97,10 +100,13 @@ static inline void SendEOI(BYTE vector)
         pic_outb(0xA1, 0x20);
 }
 
-// Interrupt inting: what about the scheduler?
-// runs with CLI?
-// Time slice passed variable
-// How can I make this faster?
+//
+// IRQ#0 has two functions, update the uptime and switch tasks.
+// RIght now, task switching is done every 1MS, which means every time
+// IRQ#0 is handled.
+//
+// Interrrupts are off when handling IRQ#0
+//
 static VOID HandleIRQ0(IN PTRAP_FRAME t)
 {
     static BYTE time_slice_in_progress;
@@ -111,6 +117,8 @@ static VOID HandleIRQ0(IN PTRAP_FRAME t)
     return 0;
 }
 
+// The master interrupt dispatcher and ISR of all interrupts.
+//
 // EAX and EDX pass the arguments for simplicity
 __attribute__(( regparm(2), optimize("align-functions=64") ))
 VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)

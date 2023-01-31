@@ -27,4 +27,4 @@ Upon startup, filesystem and disk access is immediately possible through the V86
 
 # Exiting to DOS
 
-The user can exit to DOS by exiting the command prompt. When the first process terminates,
+Exiting to DOS is impossible is OS/90. I could not figure it out, and do not see a huge advantage.

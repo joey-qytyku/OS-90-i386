@@ -83,9 +83,15 @@ VOID ScOnErrorDetatchLinks(VOID)
 // used by drivers and the kernel to access
 // INT calls from protected mode.
 //
+// CR3 is not modified at all so if caller memory must be used by the code
+// then this is not enough.
+//
+// When the task just switched out of is 16-bit, CR3 must be modified
+// and then restored to go back.
+//
 // context:
 //      The register params or the state of the 16-bit program
-//      Memory mapping must be set up separately
+//      Memory mapping must be set up separately, as stated above
 // context stack: Automatically set
 // for supervisor calls
 //

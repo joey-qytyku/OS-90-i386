@@ -68,7 +68,6 @@ Set operations:
 Get operations:
 * Get 32-bit handler address
 *
-
 */
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,9 +119,20 @@ FP_IRQ_HANDLR InGetInterruptHandler(VINT irq)
 //  user and the driver. This function will add a handler
 //  and set the interrupt to BUS_INUSE
 //
+//  If the IRQ is BUS_INUSE, this function fails
+//  If BUS_FREE or RECL_16 it is taken
+//
 STATUS InAcquireLegacyIRQ(VINT fixed_irq,
                           FP_IRQ_HANDLR handler)
 {
+    if (InGetInterruptLevel(fixed_irq) == BUS_INUSE)
+    {
+        return OS_ERROR_GENERIC;
+    }
+
+    // If it is a 16-bit interrupt, it is reclaimable, so changing
+    // it as a legacy interrupt is correct behavior
+
     SetInterruptEntry(
         fixed_irq,
         BUS_INUSE,
@@ -268,7 +278,10 @@ static VOID DetectFreeInt(VOID)
     }
     if (GetInterruptLevel(2) == RECL_16)
     { 
-        // IRQ#2 was hooked by DOS.
+        // Because IRQ#2 == IRQ#9 on PC/AT, both must be blocked off
+        // in case of DOS hooking #9. Handler is not real, we are only
+        // keeping other drivers from trying to use it.
+        InAcquireLegacyIRQ(9, NULL);
     }
 }
 

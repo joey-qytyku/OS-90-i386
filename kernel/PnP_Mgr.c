@@ -219,16 +219,22 @@ STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 // Explaination:
 //  A program called GRABIRQ.SYS saves the default assignments
 //  and compares them after DOS is initialized.
-// Note: <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-//  If IRQ#2 is modified for some reason, an IRQ will go to IRQ#9,
-//  so IRQ#9 cannot be used
+//
+////// Note on IBM PC Compatiblility Annoyances
 //
 // By default, the BIOS sends IRQ#9 back to IRQ#2 handler so that a
-// program designed for the single PIC thinks a real IRQ#2 happened.
-// IRQ#2 never sends any interrupts. If a DOS program hooks onto it
+// program designed for the single PIC thinks a real IRQ#2 happened
+// and can use the device.
+//
+// IRQ#2 never sends any interrupts on the PC-AT architecture.
+// If a DOS program hooks onto it
 // then OS/90 must ensure that IRQ#9 is blocked off and that IRQ#9
 // is handled by the real mode IRQ#2. A proteted mode IRQ handler should
-// never try to access IRQ#2.
+// never try to set the IRQ#2 handler, since it will never be called.
+//
+// This causes a kludge with the master dispatch because IRQ#9 must be a legacy 16-bit
+// IRQ and be redirected to th IRQ#2 real mode handler. Yuck.
+// Try to not use stupid programs plz.
 //
 static VOID DetectFreeInt(VOID)
 {
@@ -262,7 +268,7 @@ static VOID DetectFreeInt(VOID)
     }
     if (GetInterruptLevel(2) == RECL_16)
     { 
-        // IRQ#2 was hooked by DOS. What now?
+        // IRQ#2 was hooked by DOS.
     }
 }
 

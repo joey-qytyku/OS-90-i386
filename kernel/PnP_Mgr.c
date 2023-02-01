@@ -224,7 +224,11 @@ STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 //  so IRQ#9 cannot be used
 //
 // By default, the BIOS sends IRQ#9 back to IRQ#2 handler so that a
-// program designed for the single PIC thinks a real IRQ#2 happened
+// program designed for the single PIC thinks a real IRQ#2 happened.
+// IRQ#2 never sends any interrupts. If a DOS program hooks onto it
+// then OS/90 must ensure that IRQ#9 is blocked off and that IRQ#9
+// is handled by the real mode IRQ#2. A proteted mode IRQ handler should
+// never try to access IRQ#2.
 //
 static VOID DetectFreeInt(VOID)
 {

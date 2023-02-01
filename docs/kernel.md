@@ -39,11 +39,11 @@ Instead of starting the regular DOS kernel, a replacement kernel sets up the ent
 
 ### Analysis
 
-This design makes legacy compatibility difficult because of the isolation between DOS VMs. THe entire DOS kernel would have to be emulated, including the filesystem and the BIOS. The advantage would be more consistent design with less bugs.
+This design makes legacy compatibility difficult because of the isolation between DOS VMs. THe entire DOS kernel would have to be emulated, including the filesystem and the BIOS. The advantage would be more consistent design with less bugs. To avoid difficulties, the backup DOS kernel could be loaded in a virtual machine and get restricted access to hardware resources.
 
-One question wuld be how devices can be accessed by DOS. Emulation could be possible, but in cases where the real device needs to use a DOS driver, the kernel would have to differentiate between supervisory virtual machines and regular machines, with an organized method of passing interrupts. It could also have to "lie" to DOS-based drivers about direct hardware access. This would be quite complicated.
+One question wuld be how devices can be accessed by DOS. Emulation could be possible, but in cases where the real device needs to use a DOS driver, the kernel would have to differentiate between supervisory virtual machines and regular machines, with an organized method of passing interrupts. It could also have to "lie" to DOS-based drivers about direct hardware access. This would be quite complicated. To what extent will DOS drivers be able to integrate itself in the system?
 
-The design would be cleaner and would allow for the complete removal of DOS if desired, but that was never my exact goal. I don't want to create a glorified DOSBox.
+Overall, this is a clean concept, but way too difficult to design and not worth the time.
 
 ## Device Driver Bootstrap
 
@@ -51,7 +51,7 @@ A device driver can be installed that loads the 32-bit kernel and enters it. The
 
 ### Analysis
 
-The issue with this design is that the TSRs and other programs executed in the AUTOEXEC process must be givent special rights, somehow. Should programs forked by this initial DOS VM be split into separate processes? Probably.
+The issue with this design is that the TSRs and other programs executed in the AUTOEXEC process must be given special rights, somehow. Should programs forked by this initial DOS VM be split into separate processes? Probably.
 
 ## The OS/90 Design
 

@@ -40,7 +40,7 @@ typedef SDWORD HANDLE;
 // printf("%s", *pstr);
 
 typedef const char*const IMUSTR;
-typedef const IMUSTR *const PIMUSTR;
+typedef const IMUSTR *PIMUSTR;
 
 enum {
 OS_OK,

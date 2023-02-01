@@ -48,7 +48,6 @@
 //#define PNP_FPU_PRESENT  0x01
 //#define PNP_FPU_INTERNAL 0x02
 
-// RETURN VALUE FOR ISR?
 typedef VOID (*FP_EVENT_HANDLER) (PVOID);
 typedef VOID (*FP_IRQ_HANDLR)    (PTRAP_FRAME);
 typedef BYTE RESOURCE_INF;
@@ -107,16 +106,12 @@ reffering to the legacy device will access it, even if the top
 bits are something else
 */
 
-//
-// owner_krel is a 24-bit offset to C0000000. For bit packing.
-// This does not matter to any of the drivers.
-//
 typedef struct __attribute__((packed))
 {
     DWORD          start;
     DWORD          size:24;
     DWORD          alignment:24;
-    PVOID          owner_krel;
+    PVOID          owner;
     BYTE
         is_port:1,
         is_std:1,

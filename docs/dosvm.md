@@ -34,4 +34,8 @@ First of all, a 16-bit thread must be created. Its pages must be manually mapped
 
 The high memory area is somewhat problematic. Nearly all programs that can use it provide an alternative, but this is not enough for full compatibility.
 
-For the HMA to be properly emulated, 64K extra must be allocated and mapped to the 16 pages above 1M.
+For the HMA to be properly emulated, 64K extra must be allocated and mapped to the 16 pages above 1M, with 16 bytes left usused.
+
+# Emulation Driver
+
+The emulation driver must exist to control 16-bit process memory and capture function calls. It is separated from the kernel.

@@ -12,7 +12,9 @@ Making an XMS call from 32-bit mode to DOS is a terrible idea and should never h
 
 ## Method of Hooking
 
-V86 hooking is used to return proper results when checking for XMS with INT 2Fh. The far call address returned must be obtained from the kernel. The address is an unmapped section
+V86 hooking is used to return proper results when checking for XMS with INT 2Fh. The far call address returned must be obtained from the kernel. The address is at an unmapped section of the ROM space. The offset from the start of the ROM space indicates the chain link index for the page fault handler.
+
+Remember that the BIOS ROM is never mapped to a V86 process. Such processes have completely isolated address spaces and TLB refreshing is required.
 
 # XMS as an OS Memory Manager
 

@@ -36,6 +36,14 @@ The high memory area is somewhat problematic. Nearly all programs that can use i
 
 For the HMA to be properly emulated, 64K extra must be allocated and mapped to the 16 pages above 1M, with 16 bytes left usused.
 
+# DOS Programs and Memory
+
+One possibility is to execute programs in physical DOS. This would restrict memory usage but increase the simplicity of the design. Consider this? How would multitasking by possibile?
+
+For a program to execute, an executable file must be provided. A COM file will simply be written to address 8000 in the process memory. MZ executables are unpacked relative to that location.
+
+DOS function calls must be able to access process memory. Without it, a simple hello world would not be possible. Generally, no more than 64 KiB are used at a time.
+
 # Emulation Driver
 
 The emulation driver must exist to control 16-bit process memory and capture function calls. It is separated from the kernel.

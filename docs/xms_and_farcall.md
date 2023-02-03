@@ -16,6 +16,8 @@ V86 hooking is used to return proper results when checking for XMS with INT 2Fh.
 
 Remember that the BIOS ROM is never mapped to a V86 process. Such processes have completely isolated address spaces and TLB refreshing is required.
 
+The far call chain provides one handler for every possible far cal address. A kernel routine increments the offset every time a new far call is added.
+
 # XMS as an OS Memory Manager
 
 Windows 3.1 on 286 used HIMEM.SYS to allocate memory during protected mode. This required sending a reset signal and using a BIOS re-enter address feature. This is possible with V86 and I would have done it this way too if it was possible. For page-based virtual memory, XMS is completely impossible to use. It does not allow for aligned and fragmented allocation.

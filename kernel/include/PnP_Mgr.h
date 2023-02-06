@@ -52,8 +52,6 @@ typedef VOID (*FP_EVENT_HANDLER) (PVOID);
 typedef VOID (*FP_IRQ_HANDLR)    (PTRAP_FRAME);
 typedef BYTE RESOURCE_INF;
 
-typedef DWORD VINT;
-
 typedef enum {
     UNDEFINED = 0,
     BUS_FREE  = 1,  // Available interrupt

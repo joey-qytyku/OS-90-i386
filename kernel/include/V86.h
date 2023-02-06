@@ -21,15 +21,27 @@
 extern VOID ScOnErrorDetatchLinks(VOID);
 extern VOID ScVirtual86_Int(PTRAP_FRAME, BYTE);
 
-extern void ScMonitorV86(PTRAP_FRAME);
-extern void ScEnterV86(PTRAP_FRAME);
-extern void ScShootdownV86(VOID);     // Defined in vm86.asm
+extern VOID ScMonitorV86(PTRAP_FRAME);
+extern VOID ScEnterV86(PTRAP_FRAME);
+extern VOID ScShootdownV86(VOID);     // Defined in vm86.asm
 
 typedef struct
 {
     STATUS (*handler)(PTRAP_FRAME);  // Set the handler
     PVOID next;     // Initialize to zero
-}V86_CHAIN_LINK,*PV86_CHAIN_LINK;
+}V86_CHAIN_LINK,
+*PV86_CHAIN_LINK;
+
+//
+// Trap chains are transparent to driver development, though no
+// further abstraction is needed.
+//
+typedef struct
+{
+     V86_CHAIN_LINK v;
+}
+DRV_V86_HOOK_CONF,
+*P_DRV_V86_HOOK_CONF;
 
 // Return value of a V86 chain handler is zero if handled, 1 if refuse to handle
 typedef STATUS (*FP_V86_HANDLER)(PTRAP_FRAME);

@@ -80,7 +80,7 @@ APICALL VOID ScHookDosTrap(
 ){
      const PV86_CHAIN_LINK prev_link = v86_capture_chain[vector];
 
-     prev_link->next = new_link;
+     prev_link->next = &new->v;
      new->v.handler = hnd;
      new->v.next = NULL;
 }

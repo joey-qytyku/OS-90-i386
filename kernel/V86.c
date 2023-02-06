@@ -32,7 +32,12 @@ Timeline:
 
 #define CAPTURE_DOS_FUNCTIONS 256
 
-MCHUNX v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
+//
+// An array of stub handlers. They will simply return CAPT_NOHND
+// so that DOS gets it. When new links are added, they will point to
+// the next link in the chain. Index to this array is the vector.
+//
+MCHUNX V86_CHAIN_LINK v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
 
 // TSS and V86 mode:
 // EnterV86 saves ESP first in TSS.ESP0.
@@ -65,10 +70,20 @@ static BYTE bPeek86(WORD seg, WORD off) {return *(PBYTE)MK_LP(seg,off);}
 static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
 
 //
+// Brief: Insert a new link to a chain. Simple process.
+// No return value.
 //
-//
-ScAppendTrapLink()
-{}
+VOID ScAppendTrapLink(
+                      VINT                vector,
+                      OUT PV86_CHAIN_LINK new_link,
+                      IN  STATUS (hnd*)(PTRAP_FRAME)
+){
+     const PV86_CHAIN_LINK prev_link = v86_capture_chain[vector];
+
+     prev_link->next = new_link;
+     new_link->handler = hnd;
+     new_link->next = NULL;
+}
 
 // Brief: Upon a critical error, it is necessary to
 // remove all V86 links so that a bluescreen can be generated
@@ -209,3 +224,21 @@ void ScMonitorV86(IN PTRAP_FRAME context)
 
 } // On return, code continues to execute
 
+STATUS V86CaptStub(PTRAP_FRAME tf)
+{
+     return CAPT_NOHND;
+}
+
+//
+// Must be called before using anything in this file.
+//
+VOID InitV86(VOID)
+{
+     for (WORD i = 0; i<CAPTURE_DOS_FUNCTIONS; i++)
+     {
+          v86_capture_chain[i] = {
+               .next = NULL,
+               .handler = V86CaptStub
+          }
+     }
+}

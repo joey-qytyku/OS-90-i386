@@ -16,7 +16,7 @@ typedef VOID (*DOS_FCALL_HANDLER) (PTRAP_FRAME*);
 
 typedef struct {
   V86_CHAIN_LINK        v86_cl;
-  DOS_FAR_CALL_HANDLER  handler;
+  DOS_FCALL_HANDLER     handler;
   WORD                  rom_space_offset;
 }FARCALL_CONF;
 
@@ -42,6 +42,6 @@ HandleFcallAfterPF(WORD eip)
 ScCreateDosFarCallHandler(
                           FARCALL_CONF  fcall_cfg,
                           STATUS (*report_handler)(),
-                          DOS_FCALL_HND fcall_handler;
+                          DOS_FCALL_HANDLER fcall_handler
 ){
 }

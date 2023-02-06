@@ -15,10 +15,11 @@ typedef VOID (*DOS_FCALL_HANDLER) (PTRAP_FRAME*);
 //
 
 typedef struct {
-  V86_CHAIN_LINK        v86_cl;
-  DOS_FCALL_HANDLER     handler;
-  WORD                  rom_space_offset;
-}FARCALL_CONF;
+    V86_CHAIN_LINK        v86_cl;
+    DOS_FCALL_HANDLER     handler;
+    WORD                  rom_space_offset;
+    PVOID                 next;
+}FARCALL_CONF,*P_FARCALL_CONF;
 
 static WORD current_farcall = 0;
 const PVOID bios_rom_space = 0xF0000;
@@ -28,9 +29,15 @@ const PVOID bios_rom_space = 0xF0000;
 // This function is called by the page fault handler when the proper
 // conditions are met.
 //
-HandleFcallAfterPF(WORD eip)
+VOID HandleFcallAfterPF(WORD eip, PTRAP_FRAME tf)
 {
-  // EIP represent
+    if (current_farcall == 0)
+    {
+        // No far calls implemented, do nothing
+        return;
+    }
+
+    // Unlike the V86 interface which has a chain of handlers for
 }
 
 

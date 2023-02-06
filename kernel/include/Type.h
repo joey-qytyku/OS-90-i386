@@ -23,6 +23,10 @@ typedef BYTE   BOOL;
 typedef DWORD  STATUS;
 typedef SDWORD HANDLE;
 
+// Abstract type representing an interrupt vector
+// or virtual interrupt
+typedef DWORD VINT;
+
 // IMUSTR is a constant pointer to a constant string. The compiler
 // will generate only the string when optimizing and no pointer.
 //

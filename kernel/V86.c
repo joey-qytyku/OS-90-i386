@@ -73,16 +73,16 @@ static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
 // Brief: Insert a new link to a chain. Simple process.
 // No return value.
 //
-VOID ScAppendTrapLink(
+APICALL VOID ScHookDosTrap(
                       VINT                vector,
-                      OUT PV86_CHAIN_LINK new_link,
                       IN  STATUS (hnd*)(PTRAP_FRAME)
+                      OUT DRV_V86_HOOK_CONF new,
 ){
      const PV86_CHAIN_LINK prev_link = v86_capture_chain[vector];
 
      prev_link->next = new_link;
-     new_link->handler = hnd;
-     new_link->next = NULL;
+     new->v.handler = hnd;
+     new->v.next = NULL;
 }
 
 // Brief: Upon a critical error, it is necessary to

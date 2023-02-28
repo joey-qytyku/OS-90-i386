@@ -110,7 +110,7 @@ A: They should, but are certainly less stable. DOS drivers will probably be the 
 
 Q: What type of kernel design is used?
 
-A: A hybrid design is used. There are drivers in KERNL386.EXE but they are only for standard PC hardware. Almost everything else goes in a driver outside of the kernel but still in the same address space.
+A: Monolithic modular kernel. Supervisor code always runs at ring 0.
 
 Q: I want to write software for OS/90, what resources are available?
 
@@ -118,6 +118,9 @@ A: Everything in DOCS\ is relevant for kernel-mode development. Source code is t
 
 Q: Which version of DOS is best?
 A: In theory, FreeDOS is the best because it has LFN support, but it has many extra packages that could cause compatibility issues. Do not use EMM386 or JEMMEX. Disabling disk caching software may also be a good idea.
+
+Q: Can you make a custom version of OS/90?
+A: Yes! Email me and I can make a special version.
 
 ## Pipe Dreams
 

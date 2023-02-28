@@ -15,13 +15,6 @@
 
 #define MAX_STR_LENGTH_OF_UINT32 10
 
-//
-// It is the output driver's responsibility to handle ascii sequences
-// Logf sends the character when it is not a format escape
-//
-
-static BYTE printfmt_buffer[MAX_STR_LENGTH_OF_UINT32 + 1];
-
 // GCC builtin always refers to the glibc function for some reason
 // so I have to implement it manually, inspired by the BSD implementation
 DWORD StrLen(PBYTE s1)
@@ -78,8 +71,15 @@ VOID APICALL Uint32ToString(DWORD value, PBYTE obuffer)
 // Example:
 //  KeLogf(LptDebug, "Value = @d\n\t", value)
 //
+//
+// It is the output driver's responsibility to handle ascii sequences
+// Logf sends the character when it is not a format escape
+//
 VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
 {
+
+    BYTE printfmt_buffer[MAX_STR_LENGTH_OF_UINT32 + 1];
+
     va_list ap;
     WORD i;
     BYTE ch;

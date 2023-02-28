@@ -16,7 +16,17 @@
 
 #define CAPT_HND   0 /* Handled captured trap */
 #define CAPT_NOHND 1 /* Did not handle */
-#define CAPT_NUKE  2 /* Ored with other, kill requesting process */
+#define CAPT_NUKE  2 /* Ored with other, kill requesting process, TODO */
+
+// Return value of a V86 chain handler is zero if handled, 1 if refuse to handle
+typedef STATUS (*V86_HANDLER)(PTRAP_FRAME);
+
+typedef struct
+{
+    V86_HANDLER handler;  // Set the handler
+    PVOID next;     // Initialize to zero
+}V86_CHAIN_LINK,
+*PV86_CHAIN_LINK;
 
 extern VOID ScOnErrorDetatchLinks(VOID);
 extern VOID ScVirtual86_Int(PTRAP_FRAME, BYTE);
@@ -25,25 +35,10 @@ extern VOID ScMonitorV86(PTRAP_FRAME);
 extern VOID ScEnterV86(PTRAP_FRAME);
 extern VOID ScShootdownV86(VOID);     // Defined in vm86.asm
 
-typedef struct
-{
-    STATUS (*handler)(PTRAP_FRAME);  // Set the handler
-    PVOID next;     // Initialize to zero
-}V86_CHAIN_LINK,
-*PV86_CHAIN_LINK;
-
-//
-// Trap chains are transparent to driver development, though no
-// further abstraction is needed.
-//
-typedef struct
-{
-     V86_CHAIN_LINK v;
-}
-DRV_V86_HOOK_CONF,
-*P_DRV_V86_HOOK_CONF;
-
-// Return value of a V86 chain handler is zero if handled, 1 if refuse to handle
-typedef STATUS (*FP_V86_HANDLER)(PTRAP_FRAME);
+extern APICALL VOID ScHookDosTrap(
+    VINT                      vector,
+    OUT PV86_CHAIN_LINK       new,
+    IN  V86_HANDLER           hnd
+);
 
 #endif /* V86_H */

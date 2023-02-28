@@ -10,7 +10,7 @@ If there is no FPU, coprocessor not present should terminate the process.
 
 Add resource reserve feature (from Win95)
 
-Sending interrupts to a multitasking DOS task
+Sending interrupts to a multitasking DOS task?
 
 When the page table is changed in the i386, the entire TLB must be invalidated.
 On the i486 and above, the pages modified can be evicted from the TLB using INVLPG

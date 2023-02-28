@@ -7,4 +7,6 @@ VOID APICALL Uint32ToString(DWORD, PBYTE);
 VOID APICALL KeLogf(OUTPUT_DRIVER, IMUSTR restrict, ...);
 VOID FatalError(DWORD);
 
+#define ERROR_IF_ISR()
+
 #endif

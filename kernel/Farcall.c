@@ -1,54 +1,37 @@
-#include <>
+#include <Farcall.h>
+#define MAX_SUPPORTED_FAR_CALLS 8
 
+WORD hnd_inx;
+DOS_FCALL_HANDLER fc_handlers[MAX_SUPPORTED_FAR_CALLS];
+V86_CHAIN_LINK    v86_report_links[MAX_SUPPORTED_FAR_CALLS];
 
-//
-// Far call handler does not need to return anything. The kernel
-// knows exactly which one to call by index
-//
-typedef VOID (*DOS_FCALL_HANDLER) (PTRAP_FRAME*);
-
-//
-// To make the interface simpler, the V86 chain link struct
-// is embedded here. This structure is part of a linked list.
-// The difference is that it is indexed by number rather than probing
-// functions iteratively as with V86.
-//
-
-typedef struct {
-    V86_CHAIN_LINK        v86_cl;
-    DOS_FCALL_HANDLER     handler;
-    WORD                  rom_space_offset;
-    PVOID                 next;
-}FARCALL_CONF,*P_FARCALL_CONF;
-
-static WORD current_farcall = 0;
-const PVOID bios_rom_space = 0xF0000;
-
-
-//
 // This function is called by the page fault handler when the proper
-// conditions are met.
+// conditions are met. Those conditions are not the concern of this function.
 //
-VOID HandleFcallAfterPF(WORD eip, PTRAP_FRAME tf)
+VOID HandleFcallAfterPF(WORD offset_from_bios_rom, PTRAP_FRAME tf)
 {
-    if (current_farcall == 0)
-    {
-        // No far calls implemented, do nothing
-        return;
-    }
-
-    // Unlike the V86 interface which has a chain of handlers for
 }
 
-
 //
-// Brief: Far calls are intercepted through the page fault handler.
-// Regular DOS programs may access XMS and other far call API's. The
-// first step is to capture the multiplex interrupt
+// Returns the offset from the BIOS rom space or -1 on error
 //
-ScCreateDosFarCallHandler(
-                          FARCALL_CONF  fcall_cfg,
-                          STATUS (*report_handler)(),
-                          DOS_FCALL_HANDLER fcall_handler
+// report_handler is a v86 chain link that implements the DOS calls
+// that report the address of the far call interface to the program.
+//
+// Returns 32-bit seg:off pair relative to BIOS F000:0000
+//
+DWORD ScInsertFarCallHandler(
+                            VINT              vector,
+                            V86_HANDLER       report_handler,
+                            DOS_FCALL_HANDLER fcall_handler
 ){
+    if (hnd_inx+1 == MAX_SUPPORTED_FAR_CALLS)
+        return -1;
+
+    ScHookDosTrap(vector, &v86_report_links[hnd_inx], report_handler);
+
+    fc_handlers[hnd_inx] = fcall_handler;
+    hnd_inx++;
+
+    return hnd_inx;
 }

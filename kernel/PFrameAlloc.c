@@ -16,7 +16,7 @@
 
 #define CHECK_ALIGN(address, if_unaligned)\
 if ((DWORD)address & 0xFFF != 0)\
-    {goto if_unaligned}      /* No misleading IF warning */
+    {goto if_unaligned ;}      /* No misleading IF warning */
 
 // The ISA memory hole is a 1M space that is sometimes
 // reserved for some ISA cards. It is at F00000-FFFFFF
@@ -39,7 +39,6 @@ static DWORD AddrAlign(PVOID addr, DWORD bound)
 //
 // Depends on V86 being present and scheduler intialized
 //
-
 void InitPFrameAlloc()
 {
     TRAP_FRAME tf = { 0 };
@@ -48,10 +47,13 @@ void InitPFrameAlloc()
 
     tf.regs.eax = 0x8A00; // Endianness?
 
-    ScVirtual86_Int(&tf, 15);
+    ScVirtual86_Int(&tf, 0x15);
     memory_after_1M =
           (tf.regs.eax & 0xFFFF) << 16
         | (tf.regs.edx & 0xFFFF);
 
-    ScVirtual86_Int(&tf, 15);
+    // ?
+    ScVirtual86_Int(&tf, 0x15);
+
+    // Find the address where the kernel will store block records
 }

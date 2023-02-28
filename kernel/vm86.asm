@@ -21,10 +21,13 @@ global ScShootdownV86
 
 ;-----------------------------
 ;Re-enter caller of ScEnterV86
+;
+; This is still using the trap frame struct, need to fix
+;
 ScShootdownV86:
     cli
     ;Load the context saved by EnterV86
-    mov    ebx,Buffer        ; Get pointer to register dump
+;    mov    ebx,Buffer        ; Get pointer to register dump
     mov    eax,[ebx+TF._eax]
 
     mov    ecx,[ebx+TF._ecx]
@@ -68,7 +71,7 @@ ScEnterV86:
         mov     [esp + TF._edi], edi
         mov     [esp + TF._ebp], ebp
         pushf
-        pop     [esp + TF._eflags]
+        pop     dword [esp + TF._eflags]
         mov     [esp + TF._esp], esp    ;Do not remove
         ;The stack pointer must be saved
 

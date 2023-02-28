@@ -16,6 +16,9 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c",
-        "mutex": "c"
+        "mutex": "c",
+        "farcall.h": "c",
+        "v86.h": "c",
+        "memory.h": "c"
     }
 }

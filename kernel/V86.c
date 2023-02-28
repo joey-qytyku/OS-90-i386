@@ -32,12 +32,17 @@ Timeline:
 
 #define CAPTURE_DOS_FUNCTIONS 256
 
+// Does the capture chain list need to be volatile?
+// Software will modify it externally, but does this matter if
+// it does so with library functions?
+//
+
 //
 // An array of stub handlers. They will simply return CAPT_NOHND
 // so that DOS gets it. When new links are added, they will point to
 // the next link in the chain. Index to this array is the vector.
 //
-MCHUNX V86_CHAIN_LINK v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
+V86_CHAIN_LINK v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
 
 // TSS and V86 mode:
 // EnterV86 saves ESP first in TSS.ESP0.
@@ -74,15 +79,15 @@ static WORD wPeek86(WORD seg, WORD off) {return *(PWORD)MK_LP(seg,off);}
 // No return value.
 //
 APICALL VOID ScHookDosTrap(
-                      VINT                vector,
-                      IN  STATUS (hnd*)(PTRAP_FRAME)
-                      OUT DRV_V86_HOOK_CONF new,
+                      VINT                      vector,
+                      OUT PV86_CHAIN_LINK       new,
+                      IN  V86_HANDLER           hnd
 ){
-     const PV86_CHAIN_LINK prev_link = v86_capture_chain[vector];
+     const PV86_CHAIN_LINK prev_link = &v86_capture_chain[vector];
 
-     prev_link->next = &new->v;
-     new->v.handler = hnd;
-     new->v.next = NULL;
+     prev_link->next = new;
+     new->handler = hnd;
+     new->next = NULL;
 }
 
 // Brief: Upon a critical error, it is necessary to
@@ -118,7 +123,7 @@ VOID ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
     // Iterate through links, call the handler, if response is
     // CAPT_NOHND, call next handler.
 
-    current_link = v86_capture_chain[vector];
+    current_link = &v86_capture_chain[vector];
 
     // As long as there is another link
     while (current_link->next != NULL)
@@ -202,8 +207,6 @@ void ScMonitorV86(IN PTRAP_FRAME context)
             // Some programs may want to set an ISR, but the IRET
             // will never be reached by normal code
 
-
-
             ScShootdownV86(); // Re-enter caller of ScEnterV86
         break;
 
@@ -236,9 +239,10 @@ VOID InitV86(VOID)
 {
      for (WORD i = 0; i<CAPTURE_DOS_FUNCTIONS; i++)
      {
-          v86_capture_chain[i] = {
+        V86_CHAIN_LINK new = {
                .next = NULL,
                .handler = V86CaptStub
-          }
+        };
+        v86_capture_chain[i] = new;
      }
 }

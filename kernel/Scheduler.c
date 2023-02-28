@@ -28,13 +28,16 @@
 
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
-BYTE vm86_caused_gpf=0; // ?
+BOOL  vm86_caused_gpf=0; // ?
 DWORD current_proc=0;
 
 static INTVAR BYTE  last_mode = KERNEL;
 static INTVAR DWORD spurious_interrupts = 0;
 
 static QWORD uptime = 0; // Fixed point
+
+void PageFault()
+{}
 
 void Divide0()
 {}
@@ -114,7 +117,6 @@ static VOID HandleIRQ0(IN PTRAP_FRAME t)
 
     uptime += 0x10000000; // Trust me bro
     // Update the DOS/BIOS time in BDA?
-    return 0;
 }
 
 // The master interrupt dispatcher and ISR of all interrupts.

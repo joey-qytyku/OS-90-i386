@@ -36,13 +36,73 @@ The high memory area is somewhat problematic. Nearly all programs that can use i
 
 For the HMA to be properly emulated, 64K extra must be allocated and mapped to the 16 pages above 1M, with 16 bytes left usused.
 
+# A20 Gate
+
+The A20 gate is assumed to be on. It is enabled upon boot. Any software that relies on the 8086 address wrap feature will not work on OS/90. I will never add support for enabling or disabling the A20 gate at a software level. Don't ask me to.
+
+On old windows, there is WINA20.VXD which allows the A20 gate to be enabled and disabled at a per-process basis. This could be possible to implement, but as stated previously, I don't care about the A20 gate.
+
+# Direct Hardware Access
+
+Some DOS programs need to access IO ports directly. This would be an error for any other program. It will be impossible to achieve total compatibility, but the goal of OS/90 is to do as good as possible.
+
+## Examples
+
+A DOS game may want to access the keyboard directly and even set its own interrupt handler.
+
+## The DOS Server
+
+The DOS server is a kernel-mode subsystem that handles interrupt reflection to processes using the existing toolset of the kernel API. It is part of the kernel source code.
+
+It handles access to hardware through IO ports and memory mapped IO.
+
+## Virtual Devices
+
+A device driver should register a virtual device with the DOS server if it intends to make the device available to virtual DOS programs. For example, the 32-bit 8042 keyboard driver can allow DOS programs to hook a fake IRQ and access emulated IO ports.
+
+Virtual devices have a simple structure.
+
+```c
+typedef struct {
+    PIMUSTR     name;
+    WORD        irq_bmp;
+    DEV_EVHND   dev_event_handler;
+    WORD        io_port_base;
+    BYTE        io_port_length;
+    PVOID       map_to1, map_to2;
+
+    PVOID       next;
+};
+```
+If MMIO or IO is set to NULL, it is unused.
+
+Some devices need to be global in scope but many must be instantiated for individual processes. The per-process "context" of the emulated device is the responsibility of the driver. The device structure is the part the kernel deals with.
+
+There is a difference between RECL_16 interrupts and fake IRQs. RECL_16 is for non-PnP devices with real mode drivers. BUS_INUSE is used for all fake IRQs. The handler can then fake interrupts.
+
+Fake interrupts can be safely sent while inside an ISR.
+
+## Interrupt Handlers
+
+When a DOS program attemps to modify an interrupt vector, the kernel will have to decide how it will respond. This is where per-process virtual interrupts are necessary.
+
+If the interrupt is lines up with where the 8259 PIC would be assigned to the BIOS.
+
+How will this relate to the farcall interface? Will it be a MMIO device?
+
 # DOS Programs and Memory
 
-One possibility is to execute programs in physical DOS. This would restrict memory usage but increase the simplicity of the design. Consider this? How would multitasking by possibile?
+## Running in Physical DOS
 
-For a program to execute, an executable file must be provided. A COM file will simply be written to address 8000 in the process memory. MZ executables are unpacked relative to that location.
+In this situation, the program runs in the actual conventional memory. DOS memory calls are used to allocate the space and write program data. DOS itself cannot handle the loading and execution because it would make multitasking impossible. DOS would try to run the program within a supervisory V86 call.
 
-DOS function calls must be able to access process memory. Without it, a simple hello world would not be possible. Generally, no more than 64 KiB are used at a time.
+1MB and 64 KiB are always identity mapped, so this would be simple to do.
+
+This model would reduce the amount of memory available for DOS programs, but is simpler. It may also make DPMI easier to implement.
+
+## Allowing DOS programs to get more memory
+
+This concept could actually work with the other idea. Since one page of the UMA is already in use for far calls, the rest can be used to give DOS programs more memory if they need it. For this to work, the allocation root of the V86 process will have to be initialized.
 
 # Emulation Driver
 

@@ -177,14 +177,14 @@ STATUS SetupPnP(VOID)
     // Find the checkstruct
     for (DWORD i = 0; i<0x800*32; i++)
     {
-        if (*(PPNP_INSTALL_CHECK)checkstruct->signature == PNP_ROM_STRING)
+        if (checkstruct->signature == PNP_ROM_STRING)
         {
-            has_pnp=1;
+            supports_pnp=1;
             break;
         }
         checkstruct += 0x800; //????
     }
-    if (!has_pnp)
+    if (!supports_pnp)
         return OS_FEATURE_NOT_SUPPORTED;
 
     PnSetBiosDsegBase(checkstruct->protected_data_base);
@@ -276,7 +276,7 @@ static VOID DetectFreeInt(VOID)
                 &kernel_bus_hdr
             );
     }
-    if (GetInterruptLevel(2) == RECL_16)
+    if (InGetInterruptLevel(2) == RECL_16)
     { 
         // Because IRQ#2 == IRQ#9 on PC/AT, both must be blocked off
         // in case of DOS hooking #9. Handler is not real, we are only
@@ -314,7 +314,9 @@ static VOID DetectCOM(VOID)
 //    interrupts[4].lvl = RECL_16;
 
 
-    if (com_ports > 1);
+    if (com_ports > 1)
+    {
+    }
 //        interrupts[3].lvl = RECL_16;
 }
 

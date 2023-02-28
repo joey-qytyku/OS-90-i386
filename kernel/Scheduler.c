@@ -22,6 +22,7 @@
 #include <Platform/8259.h>
 #include <Platform/IA32.h>
 #include <Scheduler.h>
+#include <Farcall.h>
 #include <PnP_Mgr.h>
 #include <Type.h>
 #include <V86.h>
@@ -31,13 +32,28 @@
 BOOL  vm86_caused_gpf=0; // ?
 DWORD current_proc=0;
 
-static INTVAR BYTE  last_mode = KERNEL;
+// The mode that the PC switched from
+// There are three modes:
+// * Interrupt Service Routine (IRQ)
+// * Kernel
+// * User
+// Software interrupts, or traps, are KERNEL
+//
+// Initialzed to KERNEL because that would be correct when
+// the first interrupt is called.
+//
+// This matters because interrupt stack frames are different if switched
+// from a userspace program (SS and ESP are saved)
+//
+static INTVAR BYTE last_mode = KERNEL;
+
+// Counts the number of spurious interrupts
 static INTVAR DWORD spurious_interrupts = 0;
 
-static QWORD uptime = 0; // Fixed point
-
-void PageFault()
-{}
+// Fixed point number for countine miliseconds the OS has been running
+// Not currently being used for anything though
+//
+static INTVAR QWORD uptime = 0; // Fixed point
 
 void Divide0()
 {}
@@ -81,12 +97,44 @@ void StackSegFault()
 void FloatError()
 {}
 
-void GeneralProtect()
+void PageFault(PTRAP_FRAME tf)
+{
+    DWORD error_code = ScGetFaultErrorCode();
+    DWORD pfla; __asm__("movl $cr0, %0" :"=r"(pfla)::);
+
+    const BOOL caused_by_cpl_3 = (error_code >> 2)&1;
+
+    // For this to be a far call hook, the following conditions must be met
+    // * Code segment must be FAR_CALL_BASE_SEG
+    // * Fault must be caused by a ring three program (V86 is always ring 3)
+    // * Fault address must be in appropriante range withing segment
+    if (       pfla >= FAR_CALL_BASE_ADDR
+            && pfla <= FAR_CALL_BASE_ADDR+FAR_CALL_UPPER_BOUND_OFFSET)
+            && caused_by_cpl_3
+            && tf->cs == FAR_CALL_BASE_SEG
+    {
+        // This page fault is a call by a DOS program to a 32-bit far call
+        // handler. Dispatch to Farcall.c.
+        HandleFcallAfterPF(tf->eip, tf);
+
+        // We are done here, continue execution.
+        return;
+    }
+}
+
+BOOL ScCurrentProgramInProtectedMode();
+
+VOID GeneralProtect(PTRAP_FRAME tf)
 {
     /*
      * The error code is always zero if it is not
      * segment related. There are no zero selectors
     */
+
+    //
+    // If a DPMI app calls a vector that is not ring 3, 
+    //
+
 
    // Is it from the kernel?
    // If so PANIC
@@ -119,13 +167,13 @@ static VOID HandleIRQ0(IN PTRAP_FRAME t)
     // Update the DOS/BIOS time in BDA?
 }
 
-// The master interrupt dispatcher and ISR of all interrupts.
 //
+// The master interrupt dispatcher and ISR of all interrupts.
 // EAX and EDX pass the arguments for simplicity
+//
 __attribute__(( regparm(2), optimize("align-functions=64") ))
 VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
 {
-    // Simpler way to do this? Use inlines for both ISRs?
     WORD  inservice16 = InGetInService16();
 
     /// 1. The ISR is set to zero for both PICs upon SpurInt.
@@ -154,7 +202,7 @@ VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
     {
         // Interrupts can fire during an ISR if there is nothing atomic going on
         IntsOn();
-        InGetInterruptHandler(irq)(tf); // lol
+        InGetInterruptHandler(irq)(tf);
         SendEOI(irq);
     }
     else if (RECL_16)
@@ -166,6 +214,21 @@ VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
         // Critical error
     }
 }
+
+//
+// DPMI has a ridiculous requirement where all protected mode
+// interrupt vectors must point to code that reflects it to DOS,
+// with the exception of INT 21H AH=4CH and INT 31H (DPMI)
+// To make this work, I have to make sure that each IDT entry that is not an IRQ
+// is a ring zero vector that points to nothing important.
+// This will generate a #GP
+//
+VOID Init_DPMI_ReflectionHandlers()
+{
+}
+
+VOID CheckAndHandleDPMI_Trap()
+{}
 
 VOID InitScheduler()
 {

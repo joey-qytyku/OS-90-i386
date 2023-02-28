@@ -26,20 +26,27 @@
  * The last exception that I need to use is #XF because it
  * is supported by the Pentium III from 1999, only x64 CPUs
  * support VMX which is the next exception after that
+ * This number must not conflict with vector 0x31 because that is DPMI
  */
 #define IRQ_BASE 0x20
+#define DPMI_VECTOR 0x31
+
+#if DPMI_VECTOR <= IRQ_BASE+16 && DPMI_VECTOR >= IRQ_BASE
+#error IRQ BASE OVERLAPS WITH DPMI VECTOR
+#endif
 
 /**
- * @brief Output with delay
+ * Output with delay
+ * 
  * Only present for i386 support. The 80486 and above
  * do not require the delay and it is kind of useless.
- * It is probably not required when interleaving IO, aka outputting to
- * different ports (faster than using the same ports).
+ * It is probably not required since we will be interleaving IO,
+ * aka outputting to different ports (faster than using the same ports).
  */
 static inline VOID pic_outb(WORD port, BYTE val)
 {
     outb(port, val);
-    outb(0x80, 0); // Output to unused for
+    outb(0x80, 0); // Output to unused port for delay
 }
 
 static inline BYTE pic_inb(WORD port)
@@ -54,8 +61,21 @@ static inline BYTE pic_inb(WORD port)
 // happens in the exact order specified rather than where GCC wants.
 // "memory" can also be used for instructions that are not supposed to move
 //
-static inline void IntsOn (void) { __asm__ volatile ("sti":::"memory"); }
-static inline void IntsOff(void) { __asm__ volatile ("cli":::"memory"); }
+static inline VOID IntsOn (VOID) { __asm__ volatile ("sti":::"memory"); }
+static inline VOID IntsOff(VOID) { __asm__ volatile ("cli":::"memory"); }
+
+static inline DWORD GetEflags(VOID)
+{
+    DWORD eflags;
+    __asm__ volatile (
+        "pushfd"
+        "popl %0"
+        :"=r"(eflags)
+        :
+        :
+    );
+    return eflags;
+}
 
 // The in-service register is a bit mask with one turned on
 static inline WORD InGetInService16(void)

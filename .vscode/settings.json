@@ -19,6 +19,9 @@
         "mutex": "c",
         "farcall.h": "c",
         "v86.h": "c",
-        "memory.h": "c"
+        "memory.h": "c",
+        "type.h": "c",
+        "stdarg.h": "c",
+        "debug.h": "c"
     }
 }

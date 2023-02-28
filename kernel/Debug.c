@@ -124,7 +124,7 @@ VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
     va_end(ap);
 }
 
-static VOID FatalErrorPutchar(BYTE ch)
+VOID _KernelPutchar(BYTE ch)
 {
     TRAP_FRAME regparm = { .regs.eax = (0xE << 8) | ch};
     ScVirtual86_Int(&regparm, 0x10);
@@ -142,7 +142,7 @@ VOID FatalError(DWORD error_code)
     ScVirtual86_Int(&regparm, 0x10);
 
     // Print the message
-    KeLogf(FatalErrorPutchar,
+    KeLogf(_KernelPutchar,
     "The OS/90 kernel has encounterd a fatal error.\n\t"
     "Please restart your computer.\n\t"
     "Error code: @x", error_code

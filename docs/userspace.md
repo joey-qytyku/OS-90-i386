@@ -6,6 +6,10 @@ The goal is to ensure that their are no competing standards, and that OS/90 can 
 
 OS/90 is intended to be a desktop operating system for only one user.
 
+# Role of DPMI
+
+Userspace applications are PE/COFF files with special executable headers that use DPMI to load the executable data and also handle dynamic linking. The loading code is called by interrupt Each process is a virtual machine, given the impression of being a single-tasking DOS machine with direct access to hardware. Memory is shared by all processes using the same LDT.
+
 # INIT program
 
 INIT.EXE is the program that initializes the system. It must be 32-bit.
@@ -57,7 +61,7 @@ Exec specifies the file that should be executed when the program runs. This must
 
 # Display Protocol
 
-For the display to work, there are a few components that must be present. When the kernel passes control to the INIT program, there is no display dsystemriver loaded. Instead, the kernel outputs text using INT 10H.
+For the display to work, there are a few components that must be present. When the kernel passes control to the INIT program, there is no display driver loaded. Instead, the kernel outputs text using INT 10H.
 
 ## Display Drivers
 

@@ -19,10 +19,10 @@
 #include <Atomic.h>
 #include <Type.h>
 
-// Note that DPMI is called with INT 3Ch
+// Note that DPMI is called with INT 31h
 #define IDT_SIZE 256
 
-// Make this... volatile?
+// Make this... volatile? No.
 IA32_STRUCT _ia32_struct =
 {
     .gdt =

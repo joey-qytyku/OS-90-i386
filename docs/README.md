@@ -8,6 +8,8 @@ OS/90 is a work-in-progress operating system which includes a bootloader, kernel
 
 It is designed specifically for 32-bit IBM-PC compatibles, primarily from the 1990s, but can run on newer hardware. The kernel is non-portable, but APIs built on top it, including the driver model, are somewhat portable.
 
+It will be released under a different name, but the source code will always be named "OS/90". Kind of like Windows NT.
+
 # Minimum requirements
 
 |Spec|Minimum|Recommended|Premium|
@@ -81,7 +83,7 @@ Reinstalling OS/90 is necessary to update. User files are not stored in the OS90
 
 # Limitations
 
-In the current design, the 32-bit userspace runtime has not been specified. It will be in the future. Filesystem access is 16-bit only, but disk access is 32-bit for performance reasons.
+In the current design, the 32-bit userspace runtime has not been specified. It will be in the future. Filesystem access is 16-bit only.
 
 # After install
 
@@ -106,7 +108,7 @@ Q: Does this run on modern computers?
 A: As long as it has a PC BIOS (even EFI-CSM) and 32-bit disk access is turned off (or IDE compatibility) for using SATA drives, there should be no problems. PCIe is compatible with PCI in software.
 
 Q: Do DOS drivers work?
-A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of expansion cards.
+A: They should, but are certainly less stable. DOS drivers will probably be the only option for the majority of expansion cards. You will have to manually configure resources like IRQ/DMA/etc.
 
 Q: What type of kernel design is used?
 
@@ -121,6 +123,12 @@ A: In theory, FreeDOS is the best because it has LFN support, but it has many ex
 
 Q: Can you make a custom version of OS/90?
 A: Yes! Email me and I can make a special version.
+
+Q: Why did you make this?
+
+A: I thought it would be easier to make it for older computers, since portability is not a concern anymore and low-level optimization (which I like to do) is easier. I also found myself facinated with old machines and thought it would be fun to do. OS/90 turned out to be more difficult than I expected because of my choice of target platform.
+
+I have gone to far and feel proud of what I have been able to do. I want to see how this story ends.
 
 ## Pipe Dreams
 

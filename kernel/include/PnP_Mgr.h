@@ -151,7 +151,6 @@ FP_IRQ_HANDLR InGetInterruptHandler(VINT);
 
 VOID InitPnP();
 
-__attribute__(( regparm(1) ))
-WORD PnCallBiosInternal(DWORD argc, ...);
+extern __attribute__(( regparm(1) )) WORD PnCallBiosInternal(DWORD argc, ...);
 
 #endif /* PNP_MGR_H */

@@ -13,6 +13,7 @@
 #include <Linker.h>
 #include <Atomic.h>
 #include <Type.h>
+#include <Debug.h>
 
 #define PNP_ROM_STRING BYTESWAP(0x24506e50) /* "$PnP" */
 #define NUM_INT 16 /* For consistency */
@@ -192,9 +193,11 @@ STATUS SetupPnP(VOID)
 
     return OS_OK;
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 // Plug and Play kernel event handling and sending
 ////////////////////////////////////////////////////////////////////////////////
+
 VOID PnSendDriverEvent()
 {
     // Should this require sender != to reciever?
@@ -239,7 +242,7 @@ STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 // IRQ#2 never sends any interrupts on the PC-AT architecture.
 // If a DOS program hooks onto it
 // then OS/90 must ensure that IRQ#9 is blocked off and that IRQ#9
-// is handled by the real mode IRQ#2. A proteted mode IRQ handler should
+// is handled by the real mode IRQ#2. A protected mode IRQ handler should
 // never try to set the IRQ#2 handler, since it will never be called.
 //
 // This causes a kludge with the master dispatch because IRQ#9 must be a legacy 16-bit
@@ -299,7 +302,7 @@ static VOID DetectFreeInt(VOID)
 static VOID DetectCOM(VOID)
 {
     BYTE i, com_ports;
-    const PWORD bda = (PWORD)phys(0x400+0);
+    const PWORD bda = (PWORD)phys(0x400);
 
     // Check BIOS data area for number of serial ports
     // The beginning words are the COM port IO addresses
@@ -320,6 +323,17 @@ static VOID DetectCOM(VOID)
 //        interrupts[3].lvl = RECL_16;
 }
 
-VOID InitPnP()
+VOID InitPnP(VOID)
 {
+    // PnP manager should not be initialized if interrupts are on
+    // The scheduler is initialized after the PnP manager sets up IRQs
+    // Right now, interrupts must be off.
+
+    if ((GetEflags() >> 9) & 1)
+    {
+        KeLogf(KDGB_OD,"PnP_Mgr.c,@i: Cannot init PnP with IF on\n\t",
+        __LINE__);
+        FatalError(0x100000AA);
+    }
+
 }

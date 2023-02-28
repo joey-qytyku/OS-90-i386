@@ -144,12 +144,9 @@ LowAlignCheck:
 
 [section .bss]
 
-;--------------------------------------------
-;A table containing pointers to exceptions
-;Not used for actual calling, addresses are
-;copied to the IDT
+global _ErrorCode
 
-ErrorCode:
+_ErrorCode:
     RESD    1
 
 TheIRQ:

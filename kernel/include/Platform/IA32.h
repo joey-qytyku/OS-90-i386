@@ -43,7 +43,7 @@ typedef DWORD PAGE;
 #define TYPE_CODE 0x1B
 #define ACCESS_RIGHTS(present, ring, type) (present<<7 | ring<<6 | type)
 
-#define LDT_SIZE 16
+#define LDT_SIZE 8192
 
 ///////////////////////////
 //   Segments and IDT    //
@@ -61,10 +61,11 @@ typedef DWORD PAGE;
 #define MkIntrGate(vector, address)\
     SetIntVector(vector, 0x80 | IDT_INT386, address);
 
-#define PnSetBiosDsegBase(base)\
-    AppendAddress(&_ia32_struct.gdt[GDT_PNP_BIOS_DS], base);
 
 // Plug and play related
+
+#define PnSetBiosDsegBase(base)\
+    AppendAddress(&_ia32_struct.gdt[GDT_PNP_BIOS_DS], base);
 
 #define PnSetOsDsegBase(base)\
     AppendAddress(&_ia32_struct.gdt[GDT_PNP_OS_DS], (DWORD)base);
@@ -115,6 +116,7 @@ typedef struct __PACKED
 *PSEGMENT_DESCRIPTOR;
 
 // The standard register dump, ESP is nonsense
+// They are arranged in this exact order in memory
 typedef struct __PACKED
 {
     DWORD   eax, ebx, ecx, edx, esi, edi, ebp, _esp;
@@ -124,11 +126,17 @@ typedef struct __PACKED
 // pushes these values on the ESP0 stack
 // ESP+48 is the start of the trap frame
 //
+// If the interrupt is not cross-ring, the stack values are invalid.
+//
+// If the handler is for an exception with an error code, the code
+// is obtained by calling the GetErrorCode function
+//
 typedef struct __PACKED
 {
     DWORD       eip,cs,eflags,ss,esp;
     REGS_IA32   regs; // The lower-half handler saves these
 }TRAP_FRAME,*PTRAP_FRAME;
+
 
 typedef struct __PACKED
 {
@@ -166,6 +174,13 @@ typedef struct __attribute__(( aligned(64) ))
 extern VOID   InitIA32     (VOID);
 extern VOID   AppendAddress(PVOID,DWORD);
 extern IA32_STRUCT _ia32_struct;
+
+extern DWORD _ErrorCode;
+
+static inline DWORD ScGetFaultErrorCode()
+{
+    return _ErrorCode;
+}
 
 #endif /* IA32_H */
 

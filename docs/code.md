@@ -1,8 +1,8 @@
 # This Document
 
-The goal is to establish how source code is written. Some of these are just good practice while other rules are style and personal prefference.
+The goal is to establish how the source code is written. Some of these are just good practice while other rules are style and personal prefference.
 
-It is recommended that programs written for OS/90 are written in accordance with at lease the style guidelines.
+It is recommended that programs written for OS/90 are written in accordance with at least the style guidelines.
 
 # Code Rules
 
@@ -121,13 +121,28 @@ Typedefs should never be made for arrays.
 Some are general concepts, while other tips here are specific to OS/90.
 
 * Optimize the code that runs repeadedly and is the slowest, aka speed critical
-* Do not optimize code that runs only once or takes the lest execution time
+* Do not optimize code that runs only once or takes the least execution time
 * Always be efficient AND elegant
 * Avoid premature optimization
 * Slow code is always bad code
 * Use a structure of arrays when possible
 * Pack structures and use bit fields to save memory
 * Align structures for performance
+
+## Userspace
+
+Userspace is generally larger than kernel space and demands more resources.
+
+* Allocate memory using the user API rather than DPMI or XMS
+* Avoid accessing virtual devices to reduce arbitration overhead
+* Unfreeze blocks if less frequently used
+* Do not unfreeze blocks for performance 
+* Release blocks to reuse allocated memory
+* Use API data structures
+
+Memory management uses handles which can be locked or released. Locking memory will return a pointer and ensure it does not move. Unlocking memory means that the block can be relocated to reduce fragmentation.
+
+Unlocking can be used with the intention of locking it again and reusing the block.
 
 # Assembly Guidelines
 

@@ -61,15 +61,6 @@ The paging structures should not need to be mapped to virtual address space. The
 
 ## Programming Advice
 
-The memory manager should normally be transparent to userspace programmers. For kernel mode software, memory can only be controlled using direct memory calls. The block size can by dynamically recieved by drivers.
-
-### Functions Supported
-
-* Allocating
-* Getting the address
-* Deleting
-* Resizing (+/-)
-
 ## Virtual Memory
 
 Swap files are supported. It is supposed to be present on the root directory of the boot disk and named SWAP.000. This file must be a 4K multiple in size.
@@ -84,7 +75,7 @@ Pages do not need to be constantly swapped unless the main memory is under press
 
 The memory manager will keep track of which parts of physical memory are in use and by what. It will also be able to map allocation chains to arbitrary locations. The issue now is allocating address spaces for kernel software so that a simple malloc-like call would be possible.
 
-Memory sharing is possible, however. In theory, one program can be a memory broker for other processes (IDK about this). When a process is loaded into memory, it is mapped flat into the virtual address space starting at 1M (anything lower makes the executable invalid).
+Memory sharing is possible, however. In theory, one program can be a memory broker for other processes (IDK about this). When a process is loaded into memory, it is mapped flat into the virtual address space starting at 1M+64K (anything lower makes the executable invalid).
 
 ## Relation with Threads
 
@@ -96,25 +87,68 @@ Each thread gets an allocation head. If the process needs more memory, it can re
 
 Virtual memory is implemented in the kernel.
 
-# Proper Allocation
+# Memory Allocation
 
 Malloc and free are the convenient functions for allocating memory in C. The key point of the design is that malloc returns a pointer and free takes a pointer. All modern operating systems support a similar model of memory allocation.
 
-Another way to do this is to use integer handles to refer to memory blocks. Using pointers is easier for programming as it does not require memorizing the handle from allocation and the address from the freeze function.
+Another way to do this is to use integer handles to refer to memory blocks. Handles are better for avoiding memory fragmentation as blocks can be re-shuffled by the kernel to make space and reduce fragmentation. This is also much more convenient for DPMI support, as the spec uses handles.
 
-## Implementation
+In OS/90, memory allocation uses resizable heaps which every program gets. This allows defragmentation to happen at a per-program basis. The userspace libraries will allow for heap creation. Using DPMI will allocate memory only to the default heap. Handles are garaunteed to be interchangable between the two.
 
-Memory allocation must be implemented separately for userspace and the kernel.
+The kernel must allocate memory in page blocks.
+
+## Kernel and User
+
+The kernel has to implement memory allocation using handles in order to support DPMI and XMS. The userspace does not implement it. All kernels need a way to allocate memory in the same way that the userspace can.
+
+Heaps require specifying a virtual address range where blocks will be mapped. The kernel uses an address above C0000000. All drivers should use this heap.
+
+## Block Structure
+
+Blocks have headers with the following information:
+
+```c
+typedef struct _MEMBLOCK_CTL_HEADER {
+  DWORD size_bytes;
+  DWORD flags;
+  DWORD handle;
+  PVOID cache_addr;
+  _MEMBLOCK_CTL_HEADER next_header
+}MEMBLOCK_CTL_HEADER;
+```
+
+If bit zero of flags is set, it indicates that the block is page-discontiguous. Such blocks cross page boundaries.
+
+If bit 1 of the flags is set, the block is frozen 
+
+flags:2 = 1 indicates that the cached address it still valid. The cached address is returned by the freeze function.
+
+The memory area starts immediately after the header.
+
+## Block Reshuffling
+
+Blocks are sometimes reshuffled to make more space. To determine an optimal way to do this algorithm:
+
+Each symbol represents a different memory block. Spaces are page boundaries.
+
+##|@@|!!|!!|!!
+
+I delete @@.
+
+##|  |!!|!!|!!
+
+I then allocate @@@@. I can do something here.
+
+@@|@@|!!|!!|!!|##|
+
+This is the desired output. The concept is that small blocks of memory can be relocated to reduce fragmentation. Note that I can only reduce it. There is no perfect method.
+
+Defragmentation should look to the smaller blocks (<4K) and attempt to nearly fill entire pages with them. Alignment is never garaunteed, but will probably be 32-bit for better performance.
+
+Defragmenting is a slow process that requires copying memory, so it should happen rarely. It can happen with fixed intervals or a more complicated algorithm can be implemented.
+
+For example, if there is a large deviation between allocation sizes, a defrag is more likely. 
 
 # Dynamic structures
 
 ## Vector
-
-## Programming Considerations
-(Updated 2022-08-05)
-
-Programs should avoid allocating and freeing memory and rely on the .bss section more. Allocations can be called, but they should be relatively large and page-multiples in size.
-
-Software libraries can help with managing .bss heaps if that is necessary.
-
-On i386 computers, the lack of INVLPG will make frequent memory freezes slow the program slightly because the TLB has to be flushed repeadedly every time a page table is modified. Software for this class of hardware should avoid freezing often.

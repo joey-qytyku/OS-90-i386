@@ -49,8 +49,23 @@
 //#define PNP_FPU_INTERNAL 0x02
 
 typedef VOID (*FP_EVENT_HANDLER) (PVOID);
-typedef VOID (*FP_IRQ_HANDLR)    (PTRAP_FRAME);
+
+// The level-3 IRQ handler function
+//
+// The trap frame is always passed. First argm determines
+// if the trap frame pointer contains a V86 iret frame.
+//
+// There are few reasons for an IRQ handler to want to access the context.
+// Its just there if absolutely needed. Most handlers can be written without
+// even initializing it.
+//
+// The parameters are passed using regparm(2)
+
+__attribute__(( regparm(2) ))
+typedef VOID (*FP_IRQ_HANDLR)    (DWORD, PVOID);
 typedef BYTE RESOURCE_INF;
+
+#define CREATE_IRQ_HANDLER(name) __attribute__(( regparm(2) )) name
 
 typedef enum {
     UNDEFINED = 0,

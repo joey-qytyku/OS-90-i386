@@ -5,7 +5,7 @@
 
     OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>.
 *//*
 
 2022-07-08 - Refactoring, changed inlines to #defines, fixed gdt struct
@@ -37,8 +37,11 @@ typedef DWORD PAGE;
 // The data/stack segment enables the BIG bit
 // so that Plug-and-play BIOS recognizes it as
 // a 32-bit stack
-#define TYPE_TSS  0x19
+#define TYPE_TSS  0x9
 #define TYPE_DATA 0x12
+
+#define TYPE_LDT 0x2
+
 /* Readable for PnP */
 #define TYPE_CODE 0x1B
 #define ACCESS_RIGHTS(present, ring, type) (present<<7 | ring<<6 | type)
@@ -77,11 +80,13 @@ typedef DWORD PAGE;
 #define IaIOPB_Deny()  _ia32_struct.tss.iobp_off = TSS_ALLOW_OFFSET;
 
 enum {
+GDT_NULL = 0,
 GDT_KCODE,
 GDT_KDATA,
 GDT_UCODE,
 GDT_UDATA,
 GDT_TSSD,
+GDT_LDT,
 GDT_PNPCS,
 GDT_PNP_OS_DS,
 GDT_PNP_BIOS_DS,
@@ -115,28 +120,38 @@ typedef struct __PACKED
 }SEGMENT_DESCRIPTOR,
 *PSEGMENT_DESCRIPTOR;
 
-// The standard register dump, ESP is nonsense
-// They are arranged in this exact order in memory
-typedef struct __PACKED
-{
-    DWORD   eax, ebx, ecx, edx, esi, edi, ebp, _esp;
-}REGS_IA32,*PREGS_IA32;
+//
+// Previously, I used a interrupt frame structure. Instead of using that bloat,
+// I just have an array of DWORDs and index them with this. Less code and does
+// exactly the same thing. These are array indices. They are NOT offsets.
+// Not all values are valid, depending on the context.
+//
+enum {
+    RD_EAX = 0,
+    RD_EBX,
+    RD_ECX,
+    RD_EDX,
+    RD_ESI,
+    RD_EDI,
+    RD_EBP,
+    RD_ESP,
+    RD_EIP,
+    RD_CS,
+    RD_EFLAGS,
 
-// When a task switch takes place, the CPU
-// pushes these values on the ESP0 stack
-// ESP+48 is the start of the trap frame
-//
-// If the interrupt is not cross-ring, the stack values are invalid.
-//
-// If the handler is for an exception with an error code, the code
-// is obtained by calling the GetErrorCode function
-//
-typedef struct __PACKED
-{
-    DWORD       eip,cs,eflags,ss,esp;
-    REGS_IA32   regs; // The lower-half handler saves these
-}TRAP_FRAME,*PTRAP_FRAME;
+    // In case of inter-segment switch, there are valid indices
+    RD_ESP,
+    RD_SS,
 
+    // In case of inter-segment switch and VM=1, these are pushed to stack
+    // before entry and saved on stack when exiting
+    RD_ES,
+    RD_DS,
+    RD_FS,
+    RD_GS,
+
+    RD_NUM_DWORDS
+};
 
 typedef struct __PACKED
 {
@@ -172,13 +187,16 @@ typedef struct __attribute__(( aligned(64) ))
 /////////////////////////////////
 
 extern VOID   InitIA32     (VOID);
-extern VOID   AppendAddress(PVOID,DWORD);
 extern IA32_STRUCT _ia32_struct;
 
 extern DWORD _ErrorCode;
 
-static inline DWORD ScGetFaultErrorCode()
+extern VOID ASM_LINK AppendAddress(PVOID gdt_entry, DWORD address);
+
+static inline DWORD ScGetFaultErrorCode(VOID)
 {
+    // If the handler is for an exception with an error code, the code
+    // is obtained by calling the GetErrorCode function
     return _ErrorCode;
 }
 

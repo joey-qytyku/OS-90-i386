@@ -22,6 +22,8 @@
         "memory.h": "c",
         "type.h": "c",
         "stdarg.h": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "pnp_mgr.h": "c",
+        "atomic.h": "c"
     }
 }

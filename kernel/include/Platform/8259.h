@@ -30,6 +30,7 @@
  */
 #define IRQ_BASE 0x20
 #define DPMI_VECTOR 0x31
+#define NON_SYSTEM_VECTORS DPMI_VECTOR
 
 #if DPMI_VECTOR <= IRQ_BASE+16 && DPMI_VECTOR >= IRQ_BASE
 #error IRQ BASE OVERLAPS WITH DPMI VECTOR
@@ -68,8 +69,8 @@ static inline DWORD GetEflags(VOID)
 {
     DWORD eflags;
     __asm__ volatile (
-        "pushfd"
-        "popl %0"
+        "pushfl\n\t"
+        "popl %0\n\t"
         :"=r"(eflags)
         :
         :

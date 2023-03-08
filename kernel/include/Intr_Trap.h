@@ -50,6 +50,23 @@ extern VOID LowGeneralProtect();
 extern VOID LowPageFault();
 
 extern VOID Low0();
+extern VOID Low1();
+extern VOID Low2();
+extern VOID Low3();
+extern VOID Low4();
+extern VOID Low5();
+extern VOID Low6();
+extern VOID Low7();
+
+extern VOID Low8();
+extern VOID Low9();
+extern VOID Low10();
+extern VOID Low11();
+extern VOID Low12();
+extern VOID Low13();
+extern VOID Low14();
+extern VOID Low15();
+
 
 // In the assembly file, there are instructions for
 // each bottom third ISR that save the IRQ number.

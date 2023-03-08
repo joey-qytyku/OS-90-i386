@@ -1,11 +1,18 @@
 /*
      This file is part of OS/90.
 
-    OS/90 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.
+    OS/90 is free software: you can redistribute it and/or modify it under the
+    terms of the GNU General Public License as published by the Free Software
+    Foundation, either version 2 of the License, or (at your option) any later
+    version.
 
-    OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+    OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY
+    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+    FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+    details.
 
-    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU General Public License along
+    with OS/90. If not, see <https://www.gnu.org/licenses/>.
 */
 
 
@@ -30,7 +37,15 @@
 // used by vm86.asm, automatically cleared
 // by the gpf handler when it is set by VM86.asm
 BOOL  vm86_caused_gpf=0; // ?
-DWORD current_proc=0;
+
+static DWORD current_proc=0; // ?
+
+//
+// Pointer to the current process control block.
+//
+INTVAR PTHREAD current_pcb;
+INTVAR PTHREAD first_pcb; // The first process
+
 
 // The mode that the PC switched from
 // There are three modes:
@@ -47,13 +62,8 @@ DWORD current_proc=0;
 //
 static INTVAR BYTE last_mode = KERNEL;
 
-// Counts the number of spurious interrupts
-static INTVAR DWORD spurious_interrupts = 0;
-
-// Fixed point number for countine miliseconds the OS has been running
-// Not currently being used for anything though
-//
-static INTVAR QWORD uptime = 0; // Fixed point
+VOID ScNukeCurrentProcess(VOID)
+{}
 
 void Divide0()
 {}
@@ -97,10 +107,19 @@ void StackSegFault()
 void FloatError()
 {}
 
-void PageFault(PTRAP_FRAME tf)
+//
+// Need to work on this. There may be problems. What if an interrupt handler
+// is in the unmapped/ring 0 page? This could work, but I would have to modify
+// a page table, which violates abstraction.
+//
+// Another way is to make the base segment not F000, that way the BIOS is
+// not bothered at all.
+//
+//
+void PageFault(PVOID tf)
 {
     DWORD error_code = ScGetFaultErrorCode();
-    DWORD pfla; __asm__("movl $cr0, %0" :"=r"(pfla)::);
+    DWORD pfla; __asm__("movl %%cr0, %0" :"=r"(pfla)::);
 
     const BOOL caused_by_cpl_3 = (error_code >> 2)&1;
 
@@ -108,11 +127,18 @@ void PageFault(PTRAP_FRAME tf)
     // * Code segment must be FAR_CALL_BASE_SEG
     // * Fault must be caused by a ring three program (V86 is always ring 3)
     // * Fault address must be in appropriante range withing segment
+    // * The access must be a FAR CALL opcode (?)
+
     if (       pfla >= FAR_CALL_BASE_ADDR
-            && pfla <= FAR_CALL_BASE_ADDR+FAR_CALL_UPPER_BOUND_OFFSET)
+            && pfla <= FAR_CALL_BASE_ADDR+FAR_CALL_UPPER_BOUND_OFFSET
             && caused_by_cpl_3
             && tf->cs == FAR_CALL_BASE_SEG
+            )
     {
+        // Is the opcode FAR CALL?
+        // If not a far call, it could be an INT or something else
+        // This page can be marked present
+
         // This page fault is a call by a DOS program to a 32-bit far call
         // handler. Dispatch to Farcall.c.
         HandleFcallAfterPF(tf->eip, tf);
@@ -122,7 +148,31 @@ void PageFault(PTRAP_FRAME tf)
     }
 }
 
-BOOL ScCurrentProgramInProtectedMode();
+//
+// Must be called before calling a virtual software INT. It sets
+// SS and ESP before V86 is entered.
+//
+// When the kernel calls a DOS interrupt vector, a stack must be provided.
+//
+// The kernel has 32-bit stacks for each process (set in the TSS). Calling
+// real mode software requires a stack too.
+//
+// Lets do that.
+//
+// The kernel may need to call software interrupts when the scheduler has not
+// been yet initialized and no programs are running (with their own RM stacks).
+//
+//
+VOID ScInitDosCallTrapFrame(PDWORD tf)
+{
+    tf->esp = current_pcb->kernel_real_mode_ss;
+    tf->ss = current_pcb->kernel_real_mode_sp;
+}
+
+DWORD ScCurrentProgramInProtectedMode(VOID)
+{
+    return current_pcb->thread32;
+}
 
 VOID GeneralProtect(PTRAP_FRAME tf)
 {
@@ -132,7 +182,7 @@ VOID GeneralProtect(PTRAP_FRAME tf)
     */
 
     //
-    // If a DPMI app calls a vector that is not ring 3, 
+    // If a DPMI app calls a vector that is not ring 3,
     //
 
 
@@ -153,17 +203,18 @@ static inline void SendEOI(BYTE vector)
 
 //
 // IRQ#0 has two functions, update the uptime and switch tasks.
-// RIght now, task switching is done every 1MS, which means every time
+// Right now, task switching is done every 1MS, which means every time
 // IRQ#0 is handled.
 //
-// Interrrupts are off when handling IRQ#0
+// This is handled directly. We do not use the regular IRQ handler type.
 //
-static VOID HandleIRQ0(IN PTRAP_FRAME t)
+// Interrrupts stay off when handling IRQ#0
+//
+static VOID HandleIRQ0(DWORD vm, PDWORD t)
 {
     static BYTE time_slice_in_progress;
     static WORD ms_left;
 
-    uptime += 0x10000000; // Trust me bro
     // Update the DOS/BIOS time in BDA?
 }
 
@@ -172,9 +223,10 @@ static VOID HandleIRQ0(IN PTRAP_FRAME t)
 // EAX and EDX pass the arguments for simplicity
 //
 __attribute__(( regparm(2), optimize("align-functions=64") ))
-VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
+VOID InMasterDispatch(IN PDWORD tf, DWORD irq)
 {
     WORD  inservice16 = InGetInService16();
+    const DWORD v86_interrupted = tf->eflags & (1<<17) != 0;
 
     /// 1. The ISR is set to zero for both PICs upon SpurInt.
     /// 2. If an spurious IRQ comes from master, no EOI is sent
@@ -189,20 +241,15 @@ VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
 
     // Is this a spurious IRQ? If so, do not handle.
     if (irq == 7 && (inservice16 & 0xFF) == 0)
-        goto CountAndRet; // (-_-)
+        return;
     else if (irq == 15 && (inservice16 >> 8) == 0)
-    {
-        SendEOI(0); // Send to master in case of spurious 15
-        CountAndRet:
-            spurious_interrupts++;
-            return;
-    }
+        return;
 
     if (InGetInterruptLevel(irq) == BUS_INUSE)
     {
         // Interrupts can fire during an ISR if there is nothing atomic going on
         IntsOn();
-        InGetInterruptHandler(irq)(tf);
+        InGetInterruptHandler(irq)(v86_interrupted, tf);
         SendEOI(irq);
     }
     else if (RECL_16)
@@ -221,23 +268,93 @@ VOID InMasterDispatch(IN PTRAP_FRAME tf, DWORD irq)
 // with the exception of INT 21H AH=4CH and INT 31H (DPMI)
 // To make this work, I have to make sure that each IDT entry that is not an IRQ
 // is a ring zero vector that points to nothing important.
-// This will generate a #GP
+// This will generate a #GP when called
 //
 VOID Init_DPMI_ReflectionHandlers()
 {
+    BYTE entry = NON_SYSTEM_VECTORS;
+    BYTE iteration_max_bnd = 256 - entry;
+
+    for (entry=NON_SYSTEM_VECTORS; entry < iteration_max_bnd; entry++)
+    {
+        MkTrapGate(entry, 0, 0);
+    }
 }
 
-VOID CheckAndHandleDPMI_Trap()
+//
+// Called by #GP, everything is handled here
+// If the kernel caused the error, we don't care. The main handler
+// deals with that.
+//
+VOID CheckAndHandleDPMI_Trap(DWORD tf)
+{
+    DWORD error_index   = ScGetFaultErrorCode();
+    DWORD caused_by_idt = (error_index >> 1)&1;
+    BYTE vector = (error_index >> 3) & 0x1FFF;
+
+    if (caused_by_idt)
+    {
+        // Good, this matters to us now, upper bits of the selector error code
+        // represent the index to the IDT entry
+        // Now we must handle the virtual PM IDT
+
+        switch (current_pcb->local_idt[vector].type)
+        {
+        case LOCAL_INT_PM_TRAP:
+            // Before we destroy EIP and CS of the program, we must first
+            // save it for when IRET is called by the program
+            // We are emulating the whole instruction. Nothing is on the stack.
+            // The solution is to push values to the stack manually.
+            //
+            // In case it comes up, the V86 implementation of IRET, while it
+            // does not save anything on the stack, EnterV86 does keep track,
+            // making it nestable.
+            //
+
+            // Set the address to return when handler is done
+            tf[RD_EIP] = current_pcb->local_idt[vector].handler_address;
+            tf[RD_CS]  = current_pcb->local_idt[vector].handler_code_segment;
+        break;
+
+        default:
+        break;
+        }
+    }
+}
+
+//
+// When the DPMI program executes IRET, we must go back to the cause of the interrupt
+//
+VOID HandleDPMI_IRET()
 {}
+
+//
+// By default, the PIT is set to pitifully slow intervals, clocking at
+// about 18.4 Hz (or IRQs per second). This is unsuitable
+// for pre-emptive multitasking. We must configure this to a
+// more satifactory frequency. I would like about 1000 Hz.
+//
+// The PIT has a base frequency of 1193800 Hz. We must set the division
+// value to 1200 (0x4B0) to get an output frequency of 994.8 Hz.
+//
+static VOID ConfigurePIT()
+{
+    const BYTE count[2] = {0xB0, 0x4};
+
+    outb(0x43, 0x36);
+    outb(0x40, count[0]);
+    outb(0x40, count[1]);
+}
 
 VOID InitScheduler()
 {
+    ConfigurePIT();
+    Init_DPMI_ReflectionHandlers();
 
     // Claim the timer IRQ resource
     // The handler is called by dispatcher directly for speed
 
     // Now get IRQ#13 and assign the ISR
-    // IntrRequestFixed
 
     //
     // Each interrupt has its own vector so that the IRQ number

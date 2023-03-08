@@ -1,4 +1,30 @@
+;===============================================================================
+;    This file is part of OS/90.
+;
+;   OS/90 is free software: you can redistribute it and/or modify it under the
+;   terms of the GNU General Public License as published by the Free Software
+;   Foundation, either version 2 of the License, or (at your option) any later
+;   version.
+;
+;   OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY
+;   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;   details.
+;
+;   You should have received a copy of the GNU General Public License along
+;   with OS/90. If not, see <https://www.gnu.org/licenses/>.
+;===============================================================================
+
+; Identical at the byte level to the C version of the trap frame
+; The only difference is that the general registers are not grouped
+; in a sub-structure.
+
 STRUC TF
+    ._gs:    RESD 1
+    ._fs:    RESD 1
+    ._ds:    RESD 1
+    ._es:    RESD 1
+
     ._ss:    RESD 1
     ._esp:   RESD 1
     ._eflags:RESD 1
@@ -11,7 +37,9 @@ STRUC TF
     ._esi:   RESD 1
     ._edi:   RESD 1
     ._ebp:   RESD 1
-    ._size:
+    .__esp:  RESD 1
+    ._size:  RESD 1
+    ; Right order? Depends how they are pushed in the stack
 ENDSTRUC
 
 global ScEnterV86
@@ -22,7 +50,6 @@ global ScShootdownV86
 ;-----------------------------
 ;Re-enter caller of ScEnterV86
 ;
-; This is still using the trap frame struct, need to fix
 ;
 ScShootdownV86:
     cli
@@ -47,7 +74,12 @@ ScShootdownV86:
 ; Brief: Enter V86
 ;
 ; TODO: Serious refactoring underway
-
+;
+;
+; This is a very complicated function (along with ShootdownV86). It is callable
+; from C and enters V86. It is not called by the shceduler to run regular
+; software and is only for DOS interrupts
+;
 
 ScEnterV86:
         ; Create a "global variable" space in the stack, 52 bytes
@@ -90,7 +122,7 @@ ScEnterV86:
         ;brief, saving registers from clobbering is the responsibility of the
         ;caller only. Anyway, ESP-60 is address of the pointer arg.
 
-        mov     eax,[esp-60]
+        mov     eax, [esp-60]
         mov     eax, [eax + TF._eax]
         mov     ebx, [eax + TF._ebx]
         mov     ecx, [eax + TF._ecx]
@@ -101,11 +133,26 @@ ScEnterV86:
         mov     [eax + TF._esp], esp
 
 
-        ;Now it is time to enter V86. To get in, I will push EFLAGS,
-        ;SS, ESP, and EIP and run IRET.
+        push    dword [eax + TF._eip]
+        push    dword [eax + TF._cs ]
 
-        ;The EFLAGS pushed must have the VM bit enabled
-        ;but the rest of the state passed should be saved
+        pushf
+        or      dword [esp+4],1<<17
 
+        push    dword [eax + TF._esp]
+        push    [eax + TF._ss]
+
+        ; Order: ES, DS, FS, GS
+        push    [eax + TF._es]
+        push    [eax + TF._ds]
+        push    [eax + TF._fs]
+        push    [eax + TF._gs]
+
+        ; [hacker voice] I'm in
+        iret
+
+; When V86 is interrupted, ESP0 must be set in the TSS. The value must
+; be something where I can push back call my registers
+;
 
 [section .data]

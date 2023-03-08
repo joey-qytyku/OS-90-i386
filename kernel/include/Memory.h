@@ -31,4 +31,7 @@ static inline VOID i486_invlpg(PAGE addr)
     __asm__ volatile ("invlpg (%0)"::"r"(addr) :"memory");
 }
 
+WORD MmAllocateDosMemory(WORD);
+VOID MmFreeDosMemory(WORD);
+
 #endif /* MEMORY_H */

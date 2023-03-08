@@ -130,6 +130,10 @@ A: I thought it would be easier to make it for older computers, since portabilit
 
 I have gone to far and feel proud of what I have been able to do. I want to see how this story ends.
 
+Q: What is your favorite part of the code?
+
+A: V86
+
 ## Pipe Dreams
 
 GUI? ACPI (yuck)?

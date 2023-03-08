@@ -4,11 +4,23 @@ The kernel can call interrupt requests and INTx vectors using special functions.
 
 In both cases, the monitor is used for handling GPF exceptions to emulate ring-0 instructions.
 
-# TSS
+# TSS and V86 Context Switching
 
-The task state segment contains two important fields, ESP0 and ES0. ES0 does not need to change but ESP0 does. The kernel allocates a stack for each program running on the system, both 16-bit and 32-bit. EnterV86 does not re-enter the caller and simply resumes execution in V86 mode. Only an interrupt or exception can stop the execution of any ring-3 code, as well as V86. When GPF is called from V86, the handler is called and ESP0 is loaded from the TSS. Interrupts and exceptions must work in V86 mode or getting out is impossible, but if ESP0 stays the same and the stack is reset upon each supervisor call, the stack of the caller is destroyed and the system will crash. To prevent this, EnterV86 saves ESP to the TSS.
+The task state segment contains two important fields, ESP0 and SS0. SS0 will always be set to the flat model segment of the kernel for the switch back to 32-bit mode. The value of ESP is simply what EnterV86 started with before running in protected mode. ShootdownV86 is the other function that V86 uses. When it is called, execution transfers back to the caller of EnterV86. This is normally only called in exception handlers.
 
-Task switching never happens when the kernel or drivers are running. Interrupts are enabled and time is updated. This is especially critical for BIOS/DOS calls from protected mode because a task switch will change the kernel stack being used.
+If the EFLAGS on the stack has the VM bit enabled, IRET will pop the data segment registers from the stack. This allows us to set the segment registers before entry.
+
+When the V86 program is interrupted, the stack is set to ES0:ESP0 in the TSS and all the segment registers are pushed along with the usual IRET stack frame. The 32-bit segment selectors have to be restored. According to the intel documentation, they are "zeroed" (aka refference null segment). The stack segment is the same as the data segment, and CS:EIP is already set from the interrupt descriptor. This means that restoring the proper register context should be as simple as SS=>DS,ES,FS,GS.
+
+EnterV86 continues execution in V86. Because this function is re-entrant, the stack pointer in the TSS saved must point to the register dump.
+
+See this for more info: https://stackoverflow.com/questions/54845547/problem-switching-to-v8086-mode-from-32-bit-protected-mode-by-setting-eflags-vm
+
+The kernel allocates a stack for each program running on the system, both 16-bit and 32-bit. EnterV86 does not re-enter the caller and simply resumes execution in V86 mode. Only an interrupt or exception can stop the execution of any ring-3 code, as well as V86. When GPF is called from V86, the handler is called and ESP0 is loaded from the TSS. Interrupts and exceptions must work in V86 mode or getting out is impossible, but if ESP0 stays the same and the stack is reset upon each supervisor call, the stack of the caller is destroyed and the system will crash. To prevent this, ScEnterV86 saves ESP to the TSS.
+
+Sometimes the kernel has to access real mode software.
+
+Task switching never happens when the kernel or drivers are running. This is especially critical for BIOS/DOS calls from protected mode because a task switch would change the kernel stack being used.
 
 # Interrupt Reflection and Capturing
 
@@ -57,19 +69,25 @@ For the HMA to be properly emulated, 64K extra must be allocated and mapped to t
 
 # A20 Gate
 
-The A20 gate is assumed to be on. It is enabled upon boot. Any software that relies on the 8086 address wrap feature will not work on OS/90. I will never add support for enabling or disabling the A20 gate at a software level. Don't ask me to.
+The A20 gate is assumed to be on. It is enabled upon boot. Any software that relies on the 8086 address wrap feature will not work on OS/90. I will never add support for enabling or disabling the A20 gate at a software level. Don't ask me to. On old windows, there is WINA20.386 which allows the A20 gate to be enabled and disabled at a per-process basis. This could be possible to implement, but as stated previously, I don't care about the A20 gate.
 
-On old windows, there is WINA20.VXD which allows the A20 gate to be enabled and disabled at a per-process basis. This could be possible to implement, but as stated previously, I don't care about the A20 gate.
+# Execution of DOS Programs
 
-# DOS Virtualization of Memory
+All real mode software runs in physical DOS. Addresses in 16-bit mode are identity mapped. This approach reduces the available memory when multitasking. This also requires that a real mode stack are allocated by the DPMI client before initialization.
 
-There are two approaches of handling memory management.
+Environments are easily accessible this way.
 
-## Approach #1
+## Executing a Process
 
-The first is to isolate DOS programs and put them in separate address spaces. Memory allocation is completely trapped by the software.
+Loading programs must be done by the 32-bit kernel rather than DOS because DOS will immediatetely execute the program until it returns. The function for executing a new process is trapped.
 
-## Approach #1
+Function 4Bh can execute a program immediately or load an overlay. When a program exits, the exit status of the subprogram is retrieved. This can be implemented inside the process control block. The exit function (4Ch) is trapped and will kill the subprocess.
+
+Creating a subprocess suspends the parent process until completion because DOS software is not designed to be multithreaded.
+
+Loading executables is simple. MZ files contain a list of fixups. They indicate addresses that need updating to be segment-relative. The program CS is added to the specified addresses so that they are relative to the base address of the executable image. COM files are just flat binaries with addresses slanted 256 bytes forward for the PSP. Loading the files involves opening the executable and reading its contents into a block of conventional memory. EXE files have fixups applied and execution can begin.
+
+If a DPMI program runs EXEC, the subprocess will run as usual, but in real mode.
 
 ## XMS
 
@@ -199,13 +217,15 @@ DOS and DPMI provide functions for changing and getting addresses of interrupt v
 
 ### Allocating DOS Memory
 
-Allocating memory under the 1M address space is required by DPMI. This memory is obviously virtualized.
+This is possible and necessary for the kernel, though DPMI 0.9 does not require this to be exposed to the API.
+
+Never run allocation procedures in an ISR unless in a critical section.
 
 ### Local Descriptor Table
 
 Services for modifying the local descripor table are provided by DPMI. It could be possible to stuff all DPMI LDT entries in the same system-wide LDT, but this would be a limitation on the number of processes that can be running. Programs will need at least a data and code descriptor. That would mean 4096 processes at once. This would not be a problem, and the LDT services can be virtualized. It is wasteful to allocate memory for separate processes to have truly local LDTs.
 
-This makes shared memory easy. Processes can access shared segment selector. GCC has support for FS and GS relative pointers.
+This makes shared memory easy. Processes can access shared segment selectors. GCC has support for FS and GS relative pointers.
 
 The following functions are implemented by DPMI for the LDT:
 
@@ -247,6 +267,8 @@ This maps a physical address to a virtual address. The memory manager provides t
 ## 16-bit Procedure Calling
 
 All virtual far calls are implemented by allocating a far call entry. An unmapped section of memory in the BIOS ROM space grabs the CS:EIP of the error and indexes a far call handler. Far call allocations are GLOBAL in scope and shared by all programs. This is not recommended as a substitute for shared libraries. Only 16 far calls are available.
+
+DPMI software can also call 16-bit code using interrupt and far call stack frames. These functions allow for copying data from the protected mode stack. The farcall mechanism is used to implement far returning. The address to which the real mode address returns to is in the special memory area.
 
 ## Entering and Exiting Protected Mode
 

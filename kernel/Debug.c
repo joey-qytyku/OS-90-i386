@@ -95,7 +95,7 @@ VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
 
         // The following runs if this is a format character
         i+=2; // Skip the format characters
-    
+
         switch (fmt[i-1])
         {
         // Print hexadecimal, sign is ignored

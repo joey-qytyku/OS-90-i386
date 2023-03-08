@@ -59,6 +59,8 @@ SEEK_SET	EQU	4200h
 SEEK_CUR	EQU	4201h
 SEEK_END	EQU	4202h
 
+SETBLOCK        EQU     4Ah
+ALLOC           EQU     48h
         ORG	100h
         jmp	Main
 
@@ -79,6 +81,7 @@ KernelFile      DB      "[!] The kernel image appears corrupted.",LNE
 FileIO_Error    DB      "[!] Error opening or reading from kernel image",LNE
 MoveError       DB      "[!] Error copying from conventional to extended memory",LNE
 
+BreakPointMSG   DB      "[BREAK]",LNE
 
 ;----------------------------
 ; Debug message strings
@@ -108,7 +111,14 @@ MoveError       DB      "[!] Error copying from conventional to extended memory"
 %endmacro
 
 Main:
-        cld
+        ; .COM programs get all of the remaining contiguous conventional
+        ; memory. This is bad. We must reallocate so that protected mode
+        ; software can allocate conventional memory.
+        mov     ah,SETBLOCK
+        mov     bx,65536/16
+        int     21h
+
+        cld     ; Direction will be 0 for rest of program
         ;Clear screen with mode switch
         mov     ax,3
         int     10h
@@ -218,6 +228,7 @@ LoadKernel:
         mov     ax,OPEN_RO
         mov     dx,Path
         int     21h
+
         jnc     .OpenGood
         ERROR   FileIO_Error
 .OpenGood:
@@ -227,13 +238,14 @@ LoadKernel:
         ;Seek to end to get size
         mov     ax,SEEK_END
         xor     cx,cx
-        mov     dx,cx
+        xor     dx,dx
         int     21h
 
         ;File byte size in DX:AX
         ;The kernel image is page granular
         ;aka it is in 4096 byte blocks
         shrd    ax,dx,PAGE_SHIFT
+
         ;AX now contains the page count, there is no
         ;way it does not fit in a 16-bit register (256M)
         test    ax,ax   ;Kernel should not be zero pages :)
@@ -243,7 +255,7 @@ LoadKernel:
         ;Seek back
         mov     ax,SEEK_SET
         xor     cx,cx
-        mov     dx,cx
+        xor     dx,dx
         int     21h
 
         ;Set conventional memory pointer
@@ -252,16 +264,21 @@ LoadKernel:
 
         ;BX remains the file pointer
         ;DI is the loop counter
+        ;SI is a pointer to the XMM structure
         mov     si,XMM
 
         ;I am out of registers, so I will move 4096
         ;manually wherever needed
 .loadloop:
+        dec     di
+        jz      .end
+
         ;Read 4096 bytes into buffer
         mov     ah,READ
         mov     cx,4096
         mov     dx,Buffer
         int     21h
+        jc      Corrupted
 
         ;Copy to extended memory
         ;HIMEM seems to zero BL on success
@@ -274,23 +291,33 @@ LoadKernel:
 .copy_success:
         pop     bx
 
+        ; Moving 4K more than supposed to?
+
         ;Seek 4096 bytes forward
-        mov     ax,SEEK_CUR
-        mov     dx,4096
-        xor     cx,cx
-        int     21h
+;        mov     ax,SEEK_CUR
+;        mov     cx,4096
+;        xor     dx,dx
+;        int     21h
 
         ;Add 4096 to the extended move offset
-        add     word [XMM.desoff],4096
+        add     dword [XMM.desoff],4096
 
-        dec     di
-        jnz    .loadloop
-
+        jmp .loadloop
+.end:
         ;Close the file
         mov     ah,CLOSE
         int     21h
 
 PageSetup:
+        ; We will make the HMA look like this
+        ; 100000h:
+        ;       Page directory
+        ; 101000h:
+        ;       Page table for low memory
+        ; 102000h:
+        ;       Page table for kernel memory
+        ;
+
         MESSAGE "[i] Creating page tables",LNE
         push    es
         mov     ax,0FFFFh
@@ -340,12 +367,6 @@ GotoKernel:
         ;GDT is loaded segment relative
         lgdt    [_GDTR]
 
-        ;Pass the information block as a segment
-        mov     dx,InfoStructure ; Structure aligned by 16
-        shr     dx,4
-        mov     cx,ds
-        add     dx,cx
-
         ;Switch to protected mode
         mov     eax,cr0
         or      eax,8000_0001h
@@ -357,18 +378,13 @@ GotoKernel:
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
+
         jmp     dword 8:0C000_0001h  ;Yes, this is a thing
         ;Jumps over the protective RET
         ;See StartK.asm for more information
 
 Corrupted:
         ERROR   KernelFile
-
-InfoGet:
-        ;Is there a PCI bus?
-
-        ;Extended memory
-        ret
 
 ;#############################
 ;############Data#############
@@ -399,11 +415,6 @@ XMM:    ;Extended memory move
 .srcoff:DD      0       ;Figured out later
 .deshan:DW      0
 .desoff:DD      0
-
-InfoStructure: ALIGN 16
-        DB      "__INFO__"
-        DW      0       ; Size
-        DB      "__ENDI__"
 
 ;Page tables are zeroed before this is copied in
 IDMap:

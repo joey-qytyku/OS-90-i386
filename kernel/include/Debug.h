@@ -3,7 +3,7 @@
 
 #include <Type.h>
 
-#define KDGB_OD KernelPutchar
+#define KDGB_OD _KernelPutchar
 // What was this for? I made the function thread safe.
 #define ERROR_IF_ISR()
 

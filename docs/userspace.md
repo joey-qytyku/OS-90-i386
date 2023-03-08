@@ -25,6 +25,7 @@ OS90/
     SYSTEM/
         INIT/
             STARTUP.CMD
+        DRIVERS/
     BIN/
         CMD.EXE
     LIB/
@@ -40,7 +41,7 @@ OS/90 has a basic INIT system. Services are stored in SYSTEM/INIT and have a RUN
 
 # Applications Folder
 
-Installable programs are placed in the APPS directory. This is somewhat like macOS, which has an Application folder. Programs can be deleted by simply using DELTREE and removing the folder. Installation is as simple as copying to the APPS directory.
+Installable programs are placed in the APPS directory. This is somewhat like macOS, which has an Applications folder. Programs can be deleted by simply using DELTREE and removing the folder. Installation is as simple as copying to the APPS directory.
 
 An application can contain anything in this folder, as long as the executable and PIF file are present and have the same name as the program (with different extensions).
 
@@ -67,7 +68,7 @@ For the display to work, there are a few components that must be present. When t
 
 Display drivers are regular OS/90 drivers that use the event system to implement display drawing. 2D accelerations are supported. 3D will not be.
 
-A DD must support pixel plotting, getting the dimensions, and managing buffers. Other features do not need to be present.
+A DD must support pixel plotting, getting the dimensions, and managing buffers. Other features do not need to be present. The display driver can output text by trapping INT 10H. If the driver enters incompatible mode, the buffers for DOS are disabled and accessible by other software.
 
 ## Window Manager
 

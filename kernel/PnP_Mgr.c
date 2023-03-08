@@ -227,11 +227,18 @@ STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 {
 }
 
-// Brief:
-//  Detect which interrupts are unused by non-PnP devices
-// Explaination:
-//  A program called GRABIRQ.SYS saves the default assignments
-//  and compares them after DOS is initialized.
+//
+// Initialization routine. Must only be called by InitPnP
+//
+// The interrupt mask register is 11111111 for both master and slave
+// PIC on startup. When a real mode driver modifies an IRQ vector using,
+// INT 21H the IMR is updated by DOS.
+//
+// If an interrupt is unmasked, it must be assumed that a real mode program
+// has inserted an appropriate handler, so it is set to RECL_16. This is how
+// legacy interrupts are configured. Windows does this too.
+//
+// Side note: masking IRQ#2 will mask the entire slave PIC.
 //
 ////// Note on IBM PC Compatiblility Annoyances
 //
@@ -245,42 +252,17 @@ STATUS APICALL Bus_AllocateIO(WORD size, BYTE align)
 // is handled by the real mode IRQ#2. A protected mode IRQ handler should
 // never try to set the IRQ#2 handler, since it will never be called.
 //
-// This causes a kludge with the master dispatch because IRQ#9 must be a legacy 16-bit
-// IRQ and be redirected to th IRQ#2 real mode handler. Yuck.
+// This causes a kludge with the master dispatch because IRQ#9 must
+// be a legacy 16-bit
+// IRQ and be redirected to the IRQ#2 real mode handler. Yuck.
 // Try to not use stupid programs plz.
 //
-static VOID DetectFreeInt(VOID)
+static VOID Init_DetectFreeInt(VOID)
 {
-    PDWORD saved_master_v = phys(655360-1024-64),
-           saved_slave_v  = phys(655360-1024-64+8);
-    PDWORD master_v = phys(32), slave_v = phys(0x70*4);
-    BYTE i;
+    BYTE imr0 = pic_inb(0x21);
 
-    // I should optimize these loops, this is kind of bad
-    for (i=0; i<8; i++)
-    {
-        if (saved_master_v[i] != master_v[i])
-        {
-            SetInterruptEntry(
-                i,
-                RECL_16,
-                NULL,
-                &kernel_bus_hdr
-            );
-        }
-    }
-    for (i=0; i<8; i++)
-    {
-        if (slave_v[i+8] != saved_slave_v[i])
-            SetInterruptEntry(
-                i+8,
-                RECL_16,
-                NULL,
-                &kernel_bus_hdr
-            );
-    }
     if (InGetInterruptLevel(2) == RECL_16)
-    { 
+    {
         // Because IRQ#2 == IRQ#9 on PC/AT, both must be blocked off
         // in case of DOS hooking #9. Handler is not real, we are only
         // keeping other drivers from trying to use it.

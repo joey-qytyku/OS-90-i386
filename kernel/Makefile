@@ -26,7 +26,7 @@ ASFLAGS=-felf
 
 KERNL386.EXE: $(OBJ)
 	echo Linking object files: [$(OBJ)]
-	$(LINK) --oformat binary -T Kernel.ld $(addprefix build/, $(OBJ)) -o build/KERNL386.EXE
+	$(LINK) -T Kernel.ld $(addprefix build/, $(OBJ)) -o build/KERNL386.EXE
 
 all: KERNL386.EXE
 

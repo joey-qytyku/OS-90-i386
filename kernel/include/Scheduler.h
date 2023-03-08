@@ -17,6 +17,8 @@
 #define VM_32 0
 #define VM_16 1
 
+#define PID DWORD
+
 enum {
     KERNEL = 0,
     INTERRUPT, /* If an INT gets INTed */
@@ -44,29 +46,63 @@ enum {
 // server for emulation.
 #define LOCAL_INT_PM_TRAP 3
 
-union __ALIGN(4)
+#define LOCAL_V86INT_REFLECT
+
+//
+// Exception handlers use the registers instead of the stack
+//
+// The first parameter is a DWORD that is 1 if the context is V86
+// This is important for #GP
+//
+#define CREATE_EXCEPT_HANDLER(name) __attribute__(( regparm(2) )) name
+
+typedef struct __PACKED __ALIGN(4)
 {
     DWORD   handler_address;
     WORD    handler_code_segment;
     WORD    type;
-}LOCAL_IDT_ENTRY;
+}LOCAL_PM_IDT_ENTRY;
 
-typedef struct __ALIGN(4)
+//
+// The Process control block. Very large structure.
+//
+typedef struct __PACKED __ALIGN(4)
 {
     // Switches between processes will always change rings
     TRAP_FRAME context;
-    DWORD   kernel_stack;
-    BYTE    thread32;  // Thread is 32-bit native code
-    BOOL    run;       // Is structure valid
-    BOOL    use87;     // Does thread use x86 FPU
+    DWORD   kernel_pm_stack;
+
+//
+// The kernel must use a local stack for each DPMI
+// process when handling real mode calls.
+// The stack pointer must also be remembered because interrupts
+// can occur during the handling of a real mode INT
+//
+    WORD    kernel_real_mode_ss;
+    WORD    kernel_real_mode_sp;
+
+//
+// Flags related to the process
+//
+    BYTE    thread32:1;// Thread is in protected mode
+    BOOL    run:1;     // Is structure valid
+    BOOL    use87:1;   // Does thread use x86 FPU
 	PVOID   x87env;    // NULL if no 87
- 	WORD    ts;        // Miliseconds left counter
-    BOOL    ioperm;    // IO permission bitmap
+
+// If NULL, no sub-process is running
+// If != NULL, the scheduler will not run the parent program
+// and run the subprocess (recursively going down)
+    PVOID   subproc;
+
+//
+// Local protected mode trap entries, see docs for more info
+//
+    LOCAL_PM_IDT_ENTRY local_idt[256];
+
+
     PVOID   next;      // Front link to next thread
 }THREAD,*PTHREAD;
 
 extern VOID InitScheduler(VOID);
-
-#define PID DWORD
 
 #endif /* SCHEDULER_H */

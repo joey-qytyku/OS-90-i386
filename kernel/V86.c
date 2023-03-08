@@ -6,7 +6,7 @@
 
     OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>.
 
 
 V86 handling code
@@ -115,7 +115,7 @@ VOID ScOnErrorDetatchLinks(VOID)
 // context stack: Automatically set
 // for supervisor calls
 //
-VOID ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
+VOID ScVirtual86_Int(IN PDOS_REGS context, BYTE vector)
 {
     PV86_CHAIN_LINK current_link;
 
@@ -162,7 +162,7 @@ VOID ScVirtual86_Int(IN PTRAP_FRAME context, BYTE vector)
 
 // The V86 monitor for 16-bit tasks, ISRs, and PM BIOS/DOS calls
 // Called by GP# handler
-void ScMonitorV86(IN PTRAP_FRAME context)
+void ScMonitorV86(IN PDOS_REGS context)
 {
     // After GPF, saved EIP points to the instruction, NOT AFTER
     PBYTE ins   = MK_LP(context->cs, context->eip);
@@ -182,11 +182,10 @@ void ScMonitorV86(IN PTRAP_FRAME context)
         return; // Nothing else to do now
     }
 
-    //
     // The following is for emulating privileged instructions
     // These may be used by an ISR or by the
     // kernel to access DOS/BIOS INT calls.
-    //
+
     if (supervisor_call)
     {
         switch (*ins)
@@ -204,8 +203,6 @@ void ScMonitorV86(IN PTRAP_FRAME context)
             //      DOS program -> error, not supposed to use IRET
             //      IRQ         -> return to caller
             //      INTx        -> return to caller
-            // Some programs may want to set an ISR, but the IRET
-            // will never be reached by normal code
 
             ScShootdownV86(); // Re-enter caller of ScEnterV86
         break;
@@ -219,15 +216,20 @@ void ScMonitorV86(IN PTRAP_FRAME context)
             context->eip++;
         break;
 
+        case 0xCE: /* INTO */
+        break;
+
+        // INT3 and INTO?
+
         default:
-            // CRITICAL ERROR, btw mov sreg,r16 needs no emulation
+            // Nuke this process
         break;
         }// END OF SWITCH
     }
 
 } // On return, code continues to execute
 
-STATUS V86CaptStub(PTRAP_FRAME tf)
+STATUS V86CaptStub(PDOS_REGS tf)
 {
      return CAPT_NOHND;
 }

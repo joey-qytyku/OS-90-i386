@@ -14,19 +14,15 @@ section	.init
 
 Begin:
         ; Zero the BSS section
-        ; Is this the issue?
         mov     ecx,LKR_END
         sub     ecx,LKR_STARTBSS
         shr     ecx,2
         mov     edi,LKR_STARTBSS
         rep     stosd
-
-        jmp $
         lgdt    [gdtr]
         lidt    [idtr]
-        lldt    [null_ldtr]
 
-        mov     ax,3<<3
+        mov     ax,2<<3
         mov     ds,ax
         mov     es,ax
         mov     ss,ax
@@ -38,21 +34,12 @@ Begin:
 
         jmp    8h:Cont
 Cont:
+
         mov     esp,InitStack   ; Set up a stack
         call    KernelMain      ; GCC does not far return
 
 L:      hlt     ; Nothing to do now, halt
         jmp L   ; if interrupted, handle and halt again
-
-;---------------------------------
-;The LDT is never used by the OS
-;but it must be loaded anyway
-;
-null_ldt:
-        DQ      0       ;Null descriptor
-null_ldtr:
-        DW      8
-        DD      null_ldt
 
 
 section	.bss
@@ -61,3 +48,23 @@ section	.bss
         align   8
         resb    1024
 InitStack:
+
+section .text
+
+global AppendAddress
+AppendAddress:;(PVOID gdt_entry, DWORD address)
+        push    ebp
+        mov     ebp,esp
+
+        mov     ebx,[ebp+8]
+
+        movzx   eax, word [ebp+12]
+        mov     [ebx+2],ax
+
+        movzx   eax, byte [ebp+12+2]
+        mov     [ebx+4],al
+
+        movzx   eax, byte [ebp+12+3]
+        mov     [ebx+7],al
+        leave
+        ret

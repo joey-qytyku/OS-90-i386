@@ -5,7 +5,7 @@
 
     OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>.
 *//*
 
 2022-07-08 - Refactoring
@@ -18,6 +18,7 @@
 #include <Intr_Trap.h>
 #include <Atomic.h>
 #include <Type.h>
+#include <Debug.h>
 
 // Note that DPMI is called with INT 31h
 #define IDT_SIZE 256
@@ -27,12 +28,14 @@ IA32_STRUCT _ia32_struct =
 {
     .gdt =
     {
+    [GDT_NULL]  =   {0},
     [GDT_KCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0xCF, 0x00},
     [GDT_KDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0xCF, 0x00},
     [GDT_UCODE] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_CODE), 0xCF, 0x00},
     [GDT_UDATA] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,3,TYPE_DATA), 0xCF, 0x00},
     [GDT_TSSD ]={
      sizeof(COMPLETE_TSS)-1, 0, 0, ACCESS_RIGHTS(1,3,TYPE_TSS),  0x00, 0x00},
+    [GDT_LDT] =     {LDT_SIZE-1,0,0, ACCESS_RIGHTS(1,0,TYPE_LDT)},
     [GDT_PNPCS] =   {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_CODE), 0x00, 0x00},
     [GDT_PNP_BIOS_DS]=
                     {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0x00, 0x00},
@@ -40,6 +43,7 @@ IA32_STRUCT _ia32_struct =
                     {0xFFFF, 0, 0, ACCESS_RIGHTS(1,0,TYPE_DATA), 0x00, 0x00}
     }
 };
+// LDT descriptor needs further processing
 
 // Ignore not used warnings, used in StartK.asm
 DESCRIPTOR_REGISTER
@@ -66,38 +70,22 @@ static VOID (*except[EXCEPT_IMPLEMENTED])() =
     LowPageFault
 };
 
+//
+//
 static inline VOID FillIDT(void)
 {
     int i;
     for (i=0; i < EXCEPT_IMPLEMENTED; i++)
         MkTrapGate(i, 0, except[i]);
 
-    for (i=0; i < 16; i++)
-        MkIntrGate(
-            EXCEPT_IMPLEMENTED + i,
-            &Low0 + i * BOTTOM_ISR_TABLE_LEN
-        );
-}
-
-// Compiler is really bad at optimizing this so I did it manually
-// This function does not modify the rest of the GDT entry
-// and only touches the address fields
-//
-VOID AppendAddress(PVOID gdt_entry, DWORD address)
-{
-    __asm__ volatile (
-    "mov $8,   %%cl"  ASNL
-    "mov %0,   %%eax" ASNL
-    "mov %1,   %%ebx" ASNL
-    "mov %%ax, 2(%%ebx)" ASNL
-    "shr %%cl, %%eax"    ASNL
-    "mov %%al, 3(%%ebx)" ASNL
-    "shr %%cl, %%eax"    ASNL
-    "mov %%ah, 7(%%ebx)" ASNL
-    :
-    :"r"(address),"r"(gdt_entry)
-    :"ebx","eax","flags","memory"
-    );
+    MkIntrGate(IRQ_BASE, Low0);    MkIntrGate(IRQ_BASE, Low1);
+    MkIntrGate(IRQ_BASE, Low2);    MkIntrGate(IRQ_BASE, Low3);
+    MkIntrGate(IRQ_BASE, Low4);    MkIntrGate(IRQ_BASE, Low5);
+    MkIntrGate(IRQ_BASE, Low6);    MkIntrGate(IRQ_BASE, Low7);
+    MkIntrGate(IRQ_BASE, Low8);    MkIntrGate(IRQ_BASE, Low9);
+    MkIntrGate(IRQ_BASE, Low10);   MkIntrGate(IRQ_BASE, Low11);
+    MkIntrGate(IRQ_BASE, Low12);   MkIntrGate(IRQ_BASE, Low13);
+    MkIntrGate(IRQ_BASE, Low14);   MkIntrGate(IRQ_BASE, Low15);
 }
 
 // @brief Reprogram the PICs
@@ -127,11 +115,9 @@ static void PIC_Remap(void)
     pic_outb(0xA1, ICW4_8086 | ICW4_SLAVE); // Assert PIC2 is slave
 }
 
-/// @brief Detect the X87 and set it up if present
-/// Read Resource.c for information on IRQ#13
-/// @return
-/// @retval 0 No FPU present
-///
+//
+// Detect the X87 and set it up if present
+//
 static STATUS SetupX87(VOID)
 {
     // The Native Exceptions bit, when set, the FPU
@@ -141,32 +127,70 @@ static STATUS SetupX87(VOID)
     DWORD cr0;
     __asm__ volatile ("mov %%cr0, %0":"=r"(cr0)::"memory");
 
-    //
     // If the EM bit is turned on at startup it
     // is assumed that the FPU is not meant to be used
-    //
-    if (BIT_IS_SET(cr0, CR0_EM))
+
+    BOOL fpu_not_present = cr0 & CR0_EM != 0;
+
+    // The 80287 did not native exceptions (obviously), so the NE bit
+    // should not be set if that is installed
+
+    BOOL using_80387_or_better = cr0 & CR0_ET != 0;
+
+    if (fpu_not_present)
         return 0;
+
+    if (using_80387_or_better)
+    {
+        // Are native exceptions supported?
+        // If so, enable and mask IRQ#13
+    }
+}
+
+VOID DummyOutDrv(BYTE ch)
+{
+    static WORD i = 1;
+    const PBYTE txt = 0xB8000;
+    txt[i] = ch;
+    i+=2;
 }
 
 void InitIA32(void)
 {
+    WORD ldt_selector = GDT_LDT<<3;
+    WORD tss_selector = GDT_TSSD<<3;
+
     AppendAddress(&_ia32_struct.gdt[GDT_TSSD], (DWORD)&_ia32_struct.tss);
-    __asm__ volatile ("ltr %%ax" : : "ax"(GDT_TSSD<<3) : "memory");
+    __asm__ volatile (
+        "ltr %0"
+        :
+        :"rm"(tss_selector)
+        :"memory"
+    );
+    AppendAddress(&_ia32_struct.gdt[GDT_LDT], (DWORD)&_ia32_struct.ldt);
+    __asm__ volatile (
+        "lldt %0"
+        :
+        :"rm"(ldt_selector)
+        :"memory"
+        );
+    return;
 
+    // There are two IO permission bitmaps for all processes
+    // One is deny all ports and the other is allow all
+    // Set the deny one to all bits on (deny)
     C_memset(&_ia32_struct.tss.iopb_deny_all, '\xFF', 0x2000);
-    C_memset(&_ia32_struct.ldt, '\xFF', LDT_SIZE * 8);
 
-    // CONFIGURE PIC
     PIC_Remap();
 
     pic_outb(0x20,0xB);  // Tell the PICs to send the ISR through CMD port reads
     pic_outb(0xA0,0xB);  // The kernel does need the IRR
 
-    // Mask all interrupts, writes to data port is OCW3/IMR
-    pic_outb(0xA1,0xFF);
-    pic_outb(0x21,0xFF);
+    //
+    // The PIC will not have interrupts masked. By default, any IRQs
+    // not in use by DOS software will already be masked.
+    //
 
-    // POPULATE THE INTERRUPT DESCRIPTOR TABLE
     FillIDT();
+    KeLogf(DummyOutDrv, "Hello, world!");
 }

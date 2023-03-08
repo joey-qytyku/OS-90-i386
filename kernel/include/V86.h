@@ -19,7 +19,7 @@
 #define CAPT_NUKE  2 /* Ored with other, kill requesting process, TODO */
 
 // Return value of a V86 chain handler is zero if handled, 1 if refuse to handle
-typedef STATUS (*V86_HANDLER)(PTRAP_FRAME);
+typedef STATUS (*V86_HANDLER)(PDOS_REGS);
 
 typedef struct
 {
@@ -29,10 +29,10 @@ typedef struct
 *PV86_CHAIN_LINK;
 
 extern VOID ScOnErrorDetatchLinks(VOID);
-extern VOID ScVirtual86_Int(PTRAP_FRAME, BYTE);
+extern VOID ScVirtual86_Int(PDOS_REGS, BYTE);
 
-extern VOID ScMonitorV86(PTRAP_FRAME);
-extern VOID ScEnterV86(PTRAP_FRAME);
+extern VOID ScMonitorV86(PDOS_REGS);
+extern VOID ScEnterV86(PDOS_REGS);
 extern VOID ScShootdownV86(VOID);     // Defined in vm86.asm
 
 extern APICALL VOID ScHookDosTrap(

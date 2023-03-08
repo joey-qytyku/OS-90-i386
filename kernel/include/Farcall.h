@@ -12,9 +12,9 @@
 #include <Type.h>
 
 #define MAX_SUPPORTED_FAR_CALLS 16
-#define FAR_CALL_BASE_SEG 0xF000
-#define FAR_CALL_BASE_ADDR 0xF0000
-#define FAR_CALL_UPPER_BOUND_OFFSET MAX_SUPPORTED_FAR_CALLS
+#define FAR_CALL_BASE_SEG 0xF001
+#define FAR_CALL_BASE_ADDR (0xF001*16)
+#define FAR_CALL_UPPER_BOUND_OFFSET MAX_SUPPORTED_FAR_CALLS-1
 
 //
 // Far call handler does not need to return anything. The kernel
@@ -22,7 +22,7 @@
 //
 typedef VOID (*DOS_FCALL_HANDLER) (PTRAP_FRAME);
 
-extern DWORD ScInsertFarCallHandler(DOS_FCALL_HANDLER fcall_handler)
+extern DWORD ScInsertFarCallHandler(DOS_FCALL_HANDLER fcall_handler);
 extern VOID HandleFcallAfterPF(WORD, PTRAP_FRAME);
 
 #endif

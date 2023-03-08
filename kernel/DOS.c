@@ -12,11 +12,21 @@
 static V86_CHAIN_LINK lnk = { 0 };
 static DWORD dpmi_entry_farcall;
 
+//
+//// LDT functions for DPMI
+// *
+//
+//
+
 
 static STATUS DpmiRealModeApiHandler(PTRAP_FRAME tf)
 {
     if ((WORD)tf->regs.eax != 0x1687)
         return CAPT_NOHND;
+}
+
+static VOID DpmiInt31hHandler()
+{
 }
 
 //
@@ -35,5 +45,5 @@ VOID KeInit_DOS_Server()
 {
     // Hook INT 2Fh
     ScHookDosTrap(0x2F, &lnk, DpmiRealModeApiHandler);
-    ScInsertFarCallHandler(DpmiHandleEntryFarcall);
+    ScInsertFarCallHandler(DpmiRealModeApiHandler);
 }

@@ -41,7 +41,7 @@ Instead of starting the regular DOS kernel, a replacement kernel sets up the ent
 
 This design makes legacy compatibility difficult because of the isolation between DOS VMs. THe entire DOS kernel would have to be emulated, including the filesystem and the BIOS. The advantage would be more consistent design with less bugs. To avoid difficulties, the backup DOS kernel could be loaded in a virtual machine and get restricted access to hardware resources.
 
-One question wuld be how devices can be accessed by DOS. Emulation could be possible, but in cases where the real device needs to use a DOS driver, the kernel would have to differentiate between supervisory virtual machines and regular machines, with an organized method of passing interrupts. It could also have to "lie" to DOS-based drivers about direct hardware access. This would be quite complicated. To what extent will DOS drivers be able to integrate itself in the system?
+One question wuld be how devices can be accessed by DOS. Emulation could be possible, but in cases where the real device needs to use a DOS driver, the kernel would have to differentiate between supervisory virtual machines and regular machines, with an organized method of passing interrupts. It could also have to "lie" to DOS-based drivers about direct hardware access. This would be quite complicated. To what extent will a DOS driver be able to integrate itself in the system?
 
 Overall, this is a clean concept, but way too difficult to design and not worth the time.
 
@@ -53,7 +53,7 @@ A device driver can be installed that loads the 32-bit kernel and enters it. The
 
 The issue with this design is that the TSRs and other programs executed in the AUTOEXEC process must be given special rights, somehow. Should programs forked by this initial DOS VM be split into separate processes? Probably.
 
-## The OS/90 Design
+## The OS/90
 
 DOS is accessible to the kernel and all DOS VMs. Programs have a userspace API and interrupt call interface to access the 32-bit kernel services similar to unistd.h. Drivers can capture DOS interrupts and form an interrupt chain for sharing multiple sub-functions.
 
@@ -61,4 +61,10 @@ There are two types of drivers, bus and device. Bus drivers can request IO, DMA,
 
 ### Analysis
 
-I chose this design because it offered compatibility and ease of programing at the cost of overall design cleanliness.
+I chose this design because it offered compatibility and ease of programing at the cost of overall design cleanliness. It also allows for easier user troubleshooting when drivers malfunction.
+
+# Executables
+
+## MZ
+
+The relocation table is a list of seg:off pointers. The value pointed to must be added with the target code segment of the program.

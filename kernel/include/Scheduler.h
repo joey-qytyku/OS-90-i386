@@ -54,7 +54,7 @@ enum {
 // The first parameter is a DWORD that is 1 if the context is V86
 // This is important for #GP
 //
-#define CREATE_EXCEPT_HANDLER(name) __attribute__(( regparm(2) )) name
+#define CREATE_EXCEPT_HANDLER(name) __attribute__(( regparm(2) )) void name
 
 typedef struct __PACKED __ALIGN(4)
 {
@@ -69,7 +69,7 @@ typedef struct __PACKED __ALIGN(4)
 typedef struct __PACKED __ALIGN(4)
 {
     // Switches between processes will always change rings
-    TRAP_FRAME context;
+    DWORD   context[RD_NUM_DWORDS];
     DWORD   kernel_pm_stack;
 
 //

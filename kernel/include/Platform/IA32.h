@@ -52,17 +52,13 @@ typedef DWORD PAGE;
 //   Segments and IDT    //
 ///////////////////////////
 
-#define SetIntVector(vector, _attr, address)\
-    _ia32_struct.idt[vector].attr = _attr;\
-    _ia32_struct.idt[vector].offset_15_0  = (DWORD)address &  0xFFFF;\
-    _ia32_struct.idt[vector].offset_16_31 = (DWORD)address >> 16;\
-    _ia32_struct.idt[vector].zero = 0;
+// Make this a function
 
 #define MkTrapGate(vector, dpl, address)\
-    SetIntVector(vector, 0x80 | dpl<<4 | IDT_INT386, address);
+    _SetIntVector(vector, 0x80 | dpl<<4 | IDT_INT386, address);
 
 #define MkIntrGate(vector, address)\
-    SetIntVector(vector, 0x80 | IDT_INT386, address);
+    _SetIntVector(vector, 0x80 | IDT_INT386, address);
 
 
 // Plug and play related
@@ -128,28 +124,28 @@ typedef struct __PACKED
 //
 enum {
     RD_EAX = 0,
-    RD_EBX,
-    RD_ECX,
-    RD_EDX,
-    RD_ESI,
-    RD_EDI,
-    RD_EBP,
-    RD_ESP,
-    RD_EIP,
-    RD_CS,
-    RD_EFLAGS,
+    RD_EBX = 1,
+    RD_ECX = 2,
+    RD_EDX = 3,
+    RD_ESI = 4,
+    RD_EDI = 5,
+    RD_EBP = 6,
+
+    RD_EIP = 8,
+    RD_CS  = 9,
+
+    RD_EFLAGS = 10,
 
     // In case of inter-segment switch, there are valid indices
-    RD_ESP,
-    RD_SS,
+    RD_ESP = 11,
+    RD_SS  = 12,
 
     // In case of inter-segment switch and VM=1, these are pushed to stack
     // before entry and saved on stack when exiting
-    RD_ES,
-    RD_DS,
-    RD_FS,
-    RD_GS,
-
+    RD_ES = 13,
+    RD_DS = 14,
+    RD_FS = 15,
+    RD_GS = 16,
     RD_NUM_DWORDS
 };
 
@@ -199,6 +195,8 @@ static inline DWORD ScGetFaultErrorCode(VOID)
     // is obtained by calling the GetErrorCode function
     return _ErrorCode;
 }
+
+VOID _SetIntVector(BYTE vector, BYTE _attr, PVOID address);
 
 #endif /* IA32_H */
 

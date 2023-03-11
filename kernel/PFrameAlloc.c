@@ -5,7 +5,7 @@
 
     OS/90 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU General Public License along with OS/90. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <DriverLib/Drivers.h>
@@ -41,19 +41,7 @@ static DWORD AddrAlign(PVOID addr, DWORD bound)
 //
 void InitPFrameAlloc()
 {
-    TRAP_FRAME tf = { 0 };
-
     // Detect extended memory above 1M
-
-    tf.regs.eax = 0x8A00; // Endianness?
-
-    ScVirtual86_Int(&tf, 0x15);
-    memory_after_1M =
-          (tf.regs.eax & 0xFFFF) << 16
-        | (tf.regs.edx & 0xFFFF);
-
-    // ?
-    ScVirtual86_Int(&tf, 0x15);
 
     // Find the address where the kernel will store block records
 }

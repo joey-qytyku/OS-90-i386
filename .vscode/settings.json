@@ -24,6 +24,7 @@
         "stdarg.h": "c",
         "debug.h": "c",
         "pnp_mgr.h": "c",
-        "atomic.h": "c"
+        "atomic.h": "c",
+        "linker.h": "c"
     }
 }

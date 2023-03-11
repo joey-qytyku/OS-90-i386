@@ -94,8 +94,6 @@ OS_FEATURE_NOT_SUPPORTED
 // string operand size can also be deduced by the compiler
 //
 
-#if __GNUC__
-
 #define __PACKED   __attribute__( (packed) )
 #define __ALIGN(x) __attribute__( (aligned(x)) )
 
@@ -118,7 +116,5 @@ static inline VOID C_memset(PVOID a, DWORD val, DWORD count)
 {
     __builtin_memset(a,val,count);
 }
-
-#endif /* __GNUC__*/
 
 #endif /* TYPE_H */

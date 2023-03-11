@@ -56,7 +56,7 @@
 ;
 ;The zero flag is set if the VM bit is off.
 ;
-%define RestoreSegsIfNecessary
+%macro RestoreSegsIfNecessary 0
     mov     eax,[esp+32+12] ; Get EFLAGS????
     test    eax,1<<17
     jz      %%nvm
@@ -69,6 +69,7 @@
     mov     gs,eax
 
 %%nvm:
+
 %endmacro
 
 %macro MakeExcept 2
@@ -77,6 +78,7 @@
 
     ;Write the error code to a variable if there is one for this exception
     Low%1:
+
     %if %2 == ERRCODE
     pop     dword [_ErrorCode]
     %endif
@@ -84,20 +86,20 @@
     SaveTrapRegs
     RestoreSegsIfNecessary
 
-    ;Push pointer to the interrupt frame
-    ;First of all, the stack if four bytes behind the
-    ;
-
     ;Were we in V86 mode before the exception?
     ;The first C argument tells us if the exception did happen
     ;during V86 (aka set to 1).
     setz    al
-    push    eax
+    movzx   eax,al
+
+    ;Address of the interrupt frame is just the stack
+    ;pointer plus 4
+    lea     edx,[esp+4]
 
     call    %1
     RestTrapRegs
     iret
-%endm
+%endmacro
 
 [section .text]
 EXTERN InMasterDispatch
@@ -173,7 +175,6 @@ MakeExcept SegNotPresent, ERRCODE
 MakeExcept StackSegFault, ERRCODE
 
 MakeExcept GeneralProtect, ERRCODE
-    pop dword [_ErrorCode]
 
 MakeExcept PageFault, ERRCODE
 

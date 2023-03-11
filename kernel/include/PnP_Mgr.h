@@ -158,14 +158,14 @@ typedef struct {
     WORD    protected_data_base;
 }*PPNP_INSTALL_CHECK;
 
-STATUS APICALL PnAddIOMemRsc(PIO_RESOURCE);
-VOID InSurrenderInterrupt();
-VOID InRegainInterrupt();
-INTERRUPT_LEVEL InGetInterruptLevel(VINT);
-FP_IRQ_HANDLR InGetInterruptHandler(VINT);
-
-VOID InitPnP();
-
+extern STATUS APICALL PnAddIOMemRsc(PIO_RESOURCE);
+extern VOID InSurrenderInterrupt();
+extern VOID InRegainInterrupt();
+extern INTERRUPT_LEVEL InGetInterruptLevel(VINT);
+extern FP_IRQ_HANDLR InGetInterruptHandler(VINT);
+extern STATUS InAcquireLegacyIRQ(VINT, FP_IRQ_HANDLR);
+extern VOID InitPnP();
 extern __attribute__(( regparm(1) )) WORD PnCallBiosInternal(DWORD argc, ...);
+
 
 #endif /* PNP_MGR_H */

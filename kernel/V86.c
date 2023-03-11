@@ -1,4 +1,3 @@
-
 /*
      This file is part of OS/90.
 
@@ -26,7 +25,6 @@ Timeline:
 #include <Platform/IA32.h>
 #include <Platform/8259.h>
 #include <Scheduler.h>
-#include <Linker.h>     /* phys() */
 #include <V86.h>        /* EnterV86, ShootdownV86 */
 #include <Type.h>
 
@@ -63,7 +61,7 @@ V86_CHAIN_LINK v86_capture_chain[CAPTURE_DOS_FUNCTIONS];
 // or a 16-bit interrupt/kernel call
 static INTVAR BOOL supervisor_call = 0;
 
-const PDWORD real_mode_ivt = (PVOID)phys(0);
+const PDWORD real_mode_ivt = (PVOID)0;
 
 static inline PVOID MK_LP(WORD seg, WORD off)
 {
@@ -115,14 +113,16 @@ VOID ScOnErrorDetatchLinks(VOID)
 // context stack: Automatically set
 // for supervisor calls
 //
-VOID ScVirtual86_Int(IN PDOS_REGS context, BYTE vector)
+VOID ScVirtual86_Int(IN PDWORD context, BYTE vector)
 {
     PV86_CHAIN_LINK current_link;
+
+    supervisor_call = 1;
 
     // A null handler is an invalid entry
     // Iterate through links, call the handler, if response is
     // CAPT_NOHND, call next handler.
-
+/*
     current_link = &v86_capture_chain[vector];
 
     // As long as there is another link
@@ -136,6 +136,7 @@ VOID ScVirtual86_Int(IN PDOS_REGS context, BYTE vector)
             continue;
         }
     }
+*/
 
     // Fall back to real mode, in this case, the trap is of no
     // interest to any 32-bit drivers, and must go to the real mode
@@ -144,10 +145,11 @@ VOID ScVirtual86_Int(IN PDOS_REGS context, BYTE vector)
     // Changing the context is not enough, I actually need to
     // go to real mode using ScEnterV86, and I have to duplicate
     // the passed context because I should not be changing CS and EIP
-    TRAP_FRAME new_context = *context;
+    DWORD new_context[RD_NUM_DWORDS];
+    C_memcpy(new_context, context, RD_NUM_DWORDS*4);
 
-    new_context.cs  = real_mode_ivt[vector] >> 16;
-    new_context.eip = (WORD)real_mode_ivt[vector];
+    new_context[RD_CS]  = real_mode_ivt[vector] >> 16;
+    new_context[RD_EIP] = real_mode_ivt[vector] & 0xFFFF;
 
     IaIOPB_Allow();
 
@@ -155,18 +157,18 @@ VOID ScVirtual86_Int(IN PDOS_REGS context, BYTE vector)
     // register states instead of global variables.
     // -> When this function is called, ScVirtual_Int will only continue
     // when ShootdownV86 is called.
-    ScEnterV86(&new_context);
+    ScEnterV86(new_context);
 
     IaIOPB_Deny();
 }
 
 // The V86 monitor for 16-bit tasks, ISRs, and PM BIOS/DOS calls
 // Called by GP# handler
-void ScMonitorV86(IN PDOS_REGS context)
+VOID ScMonitorV86(IN PDWORD context)
 {
     // After GPF, saved EIP points to the instruction, NOT AFTER
-    PBYTE ins   = MK_LP(context->cs, context->eip);
-    PWORD stack = MK_LP(context->ss, context->esp);
+    PBYTE ins   = MK_LP(context[RD_CS], context[RD_EIP]);
+    PWORD stack = MK_LP(context[RD_SS], context[RD_ESP]);
 
     // Software interrupts may be called by anything and must be emulated
     // if that interrupt has not been captured by a driver
@@ -204,16 +206,20 @@ void ScMonitorV86(IN PDOS_REGS context)
             //      IRQ         -> return to caller
             //      INTx        -> return to caller
 
-            ScShootdownV86(); // Re-enter caller of ScEnterV86
+            // Re-enter caller of ScEnterV86, this will not enter
+            // immediately, only after the #GP handler returns.
+            // Reflecting interrupts also uses EnterV86
+            ScOnExceptRetReenterCallerV86();
+            return;
         break;
 
         case 0xFA: /* CLI */
             IntsOff();
-            context->eip++;
+            context[RD_EIP]++;
         break;
         case 0xFB: /* STI */
             IntsOn();
-            context->eip++;
+            context[RD_EIP]++;
         break;
 
         case 0xCE: /* INTO */
@@ -226,16 +232,22 @@ void ScMonitorV86(IN PDOS_REGS context)
         break;
         }// END OF SWITCH
     }
+    if (!supervisor_call)
+    {
+    }
 
-} // On return, code continues to execute
+    // On return, code continues to execute or re-enters caller
+    // of EnterV86
+}
 
-STATUS V86CaptStub(PDOS_REGS tf)
+STATUS V86CaptStub()
 {
      return CAPT_NOHND;
 }
 
 //
 // Must be called before using anything in this file.
+// The scheduler does NOT need to be initialized for V86
 //
 VOID InitV86(VOID)
 {

@@ -71,7 +71,7 @@ DB      LNE
 ;----------------------------
 ; Error message strings
 
-MnoXMS          DB	"[!] OS/90 required an XMS driver.",LNE
+MnoXMS          DB	"[!] OS/90 requires an XMS driver.",LNE
 OpenErr         DB      "[!] Error opening KERNL386.SYS, reinstall OS/90.",LNE
 A20Error	DB      "[!] Error enabling A20 gate.",LNE
 HMA_Error       DB	"[!] Could not get entire HMA.",LNE
@@ -80,8 +80,6 @@ Machine         DB      "[!] 2MB of memory is required",LNE
 KernelFile      DB      "[!] The kernel image appears corrupted.",LNE
 FileIO_Error    DB      "[!] Error opening or reading from kernel image",LNE
 MoveError       DB      "[!] Error copying from conventional to extended memory",LNE
-
-BreakPointMSG   DB      "[BREAK]",LNE
 
 ;----------------------------
 ; Debug message strings
@@ -317,6 +315,8 @@ PageSetup:
         ; 102000h:
         ;       Page table for kernel memory
         ;
+        ; We also want the 1M section to be marked as ring 3
+        ; so that virtual 8086 mode and the kernel can access it.
 
         MESSAGE "[i] Creating page tables",LNE
         push    es
@@ -326,8 +326,8 @@ PageSetup:
         mov     bx,16
 
         ;Create the page directory
-        mov     dword [es:bx],       (101h<<PAGE_SHIFT)|3
-        mov     dword [es:bx+768*4], (102h<<PAGE_SHIFT)|3
+        mov     dword [es:bx],       (101h<<PAGE_SHIFT)|7h
+        mov     dword [es:bx+768*4], (102h<<PAGE_SHIFT)|3h
 
         ;Copy the IDMAP page table to HMA
         mov     cx,256
@@ -417,10 +417,12 @@ XMM:    ;Extended memory move
 .desoff:DD      0
 
 ;Page tables are zeroed before this is copied in
+;Note the different page flags here. User pages are required
+;for V86
 IDMap:
 %assign i 0
 %rep 256
-        DD      (i << PAGE_SHIFT) | 3h
+        DD      (i << PAGE_SHIFT) | 7h
         %assign i i+1
 %endrep
 

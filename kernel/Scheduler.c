@@ -116,36 +116,13 @@ void FloatError()
 // not bothered at all.
 //
 //
-void PageFault(PVOID tf)
+CREATE_EXCEPT_HANDLER(PageFault)(PDWORD regs)
 {
-    DWORD error_code = ScGetFaultErrorCode();
-    DWORD pfla; __asm__("movl %%cr0, %0" :"=r"(pfla)::);
+    const DWORD     error_code      = ScGetFaultErrorCode();
+    const BOOL      caused_by_cpl_3 = (error_code >> 2) & 1;
+    DWORD pfla;
 
-    const BOOL caused_by_cpl_3 = (error_code >> 2)&1;
-
-    // For this to be a far call hook, the following conditions must be met
-    // * Code segment must be FAR_CALL_BASE_SEG
-    // * Fault must be caused by a ring three program (V86 is always ring 3)
-    // * Fault address must be in appropriante range withing segment
-    // * The access must be a FAR CALL opcode (?)
-
-    if (       pfla >= FAR_CALL_BASE_ADDR
-            && pfla <= FAR_CALL_BASE_ADDR+FAR_CALL_UPPER_BOUND_OFFSET
-            && caused_by_cpl_3
-            && tf->cs == FAR_CALL_BASE_SEG
-            )
-    {
-        // Is the opcode FAR CALL?
-        // If not a far call, it could be an INT or something else
-        // This page can be marked present
-
-        // This page fault is a call by a DOS program to a 32-bit far call
-        // handler. Dispatch to Farcall.c.
-        HandleFcallAfterPF(tf->eip, tf);
-
-        // We are done here, continue execution.
-        return;
-    }
+    __asm__("movl %%cr0, %0" :"=r"(pfla)::);
 }
 
 //
@@ -162,11 +139,14 @@ void PageFault(PVOID tf)
 // The kernel may need to call software interrupts when the scheduler has not
 // been yet initialized and no programs are running (with their own RM stacks).
 //
+// If this is the case, this function will detect if the scheduler has enabled
 //
-VOID ScInitDosCallTrapFrame(PDWORD tf)
+//
+//
+VOID ScInitDosCallTrapFrame(PDWORD regs)
 {
-    tf->esp = current_pcb->kernel_real_mode_ss;
-    tf->ss = current_pcb->kernel_real_mode_sp;
+    regs[RD_ESP] = current_pcb->kernel_real_mode_ss;
+    regs[RD_SS]  = current_pcb->kernel_real_mode_sp;
 }
 
 DWORD ScCurrentProgramInProtectedMode(VOID)
@@ -174,7 +154,7 @@ DWORD ScCurrentProgramInProtectedMode(VOID)
     return current_pcb->thread32;
 }
 
-VOID GeneralProtect(PTRAP_FRAME tf)
+CREATE_EXCEPT_HANDLER(GeneralProtect)(DWORD vm, PDWORD regs)
 {
     /*
      * The error code is always zero if it is not
@@ -189,9 +169,14 @@ VOID GeneralProtect(PTRAP_FRAME tf)
    // Is it from the kernel?
    // If so PANIC
 
-    // Is the GPF from VM86?
+    // Is the GPF from V86?
+    if (vm)
+    {
+        ScMonitorV86(regs);
+    }
 
     // If not, terminate the current task
+    ScNukeCurrentProcess();
 }
 
 static inline void SendEOI(BYTE vector)
@@ -223,10 +208,10 @@ static VOID HandleIRQ0(DWORD vm, PDWORD t)
 // EAX and EDX pass the arguments for simplicity
 //
 __attribute__(( regparm(2), optimize("align-functions=64") ))
-VOID InMasterDispatch(IN PDWORD tf, DWORD irq)
+VOID InMasterDispatch(PDWORD regs, DWORD irq)
 {
     WORD  inservice16 = InGetInService16();
-    const DWORD v86_interrupted = tf->eflags & (1<<17) != 0;
+    const DWORD v86_interrupted = regs[RD_EFLAGS] & (1<<17) != 0;
 
     /// 1. The ISR is set to zero for both PICs upon SpurInt.
     /// 2. If an spurious IRQ comes from master, no EOI is sent
@@ -237,7 +222,7 @@ VOID InMasterDispatch(IN PDWORD tf, DWORD irq)
 
     // Is this IRQ#0? If so, handle it directly
     if (BIT_IS_SET(inservice16, 0))
-        HandleIRQ0(tf);
+        HandleIRQ0(v86_interrupted, regs);
 
     // Is this a spurious IRQ? If so, do not handle.
     if (irq == 7 && (inservice16 & 0xFF) == 0)
@@ -249,7 +234,7 @@ VOID InMasterDispatch(IN PDWORD tf, DWORD irq)
     {
         // Interrupts can fire during an ISR if there is nothing atomic going on
         IntsOn();
-        InGetInterruptHandler(irq)(v86_interrupted, tf);
+        InGetInterruptHandler(irq)(v86_interrupted, regs);
         SendEOI(irq);
     }
     else if (RECL_16)
@@ -286,7 +271,7 @@ VOID Init_DPMI_ReflectionHandlers()
 // If the kernel caused the error, we don't care. The main handler
 // deals with that.
 //
-VOID CheckAndHandleDPMI_Trap(DWORD tf)
+VOID CheckAndHandleDPMI_Trap(PDWORD regs)
 {
     DWORD error_index   = ScGetFaultErrorCode();
     DWORD caused_by_idt = (error_index >> 1)&1;
@@ -312,8 +297,8 @@ VOID CheckAndHandleDPMI_Trap(DWORD tf)
             //
 
             // Set the address to return when handler is done
-            tf[RD_EIP] = current_pcb->local_idt[vector].handler_address;
-            tf[RD_CS]  = current_pcb->local_idt[vector].handler_code_segment;
+            regs[RD_EIP] = current_pcb->local_idt[vector].handler_address;
+            regs[RD_CS]  = current_pcb->local_idt[vector].handler_code_segment;
         break;
 
         default:
@@ -346,20 +331,19 @@ static VOID ConfigurePIT()
     outb(0x40, count[1]);
 }
 
+//
+// The PnP manager must be initialized before the scheduler
+// When the scheduler is enabled, INIT.EXE will automatically execute
+// and interrupts will be enabled.
+//
 VOID InitScheduler()
 {
     ConfigurePIT();
     Init_DPMI_ReflectionHandlers();
 
     // Claim the timer IRQ resource
-    // The handler is called by dispatcher directly for speed
 
     // Now get IRQ#13 and assign the ISR
-
-    //
-    // Each interrupt has its own vector so that the IRQ number
-    // can be automatically deduced in the case of a spurious interrupt
-    // Index the ISRs since they are same size?
 
     // The exception handlers are already installed by IA32.c
 

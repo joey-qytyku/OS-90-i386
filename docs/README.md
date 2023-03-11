@@ -14,7 +14,7 @@ It will be released under a different name, but the source code will always be n
 
 |Spec|Minimum|Recommended|Premium|
 -|-|-|-
-RAM | 2MB      | 4MB       | 16MB
+RAM | 4MB      | 8MB       | 16MB
 CPU | i386SX   | i486DX    | Pentium CPU
 PC  | PC/AT    | PC/AT     | PS/2 compatible
 OS  | DOS 3.0  | -         | -

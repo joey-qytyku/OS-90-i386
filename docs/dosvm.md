@@ -6,19 +6,31 @@ In both cases, the monitor is used for handling GPF exceptions to emulate ring-0
 
 # TSS and V86 Context Switching
 
+## ESP0 and SS0
+
 The task state segment contains two important fields, ESP0 and SS0. SS0 will always be set to the flat model segment of the kernel for the switch back to 32-bit mode. The value of ESP is simply what EnterV86 started with before running in protected mode. ShootdownV86 is the other function that V86 uses. When it is called, execution transfers back to the caller of EnterV86. This is normally only called in exception handlers.
+
+## IRET Stack Frame
 
 If the EFLAGS on the stack has the VM bit enabled, IRET will pop the data segment registers from the stack. This allows us to set the segment registers before entry.
 
-When the V86 program is interrupted, the stack is set to ES0:ESP0 in the TSS and all the segment registers are pushed along with the usual IRET stack frame. The 32-bit segment selectors have to be restored. According to the intel documentation, they are "zeroed" (aka refference null segment). The stack segment is the same as the data segment, and CS:EIP is already set from the interrupt descriptor. This means that restoring the proper register context should be as simple as SS=>DS,ES,FS,GS.
+When the V86 program is interrupted, the stack is set to ES0:ESP0 in the TSS and all the segment registers are pushed along with the usual IRET stack frame. The 32-bit segment selectors have to be restored. According to the intel documentation, they are "zeroed" (aka reference null segment). The stack segment is the same as the data segment, and CS:EIP is already set from the interrupt descriptor. This means that restoring the proper register context should be as simple as SS=>DS,ES,FS,GS.
 
-EnterV86 continues execution in V86. Because this function is re-entrant, the stack pointer in the TSS saved must point to the register dump.
-
-See this for more info: https://stackoverflow.com/questions/54845547/problem-switching-to-v8086-mode-from-32-bit-protected-mode-by-setting-eflags-vm
+EnterV86 continues execution in V86. Because this function is re-entrant, the stack pointer in the TSS saved must point to the register dump. See this for more info: https://stackoverflow.com/questions/54845547/problem-switching-to-v8086-mode-from-32-bit-protected-mode-by-setting-eflags-vm
 
 The kernel allocates a stack for each program running on the system, both 16-bit and 32-bit. EnterV86 does not re-enter the caller and simply resumes execution in V86 mode. Only an interrupt or exception can stop the execution of any ring-3 code, as well as V86. When GPF is called from V86, the handler is called and ESP0 is loaded from the TSS. Interrupts and exceptions must work in V86 mode or getting out is impossible, but if ESP0 stays the same and the stack is reset upon each supervisor call, the stack of the caller is destroyed and the system will crash. To prevent this, ScEnterV86 saves ESP to the TSS.
 
-Sometimes the kernel has to access real mode software.
+## Entering and Exiting
+
+A C caller can enter virtual 8086 mode. When this happens, ScEnterV86 loads the context into the main registers and pushes the segments, EFLAGS, and EIP onto the stack. It then calls IRET.
+
+The only way to get out of virtual 8086 mode is an IRQ or exception. An exception may want to re-enter the caller, especially if a real mode procedure is being called. ScEnterV86 sets SS:ESP in the TSS to point to where it was before calling IRET. The exception handler can use SS0:ESP0 to get the address of the kernel C caller register dump and copy them to its own interrupt register dump. The return stack pointer and EIP will restore the CPU to the state when ScEnterV86 was just called, discarding the saved registers. Then it returns to the caller.
+
+Can the shootdown function just change ESP an then IRET?
+
+I should not have to save any registers except the ones GCC does not allow to be clobbered, right?
+
+## Other Information
 
 Task switching never happens when the kernel or drivers are running. This is especially critical for BIOS/DOS calls from protected mode because a task switch would change the kernel stack being used.
 
@@ -29,6 +41,12 @@ The INT instruction is emulated by the V86 monitor. Capture chains are used to s
 IRET is a termination code for an ISR and a regular 16-bit V86 program. This is because normal software has no reason to use IRET, and it is impossible to tell when an ISR is trying to exit except by detecting the IRET.
 
 The stack is not modified by virtual IRET and INT because it does not need to be and these instructions have special significance to only the monitor. This means that the monitor is incompatible with an ISR that uses the saved values. There is probably no reason for this anyway.
+
+## Far Calls
+
+Some DOS APIs use far calls. One way to implement this is by setting making a page within the BIOS ROM as unmapped. The page fault handler checks to make sure the code segment matches the base segment, which cannot be 0xF000 due to conflict with BIOS interrupts. The problem is how the page will be trapped. We could make the page ring zero, but that would conflict with V86 if the BIOS has an ISR there. We could also unmap the page (mark as not available), but that would give the same problem and would require modifying the page table, which violates abstraction.
+
+Another way is to utilize a real mode stub that somehow signals the virtual monitor.
 
 ## The Local Interrupt Problem
 

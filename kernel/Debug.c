@@ -126,20 +126,21 @@ VOID APICALL KeLogf(OUTPUT_DRIVER od, IMUSTR restrict fmt, ...)
 
 VOID _KernelPutchar(BYTE ch)
 {
-    TRAP_FRAME regparm = { .regs.eax = (0xE << 8) | ch};
-    ScVirtual86_Int(&regparm, 0x10);
+    DWORD regparm[RD_NUM_DWORDS] = { [RD_EAX] = (0xE << 8) | ch };
+
+    ScVirtual86_Int(regparm, 0x10);
 }
 
 VOID FatalError(DWORD error_code)
 {
-    TRAP_FRAME regparm = { 0 };
     volatile PBYTE text_attrib = (PBYTE)0xB8000;
 
     ScOnErrorDetatchLinks();
 
     // Switch to text mode 3
-    regparm.regs.eax = 3;
-    ScVirtual86_Int(&regparm, 0x10);
+    DWORD regparm[RD_NUM_DWORDS] = { [RD_EAX]=3 };
+    // REMEMBER TO INIT REG PARAMS
+    ScVirtual86_Int(regparm, 0x10);
 
     // Print the message
     KeLogf(_KernelPutchar,

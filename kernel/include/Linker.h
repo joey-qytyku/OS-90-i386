@@ -16,9 +16,10 @@
 // because the kernel binary is relocated to higher half
 // subtraction is needed to go to low memory
 
-// Really?
+//
 // phys() should be used for symbols, not absolute addresses (aka integer cast)
-
+// Absolute addresses are not relocated by linker.
+//
 #define HIGHER_HALF 0xC0000000
 #define phys(a) ((PVOID)(a-HIGHER_HALF))
 

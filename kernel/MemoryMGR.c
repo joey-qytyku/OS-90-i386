@@ -16,28 +16,25 @@ HANDLE MmCreateHeap(PVOID virtual_addr);
 //
 WORD MmAllocateDosMemory(WORD paragraphs)
 {
-    TRAP_FRAME tf;
+    DWORD regparm[RD_NUM_DWORDS];
 
-    tf.regs.eax = 0x4800;
-    tf.regs.ebx = paragraphs;
+    regparm[RD_EAX] = 0x4800;
+    regparm[RD_EBX] = paragraphs;
 
     // INIT TRAP FRAME!
 
-    ScVirtual86_Int(&tf, 0x21);
+    ScVirtual86_Int(regparm, 0x21);
 
-    if (tf.eflags & 1)
+    if (regparm[RD_EFLAGS] & 1)
     {
         // If the DOS call fails, it returns the maximum block size
         // with available memory. This function assumes the caller wants that
         // exact amount of memory
         return 0xFFFF;  // Error
     }
-    return tf.regs.eax;
+    return regparm[RD_EAX];
 }
 
 VOID MmFreeDosMemory(WORD segment)
 {
-    TRAP_FRAME tf;
-
-    ScVirtual86_Int(&tf, 0x21);
 }

@@ -19,13 +19,13 @@ static DWORD dpmi_entry_farcall;
 //
 
 
-static STATUS DpmiRealModeApiHandler(PTRAP_FRAME tf)
+static STATUS DpmiRealModeApiHandler(PDWORD regs)
 {
-    if ((WORD)tf->regs.eax != 0x1687)
+    if ((WORD)regs[RD_EAX] != 0x1687)
         return CAPT_NOHND;
 }
 
-static VOID DpmiInt31hHandler()
+static VOID DpmiInt31hHandler(PDWORD regs)
 {
 }
 
@@ -45,5 +45,5 @@ VOID KeInit_DOS_Server()
 {
     // Hook INT 2Fh
     ScHookDosTrap(0x2F, &lnk, DpmiRealModeApiHandler);
-    ScInsertFarCallHandler(DpmiRealModeApiHandler);
+    dpmi_entry_farcall = ScInsertFarCallHandler(DpmiRealModeApiHandler);
 }

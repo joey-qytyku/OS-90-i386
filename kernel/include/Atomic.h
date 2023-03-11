@@ -30,9 +30,13 @@ typedef volatile DWORD MUTEX;
 
 // Compiler memory fence. This OS is for single processor systems, so a compiler memory fence
 // on a non-preemptible kernel is a true fence.
-#define MemFence() __asm__ __volatile__ ("":::"memory")
+#define MemFence() __asm__ volatile ("":::"memory")
 
+//
+// Is this right?
+// What if the interrupts are already off?
+//
 #define EnterCriticalSecttion() IntsOff()
-#define ExitCriticalSection()   IntsOn();
+#define ExitCriticalSection()   IntsOn()
 
 #endif /* MUTEX_H */

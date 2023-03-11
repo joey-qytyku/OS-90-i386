@@ -20,6 +20,8 @@
 #include <Type.h>
 #include <Debug.h>
 
+#include <Linker.h>
+
 // Note that DPMI is called with INT 31h
 #define IDT_SIZE 256
 
@@ -70,13 +72,21 @@ static VOID (*except[EXCEPT_IMPLEMENTED])() =
     LowPageFault
 };
 
-//
-//
+VOID _SetIntVector(BYTE vector, BYTE _attr, PVOID address)
+{
+    _ia32_struct.idt[vector].attr = _attr;
+    _ia32_struct.idt[vector].offset_15_0  = (DWORD)address &  0xFFFF;
+    _ia32_struct.idt[vector].offset_16_31 = (DWORD)address >> 16;
+    _ia32_struct.idt[vector].zero = 0;
+    _ia32_struct.idt[vector].selector = GDT_KCODE << 3;
+}
+
 static inline VOID FillIDT(void)
 {
-    int i;
-    for (i=0; i < EXCEPT_IMPLEMENTED; i++)
+    for (BYTE i = 0; i < EXCEPT_IMPLEMENTED; i++)
+    {
         MkTrapGate(i, 0, except[i]);
+    }
 
     MkIntrGate(IRQ_BASE, Low0);    MkIntrGate(IRQ_BASE, Low1);
     MkIntrGate(IRQ_BASE, Low2);    MkIntrGate(IRQ_BASE, Low3);
@@ -115,6 +125,17 @@ static void PIC_Remap(void)
     pic_outb(0xA1, ICW4_8086 | ICW4_SLAVE); // Assert PIC2 is slave
 }
 
+__attribute__((regparm(1)))
+VOID SetESP0(DWORD address)
+{
+    _ia32_struct.tss.esp0 = address;
+}
+
+DWORD GetESP0(VOID)
+{
+    return _ia32_struct.tss.esp0;
+}
+
 //
 // Detect the X87 and set it up if present
 //
@@ -147,10 +168,10 @@ static STATUS SetupX87(VOID)
     }
 }
 
+static WORD i = 1;
 VOID DummyOutDrv(BYTE ch)
 {
-    static WORD i = 1;
-    const PBYTE txt = 0xB8000;
+    const PBYTE txt = phys(0xB8000);
     txt[i] = ch;
     i+=2;
 }
@@ -174,7 +195,10 @@ void InitIA32(void)
         :"rm"(ldt_selector)
         :"memory"
         );
-    return;
+
+    // Set TSS.SS0 to the kernel SS value
+    // This does not change
+    _ia32_struct.tss.ss0 = GDT_KDATA << 3;
 
     // There are two IO permission bitmaps for all processes
     // One is deny all ports and the other is allow all
@@ -186,11 +210,8 @@ void InitIA32(void)
     pic_outb(0x20,0xB);  // Tell the PICs to send the ISR through CMD port reads
     pic_outb(0xA0,0xB);  // The kernel does need the IRR
 
-    //
     // The PIC will not have interrupts masked. By default, any IRQs
     // not in use by DOS software will already be masked.
-    //
 
     FillIDT();
-    KeLogf(DummyOutDrv, "Hello, world!");
 }
